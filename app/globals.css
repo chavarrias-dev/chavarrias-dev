@@ -2,19 +2,20 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #0f172a;
+  --foreground: #1a1a1a;
   --accent: #227de8;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent: #227de8;
+  /* --font-poppins-family set on <html> by next/font */
+  --font-sans: var(--font-poppins-family), ui-sans-serif, system-ui, sans-serif;
+  --font-poppins: var(--font-poppins-family), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Inter", Arial, Helvetica, sans-serif;
 }

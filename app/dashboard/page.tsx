@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -32,47 +33,64 @@ export default async function DashboardPage() {
   const userRole = profile?.role ?? "user";
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
-        <p className="text-2xl font-bold tracking-wide text-[#227DE8]">CHAVARRIAS</p>
-        <LogoutButton action={logout} />
-      </div>
-
-      <section className="mx-auto w-full max-w-5xl px-6 pb-10">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-          <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-          <p className="mt-2 text-slate-600">Sesion autenticada con Supabase Auth.</p>
-
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 p-4">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Nombre
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-slate-900">{displayName}</dd>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Correo
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-slate-900">
-                {profile?.email ?? user.email}
-              </dd>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Rol
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-slate-900">{userRole}</dd>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Usuario ID
-              </dt>
-              <dd className="mt-1 break-all text-sm text-slate-900">{user.id}</dd>
-            </div>
-          </dl>
+    <div className="font-poppins min-h-screen w-full bg-[#FFFFFF]">
+      <header className="border-b border-slate-200/80 bg-white">
+        <div className="flex w-full items-center justify-between gap-4 px-6 py-4 lg:px-10">
+          <Image
+            src="/chavarrias_logo.svg"
+            alt="Chavarrias"
+            width={1715}
+            height={395}
+            className="h-8 w-auto max-w-[180px] object-contain object-left sm:h-9 sm:max-w-[220px]"
+            priority
+          />
+          <LogoutButton action={logout} />
         </div>
-      </section>
-    </main>
+      </header>
+
+      <main className="w-full flex-1 px-6 py-8 lg:px-10">
+        <div className="mb-8">
+          <h1 className="text-2xl font-medium tracking-tight text-slate-900">
+            Dashboard
+          </h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Sesion autenticada con Supabase Auth.
+          </p>
+        </div>
+
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Nombre
+            </dt>
+            <dd className="mt-1.5 text-sm font-medium text-slate-900">
+              {displayName}
+            </dd>
+          </div>
+          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Correo
+            </dt>
+            <dd className="mt-1.5 text-sm font-medium text-slate-900">
+              {profile?.email ?? user.email}
+            </dd>
+          </div>
+          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Rol
+            </dt>
+            <dd className="mt-1.5 text-sm font-medium text-slate-900">
+              {userRole}
+            </dd>
+          </div>
+          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+              Usuario ID
+            </dt>
+            <dd className="mt-1.5 break-all text-sm text-slate-800">{user.id}</dd>
+          </div>
+        </dl>
+      </main>
+    </div>
   );
 }
