@@ -1,8 +1,11 @@
-import Image from "next/image";
+import Link from "next/link";
+import { desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
+import { RoleBadge } from "@/components/dashboard/role-badge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { LogoutButton } from "@/components/auth/logout-button";
-import { logout } from "./actions";
+import { db } from "@/db";
+import { clients } from "@/db/schema";
 
 type Profile = {
   id: string;
@@ -29,68 +32,53 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .maybeSingle<Profile>();
 
-  const displayName = profile?.full_name ?? user.email ?? "Usuario";
+  const welcomeName = profile?.full_name?.trim() || user.email || "Usuario";
   const userRole = profile?.role ?? "user";
 
-  return (
-    <div className="font-poppins min-h-screen w-full bg-[#FFFFFF]">
-      <header className="border-b border-slate-200/80 bg-white">
-        <div className="flex w-full items-center justify-between gap-4 px-6 py-4 lg:px-10">
-          <Image
-            src="/chavarrias_logo.svg"
-            alt="Chavarrias"
-            width={1715}
-            height={395}
-            className="h-8 w-auto max-w-[180px] object-contain object-left sm:h-9 sm:max-w-[220px]"
-            priority
-          />
-          <LogoutButton action={logout} />
-        </div>
-      </header>
+  let recentClients: {
+    id: string;
+    fullName: string;
+    email: string;
+    companyName: string | null;
+  }[] = [];
+  try {
+    recentClients = await db
+      .select({
+        id: clients.id,
+        fullName: clients.fullName,
+        email: clients.email,
+        companyName: clients.companyName,
+      })
+      .from(clients)
+      .orderBy(desc(clients.createdAt))
+      .limit(4);
+  } catch {
+    recentClients = [];
+  }
 
-      <main className="w-full flex-1 px-6 py-8 lg:px-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-            Dashboard
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Sesion autenticada con Supabase Auth.
+  return (
+    <main className="w-full flex-1 px-6 py-8 lg:px-10">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-medium tracking-tight text-slate-900 sm:text-[1.65rem]">
+              Hola, {welcomeName}
+            </h1>
+            <RoleBadge role={userRole} />
+          </div>
+          <p className="text-sm text-slate-500">
+            Bienvenido al CRM Chavarrias. Aquí tienes un resumen de actividad.
           </p>
         </div>
+        <Link
+          href="/dashboard/clients/new"
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+        >
+          Agregar Cliente
+        </Link>
+      </div>
 
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Nombre
-            </dt>
-            <dd className="mt-1.5 text-sm font-medium text-slate-900">
-              {displayName}
-            </dd>
-          </div>
-          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Correo
-            </dt>
-            <dd className="mt-1.5 text-sm font-medium text-slate-900">
-              {profile?.email ?? user.email}
-            </dd>
-          </div>
-          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Rol
-            </dt>
-            <dd className="mt-1.5 text-sm font-medium text-slate-900">
-              {userRole}
-            </dd>
-          </div>
-          <div className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Usuario ID
-            </dt>
-            <dd className="mt-1.5 break-all text-sm text-slate-800">{user.id}</dd>
-          </div>
-        </dl>
-      </main>
-    </div>
+      <RecentClientsCard clients={recentClients} />
+    </main>
   );
 }
