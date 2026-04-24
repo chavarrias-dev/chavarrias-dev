@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type FacturaRow = {
@@ -58,7 +59,7 @@ export default async function FacturasListPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-4 py-3 font-medium text-slate-700">Número</th>
@@ -67,13 +68,14 @@ export default async function FacturasListPage() {
                 <th className="px-4 py-3 font-medium text-slate-700">Monto</th>
                 <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Alta</th>
+                <th className="px-4 py-3 font-medium text-slate-700"> </th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-10 text-center text-slate-500"
                   >
                     Aún no hay facturas.{" "}
@@ -137,6 +139,17 @@ export default async function FacturasListPage() {
                             year: "numeric",
                           })
                         : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/dashboard/facturas/${f.id}/edit`}
+                          className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
+                        >
+                          Editar
+                        </Link>
+                        <DeleteFacturaForm facturaId={f.id} />
+                      </div>
                     </td>
                   </tr>
                 ))

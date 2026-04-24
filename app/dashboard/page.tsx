@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
+import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { clients } from "@/db/schema";
+import { clients, facturas } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
 
 type Profile = {
   id: string;
@@ -56,6 +57,38 @@ export default async function DashboardPage() {
     recentClients = [];
   }
 
+  let recentFacturas: {
+    id: string;
+    numeroFactura: string;
+    clientName: string;
+    monto: string;
+    fecha: string;
+  }[] = [];
+  try {
+    const rows = await db
+      .select({
+        id: facturas.id,
+        numeroFactura: facturas.numeroFactura,
+        fecha: facturas.fecha,
+        monto: facturas.monto,
+        clientName: clients.fullName,
+      })
+      .from(facturas)
+      .innerJoin(clients, eq(facturas.clienteId, clients.id))
+      .orderBy(desc(facturas.createdAt))
+      .limit(4);
+
+    recentFacturas = rows.map((r) => ({
+      id: r.id,
+      numeroFactura: r.numeroFactura,
+      clientName: r.clientName,
+      monto: String(r.monto),
+      fecha: r.fecha,
+    }));
+  } catch {
+    recentFacturas = [];
+  }
+
   return (
     <main className="w-full flex-1 px-6 py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -93,6 +126,7 @@ export default async function DashboardPage() {
       </div>
 
       <RecentClientsCard clients={recentClients} />
+      <RecentFacturasCard facturas={recentFacturas} />
     </main>
   );
 }
