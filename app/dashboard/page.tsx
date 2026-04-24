@@ -70,12 +70,26 @@ export default async function DashboardPage() {
             Bienvenido al CRM Chavarrias. Aquí tienes un resumen de actividad.
           </p>
         </div>
-        <Link
-          href="/dashboard/clients/new"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-        >
-          Agregar Cliente
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/clients/new"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+          >
+            Agregar Cliente
+          </Link>
+          <Link
+            href="/dashboard/facturas/new"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+          >
+            Nueva factura
+          </Link>
+          <Link
+            href="/dashboard/pedimentos/new"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+          >
+            Nuevo pedimento
+          </Link>
+        </div>
       </div>
 
       <RecentClientsCard clients={recentClients} />
