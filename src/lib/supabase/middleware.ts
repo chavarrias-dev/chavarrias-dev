@@ -110,7 +110,7 @@ export async function updateSession(request: NextRequest) {
 
     const role = await getUserRole(supabase, user.id);
 
-    if (pathname.startsWith("/dashboard/users") && role !== "admin") {
+    if (pathname.startsWith("/dashboard/users") && !isStaffRole(role)) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       url.search = "";

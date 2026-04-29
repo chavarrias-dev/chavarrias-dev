@@ -13,7 +13,7 @@ export default function ClientsLoading() {
 
       <SkeletonLine className="mb-4 h-5 w-full max-w-xl rounded-lg" />
 
-      <SkeletonTable rows={5} columns={6} minWidthClass="min-w-[640px]" />
+      <SkeletonTable rows={5} columns={7} minWidthClass="min-w-[760px]" />
     </main>
   );
 }

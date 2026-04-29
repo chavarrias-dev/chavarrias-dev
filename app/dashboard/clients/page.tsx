@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteClientForm } from "@/components/clients/delete-client-form";
 import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -13,7 +14,11 @@ type ClientRow = {
   created_at: string | null;
 };
 
-export default async function ClientsListPage() {
+type PageProps = {
+  searchParams: Promise<{ error?: string }>;
+};
+
+export default async function ClientsListPage({ searchParams }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -21,6 +26,10 @@ export default async function ClientsListPage() {
 
   const role = user ? await getUserRole(supabase, user.id) : null;
   const isAdmin = role === "admin";
+  const isStaff = role === "admin" || role === "empleado";
+
+  const sp = await searchParams;
+  const actionError = sp.error ? decodeURIComponent(sp.error) : undefined;
 
   const { data: clients, error } = await supabase
     .from("clients")
@@ -32,7 +41,7 @@ export default async function ClientsListPage() {
   const rows = (clients ?? []) as ClientRow[];
 
   return (
-    <main className="w-full flex-1 px-6 py-8 lg:px-10">
+    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-medium tracking-tight text-slate-900">
@@ -58,9 +67,15 @@ export default async function ClientsListPage() {
         </p>
       ) : null}
 
+      {actionError ? (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {actionError}
+        </p>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-4 py-3 font-medium text-slate-700">Nombre</th>
@@ -69,13 +84,18 @@ export default async function ClientsListPage() {
                 <th className="px-4 py-3 font-medium text-slate-700">Empresa</th>
                 <th className="px-4 py-3 font-medium text-slate-700">RFC</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Alta</th>
+                {isStaff ? (
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Acciones
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={isStaff ? 7 : 6}
                     className="px-4 py-10 text-center text-slate-500"
                   >
                     Aún no hay clientes.{" "}
@@ -119,6 +139,19 @@ export default async function ClientsListPage() {
                           })
                         : "—"}
                     </td>
+                    {isStaff ? (
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/dashboard/clients/${c.id}/edit`}
+                            className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteClientForm clientId={c.id} />
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}

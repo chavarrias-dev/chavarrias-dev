@@ -39,7 +39,6 @@ export default async function DashboardPage() {
   const resolvedRole = await getUserRole(supabase, user.id);
   const isStaff =
     resolvedRole === "admin" || resolvedRole === "empleado";
-  const isAdmin = resolvedRole === "admin";
 
   let recentClients: {
     id: string;
@@ -145,14 +144,12 @@ export default async function DashboardPage() {
         </div>
         {isStaff ? (
           <div className="flex flex-wrap gap-2">
-            {isAdmin ? (
-              <Link
-                href="/dashboard/users/new"
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-              >
-                Nuevo usuario
-              </Link>
-            ) : null}
+            <Link
+              href="/dashboard/users/new"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+            >
+              Nuevo usuario
+            </Link>
             <Link
               href="/dashboard/facturas/new"
               className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"

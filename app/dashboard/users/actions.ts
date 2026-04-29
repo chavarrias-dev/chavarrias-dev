@@ -19,7 +19,7 @@ function parseRole(raw: unknown): ProfileRole | null {
   return null;
 }
 
-async function requireAdmin() {
+async function requireStaff() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -28,14 +28,14 @@ async function requireAdmin() {
     redirect("/login");
   }
   const role = await getUserRole(supabase, user.id);
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "empleado") {
     redirect("/dashboard");
   }
   return { supabase, user };
 }
 
 export async function createUser(formData: FormData) {
-  await requireAdmin();
+  await requireStaff();
 
   const fullName = formData.get("full_name");
   const emailRaw = formData.get("email");
@@ -47,15 +47,18 @@ export async function createUser(formData: FormData) {
   if (typeof emailRaw !== "string" || !emailRaw.trim()) {
     redirect("/dashboard/users/new?error=Correo%20requerido");
   }
-  if (typeof passwordRaw !== "string" || passwordRaw.trim().length < 6) {
-    redirect(
-      "/dashboard/users/new?error=Contrase%C3%B1a%20requerida%20%286%20caracteres%20m%C3%ADnimo%29",
-    );
-  }
 
   const role = parseRole(formData.get("role"));
   if (!role) {
     redirect("/dashboard/users/new?error=Rol%20invalido");
+  }
+
+  if (role !== "cliente") {
+    if (typeof passwordRaw !== "string" || passwordRaw.trim().length < 6) {
+      redirect(
+        "/dashboard/users/new?error=Contrase%C3%B1a%20requerida%20%286%20caracteres%20m%C3%ADnimo%29",
+      );
+    }
   }
 
   const email = emailRaw.trim().toLowerCase();
@@ -70,21 +73,36 @@ export async function createUser(formData: FormData) {
     meta.phone = phone;
   }
 
-  const { data: created, error: authErr } =
-    await admin.auth.admin.createUser({
-      email,
-      password: passwordRaw,
-      email_confirm: true,
-      user_metadata: meta,
-    });
+  let uid: string;
 
-  if (authErr || !created.user) {
-    redirect(
-      `/dashboard/users/new?error=${encodeURIComponent(authErr?.message ?? "Error al crear usuario en Auth")}`,
-    );
+  if (role === "cliente") {
+    const { data: invited, error: inviteErr } =
+      await admin.auth.admin.inviteUserByEmail(email, {
+        data: meta,
+      });
+
+    if (inviteErr || !invited?.user) {
+      redirect(
+        `/dashboard/users/new?error=${encodeURIComponent(inviteErr?.message ?? "Error al enviar invitación")}`,
+      );
+    }
+    uid = invited.user.id;
+  } else {
+    const { data: created, error: authErr } =
+      await admin.auth.admin.createUser({
+        email,
+        password: passwordRaw as string,
+        email_confirm: true,
+        user_metadata: meta,
+      });
+
+    if (authErr || !created?.user) {
+      redirect(
+        `/dashboard/users/new?error=${encodeURIComponent(authErr?.message ?? "Error al crear usuario en Auth")}`,
+      );
+    }
+    uid = created.user.id;
   }
-
-  const uid = created.user.id;
 
   const { error: profileErr } = await admin.from("profiles").upsert(
     {
@@ -120,13 +138,17 @@ export async function createUser(formData: FormData) {
         `/dashboard/users/new?error=${encodeURIComponent(clientErr.message)}`,
       );
     }
+
+    redirect(
+      `/dashboard/users?success=cliente_invite&invited_email=${encodeURIComponent(email)}`,
+    );
   }
 
   redirect("/dashboard/users");
 }
 
 export async function updateUser(formData: FormData) {
-  await requireAdmin();
+  await requireStaff();
 
   const userId = formData.get("user_id");
   if (typeof userId !== "string" || !userId.trim()) {
@@ -272,7 +294,21 @@ export async function updateUser(formData: FormData) {
 }
 
 export async function deleteUser(formData: FormData) {
-  const { user } = await requireAdmin();
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const actorRole = await getUserRole(supabase, user.id);
+  if (actorRole !== "admin") {
+    redirect(
+      `/dashboard/users?error=${encodeURIComponent(
+        "Solo los administradores pueden eliminar usuarios.",
+      )}`,
+    );
+  }
 
   const raw = formData.get("user_id");
   if (typeof raw !== "string" || !raw.trim()) {

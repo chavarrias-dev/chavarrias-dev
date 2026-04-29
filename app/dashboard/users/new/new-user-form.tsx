@@ -65,42 +65,6 @@ export function NewUserForm({ errorMessage }: NewUserFormProps) {
 
         <div>
           <label
-            htmlFor="password"
-            className="mb-1.5 block text-sm font-medium text-slate-700"
-          >
-            Contraseña <span className="text-red-600">*</span>
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="new-password"
-            minLength={6}
-            className={inputClass}
-            placeholder="Mínimo 6 caracteres"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="phone"
-            className="mb-1.5 block text-sm font-medium text-slate-700"
-          >
-            Teléfono
-          </label>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            className={inputClass}
-            placeholder="+52 …"
-          />
-        </div>
-
-        <div>
-          <label
             htmlFor="role"
             className="mb-1.5 block text-sm font-medium text-slate-700"
           >
@@ -118,6 +82,49 @@ export function NewUserForm({ errorMessage }: NewUserFormProps) {
             <option value="empleado">Empleado</option>
             <option value="cliente">Cliente</option>
           </select>
+        </div>
+
+        {role !== "cliente" ? (
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Contraseña <span className="text-red-600">*</span>
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="new-password"
+              minLength={6}
+              className={inputClass}
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+        ) : (
+          <p className="rounded-lg border border-slate-200/90 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">
+            Para clientes no se define contraseña aquí: recibirán un correo para
+            establecerla.
+          </p>
+        )}
+
+        <div>
+          <label
+            htmlFor="phone"
+            className="mb-1.5 block text-sm font-medium text-slate-700"
+          >
+            Teléfono
+          </label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            className={inputClass}
+            placeholder="+52 …"
+          />
         </div>
 
         {role === "cliente" ? (

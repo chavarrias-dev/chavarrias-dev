@@ -22,7 +22,7 @@ export default async function EditUserPage({ params, searchParams }: PageProps) 
   }
 
   const role = await getUserRole(supabase, user.id);
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "empleado") {
     redirect("/dashboard");
   }
 
