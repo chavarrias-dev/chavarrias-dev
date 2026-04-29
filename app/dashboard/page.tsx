@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
+import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { clients, facturas } from "@/db/schema";
@@ -35,6 +36,10 @@ export default async function DashboardPage() {
 
   const welcomeName = profile?.full_name?.trim() || user.email || "Usuario";
   const userRole = profile?.role ?? "user";
+  const resolvedRole = await getUserRole(supabase, user.id);
+  const isStaff =
+    resolvedRole === "admin" || resolvedRole === "empleado";
+  const isAdmin = resolvedRole === "admin";
 
   let recentClients: {
     id: string;
@@ -42,19 +47,21 @@ export default async function DashboardPage() {
     email: string;
     companyName: string | null;
   }[] = [];
-  try {
-    recentClients = await db
-      .select({
-        id: clients.id,
-        fullName: clients.fullName,
-        email: clients.email,
-        companyName: clients.companyName,
-      })
-      .from(clients)
-      .orderBy(desc(clients.createdAt))
-      .limit(4);
-  } catch {
-    recentClients = [];
+  if (isStaff) {
+    try {
+      recentClients = await db
+        .select({
+          id: clients.id,
+          fullName: clients.fullName,
+          email: clients.email,
+          companyName: clients.companyName,
+        })
+        .from(clients)
+        .orderBy(desc(clients.createdAt))
+        .limit(4);
+    } catch {
+      recentClients = [];
+    }
   }
 
   let recentFacturas: {
@@ -65,26 +72,59 @@ export default async function DashboardPage() {
     fecha: string;
   }[] = [];
   try {
-    const rows = await db
-      .select({
-        id: facturas.id,
-        numeroFactura: facturas.numeroFactura,
-        fecha: facturas.fecha,
-        monto: facturas.monto,
-        clientName: clients.fullName,
-      })
-      .from(facturas)
-      .innerJoin(clients, eq(facturas.clienteId, clients.id))
-      .orderBy(desc(facturas.createdAt))
-      .limit(4);
+    if (isStaff) {
+      const rows = await db
+        .select({
+          id: facturas.id,
+          numeroFactura: facturas.numeroFactura,
+          fecha: facturas.fecha,
+          monto: facturas.monto,
+          clientName: clients.fullName,
+        })
+        .from(facturas)
+        .innerJoin(clients, eq(facturas.clienteId, clients.id))
+        .orderBy(desc(facturas.createdAt))
+        .limit(4);
 
-    recentFacturas = rows.map((r) => ({
-      id: r.id,
-      numeroFactura: r.numeroFactura,
-      clientName: r.clientName,
-      monto: String(r.monto),
-      fecha: r.fecha,
-    }));
+      recentFacturas = rows.map((r) => ({
+        id: r.id,
+        numeroFactura: r.numeroFactura,
+        clientName: r.clientName,
+        monto: String(r.monto),
+        fecha: r.fecha,
+      }));
+    } else if (user.email) {
+      const clientMatch = await db
+        .select({ id: clients.id })
+        .from(clients)
+        .where(eq(clients.email, user.email.trim()))
+        .limit(1);
+
+      const cid = clientMatch[0]?.id;
+      if (cid) {
+        const rows = await db
+          .select({
+            id: facturas.id,
+            numeroFactura: facturas.numeroFactura,
+            fecha: facturas.fecha,
+            monto: facturas.monto,
+            clientName: clients.fullName,
+          })
+          .from(facturas)
+          .innerJoin(clients, eq(facturas.clienteId, clients.id))
+          .where(eq(facturas.clienteId, cid))
+          .orderBy(desc(facturas.createdAt))
+          .limit(4);
+
+        recentFacturas = rows.map((r) => ({
+          id: r.id,
+          numeroFactura: r.numeroFactura,
+          clientName: r.clientName,
+          monto: String(r.monto),
+          fecha: r.fecha,
+        }));
+      }
+    }
   } catch {
     recentFacturas = [];
   }
@@ -103,29 +143,35 @@ export default async function DashboardPage() {
             Bienvenido al CRM Chavarrias. Aquí tienes un resumen de actividad.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/dashboard/clients/new"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-          >
-            Agregar Cliente
-          </Link>
-          <Link
-            href="/dashboard/facturas/new"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
-          >
-            Nueva factura
-          </Link>
-          <Link
-            href="/dashboard/pedimentos/new"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
-          >
-            Nuevo pedimento
-          </Link>
-        </div>
+        {isStaff ? (
+          <div className="flex flex-wrap gap-2">
+            {isAdmin ? (
+              <Link
+                href="/dashboard/users/new"
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+              >
+                Nuevo usuario
+              </Link>
+            ) : null}
+            <Link
+              href="/dashboard/facturas/new"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+            >
+              Nueva factura
+            </Link>
+            <Link
+              href="/dashboard/pedimentos/new"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+            >
+              Nuevo pedimento
+            </Link>
+          </div>
+        ) : null}
       </div>
 
-      <RecentClientsCard clients={recentClients} />
+      {isStaff ? (
+        <RecentClientsCard clients={recentClients} />
+      ) : null}
       <RecentFacturasCard facturas={recentFacturas} />
     </main>
   );

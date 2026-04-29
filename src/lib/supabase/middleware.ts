@@ -1,8 +1,43 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export type ProfileRole = "admin" | "empleado" | "cliente";
+
+/**
+ * Loads the user's role from `profiles`. Returns null if missing or on error.
+ */
+export async function getUserRole(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<ProfileRole | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle<{ role: ProfileRole | null }>();
+
+  if (error || data?.role == null) {
+    return null;
+  }
+  return data.role;
+}
+
+function isStaffRole(role: ProfileRole | null): boolean {
+  return role === "admin" || role === "empleado";
+}
+
+function clienteForbiddenPath(pathname: string): boolean {
+  if (pathname.startsWith("/dashboard/tools")) return true;
+  if (pathname.startsWith("/dashboard/clients")) return true;
+  if (pathname === "/dashboard/facturas/new") return true;
+  if (/^\/dashboard\/facturas\/[^/]+\/edit$/.test(pathname)) return true;
+  if (pathname === "/dashboard/pedimentos/new") return true;
+  return false;
+}
 
 /**
  * Apply cookies set during session refresh to a new response.
@@ -30,8 +65,8 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value),
         );
         supabaseResponse = NextResponse.next({
@@ -51,16 +86,47 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthPage = request.nextUrl.pathname === "/login";
-  const isDashboardPath = request.nextUrl.pathname.startsWith("/dashboard");
+  const pathname = request.nextUrl.pathname;
+  const isAuthPage = pathname === "/login";
+  const isDashboardPath = pathname.startsWith("/dashboard");
 
   if (!user && isDashboardPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirectedFrom", request.nextUrl.pathname);
+    url.searchParams.set("redirectedFrom", pathname);
     const redirect = NextResponse.redirect(url);
     applyResponseCookies(redirect, supabaseResponse);
     return redirect;
+  }
+
+  if (user && isDashboardPath) {
+    if (pathname === "/dashboard/clients/new") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard/users/new";
+      const redirectClientsNew = NextResponse.redirect(url);
+      applyResponseCookies(redirectClientsNew, supabaseResponse);
+      return redirectClientsNew;
+    }
+
+    const role = await getUserRole(supabase, user.id);
+
+    if (pathname.startsWith("/dashboard/users") && role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      url.search = "";
+      const redirect = NextResponse.redirect(url);
+      applyResponseCookies(redirect, supabaseResponse);
+      return redirect;
+    }
+
+    if (!isStaffRole(role) && clienteForbiddenPath(pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      url.search = "";
+      const redirect = NextResponse.redirect(url);
+      applyResponseCookies(redirect, supabaseResponse);
+      return redirect;
+    }
   }
 
   if (user && isAuthPage) {

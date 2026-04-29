@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { NewFacturaForm } from "@/components/facturas/new-factura-form";
 import type { ClientOption } from "@/components/clients/types";
+import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -9,6 +10,12 @@ type PageProps = {
 
 export default async function NewFacturaPage({ searchParams }: PageProps) {
   const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const role = user ? await getUserRole(supabase, user.id) : null;
+  const isAdmin = role === "admin";
+
   const { data: clientRows } = await supabase
     .from("clients")
     .select("id, full_name")
@@ -27,12 +34,18 @@ export default async function NewFacturaPage({ searchParams }: PageProps) {
           <p className="text-sm text-amber-950">
             Necesitas al menos un cliente para crear una factura.
           </p>
-          <Link
-            href="/dashboard/clients/new"
-            className="mt-4 inline-flex text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
-          >
-            Agregar cliente
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/dashboard/users/new"
+              className="mt-4 inline-flex text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
+            >
+              Registrar usuario cliente
+            </Link>
+          ) : (
+            <span className="mt-4 block text-sm text-slate-600">
+              Pide a un administrador que registre clientes en el sistema.
+            </span>
+          )}
         </div>
       </main>
     );

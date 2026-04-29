@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
+import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type FacturaRow = {
@@ -42,6 +43,26 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   );
 
   const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const role = user ? await getUserRole(supabase, user.id) : null;
+  const isStaff = role === "admin" || role === "empleado";
+
+  let clienteIdForCliente: string | null = null;
+  if (!isStaff && user?.email) {
+    const { data: match } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("email", user.email.trim())
+      .maybeSingle();
+    clienteIdForCliente = (match as { id: string } | null)?.id ?? null;
+  }
+
+  const clienteFilterScoped = isStaff
+    ? clienteFilter
+    : clienteIdForCliente;
 
   let query = supabase
     .from("facturas")
@@ -52,8 +73,8 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   if (numeroFilter) {
     query = query.ilike("numero_factura", `%${numeroFilter}%`);
   }
-  if (clienteFilter) {
-    query = query.eq("cliente_id", clienteFilter);
+  if (clienteFilterScoped) {
+    query = query.eq("cliente_id", clienteFilterScoped);
   }
   if (fechaDesde) {
     query = query.gte("fecha", fechaDesde);
@@ -62,16 +83,28 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
     query = query.lte("fecha", fechaHasta);
   }
 
-  const { data: facturas, error } = await query.order("created_at", {
-    ascending: false,
-  });
+  let facturas: FacturaRow[] | null = null;
+  let error: { message: string } | null = null;
+
+  if (!isStaff && !clienteIdForCliente) {
+    facturas = [];
+  } else {
+    const result = await query.order("created_at", {
+      ascending: false,
+    });
+    facturas = result.data as FacturaRow[] | null;
+    error = result.error;
+  }
 
   const { data: clientRows } = await supabase
     .from("clients")
     .select("id, full_name")
     .order("full_name", { ascending: true });
 
-  const clientsList = (clientRows ?? []) as ClientOption[];
+  let clientsList = (clientRows ?? []) as ClientOption[];
+  if (!isStaff && clienteIdForCliente) {
+    clientsList = clientsList.filter((c) => c.id === clienteIdForCliente);
+  }
 
   const clientMap = new Map(
     clientsList.map((c) => [c.id, c.full_name]),
@@ -90,18 +123,22 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
             Listado de facturas registradas.
           </p>
         </div>
-        <Link
-          href="/dashboard/facturas/new"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-        >
-          Nueva factura
-        </Link>
+        {isStaff ? (
+          <Link
+            href="/dashboard/facturas/new"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+          >
+            Nueva factura
+          </Link>
+        ) : null}
       </div>
 
       <section className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-medium text-slate-700">Filtros</h2>
         <form method="GET" action="/dashboard/facturas" className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            className={`grid grid-cols-1 gap-4 ${isStaff ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3"}`}
+          >
             <div>
               <label
                 htmlFor="numero"
@@ -118,7 +155,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                 className={fieldClass}
               />
             </div>
-            <div>
+            <div className={!isStaff ? "hidden" : undefined}>
               <label
                 htmlFor="cliente_id"
                 className="mb-1.5 block text-xs font-medium text-slate-600"
@@ -204,14 +241,16 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                 <th className="px-4 py-3 font-medium text-slate-700">Monto</th>
                 <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Alta</th>
-                <th className="px-4 py-3 font-medium text-slate-700"> </th>
+                {isStaff ? (
+                  <th className="px-4 py-3 font-medium text-slate-700"> </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={isStaff ? 7 : 6}
                     className="px-4 py-10 text-center text-sm text-slate-500"
                   >
                     {hasFilters ? (
@@ -226,13 +265,21 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                       </>
                     ) : (
                       <>
-                        Aún no hay facturas.{" "}
-                        <Link
-                          href="/dashboard/facturas/new"
-                          className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                        >
-                          Registrar la primera
-                        </Link>
+                        {!isStaff && !clienteIdForCliente ? (
+                          "Tu cuenta no está vinculada a un cliente en el sistema."
+                        ) : (
+                          <>
+                            Aún no hay facturas.{" "}
+                            {isStaff ? (
+                              <Link
+                                href="/dashboard/facturas/new"
+                                className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
+                              >
+                                Registrar la primera
+                              </Link>
+                            ) : null}
+                          </>
+                        )}
                       </>
                     )}
                   </td>
@@ -290,17 +337,19 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                           })
                         : "—"}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/dashboard/facturas/${f.id}/edit`}
-                          className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteFacturaForm facturaId={f.id} />
-                      </div>
-                    </td>
+                    {isStaff ? (
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/dashboard/facturas/${f.id}/edit`}
+                            className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteFacturaForm facturaId={f.id} />
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}

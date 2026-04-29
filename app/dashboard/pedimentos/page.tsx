@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PedimentoRow = {
@@ -14,12 +15,43 @@ type PedimentoRow = {
 
 export default async function PedimentosListPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: pedimentos, error } = await supabase
-    .from("pedimentos")
-    .select(
-      "id, numero_pedimento, fecha, aduana, cliente_id, archivo_url, notas, created_at",
-    )
-    .order("created_at", { ascending: false });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const role = user ? await getUserRole(supabase, user.id) : null;
+  const isStaff = role === "admin" || role === "empleado";
+
+  let clienteIdForCliente: string | null = null;
+  if (!isStaff && user?.email) {
+    const { data: match } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("email", user.email.trim())
+      .maybeSingle();
+    clienteIdForCliente = (match as { id: string } | null)?.id ?? null;
+  }
+
+  let pedimentos: PedimentoRow[] | null = null;
+  let error: { message: string } | null = null;
+
+  if (!isStaff && !clienteIdForCliente) {
+    pedimentos = [];
+  } else {
+    let query = supabase
+      .from("pedimentos")
+      .select(
+        "id, numero_pedimento, fecha, aduana, cliente_id, archivo_url, notas, created_at",
+      );
+
+    if (!isStaff && clienteIdForCliente) {
+      query = query.eq("cliente_id", clienteIdForCliente);
+    }
+
+    const result = await query.order("created_at", { ascending: false });
+    pedimentos = result.data as PedimentoRow[] | null;
+    error = result.error;
+  }
 
   const { data: clientRows } = await supabase
     .from("clients")
@@ -42,12 +74,14 @@ export default async function PedimentosListPage() {
             Listado de pedimentos registrados.
           </p>
         </div>
-        <Link
-          href="/dashboard/pedimentos/new"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-        >
-          Nuevo pedimento
-        </Link>
+        {isStaff ? (
+          <Link
+            href="/dashboard/pedimentos/new"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+          >
+            Nuevo pedimento
+          </Link>
+        ) : null}
       </div>
 
       {error ? (
@@ -76,13 +110,21 @@ export default async function PedimentosListPage() {
                     colSpan={6}
                     className="px-4 py-10 text-center text-slate-500"
                   >
-                    Aún no hay pedimentos.{" "}
-                    <Link
-                      href="/dashboard/pedimentos/new"
-                      className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                    >
-                      Registrar el primero
-                    </Link>
+                    {!isStaff && !clienteIdForCliente ? (
+                      "Tu cuenta no está vinculada a un cliente en el sistema."
+                    ) : (
+                      <>
+                        Aún no hay pedimentos.{" "}
+                        {isStaff ? (
+                          <Link
+                            href="/dashboard/pedimentos/new"
+                            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
+                          >
+                            Registrar el primero
+                          </Link>
+                        ) : null}
+                      </>
+                    )}
                   </td>
                 </tr>
               ) : (

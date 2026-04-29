@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ClientOption } from "@/components/clients/types";
 import { EditFacturaForm } from "@/components/facturas/edit-factura-form";
+import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type FacturaRecord = {
@@ -28,6 +29,9 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
   if (!user) {
     redirect("/login");
   }
+
+  const authRole = await getUserRole(supabase, user.id);
+  const isAdmin = authRole === "admin";
 
   const { data: factura, error } = await supabase
     .from("facturas")
@@ -67,12 +71,18 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
           <p className="text-sm text-amber-950">
             Necesitas al menos un cliente asignado.
           </p>
-          <Link
-            href="/dashboard/clients/new"
-            className="mt-4 inline-flex text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
-          >
-            Agregar cliente
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/dashboard/users/new"
+              className="mt-4 inline-flex text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
+            >
+              Registrar usuario cliente
+            </Link>
+          ) : (
+            <span className="mt-4 block text-sm text-slate-600">
+              Pide a un administrador que registre clientes en el sistema.
+            </span>
+          )}
         </div>
       </main>
     );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ClientRow = {
@@ -14,6 +15,13 @@ type ClientRow = {
 
 export default async function ClientsListPage() {
   const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const role = user ? await getUserRole(supabase, user.id) : null;
+  const isAdmin = role === "admin";
+
   const { data: clients, error } = await supabase
     .from("clients")
     .select(
@@ -34,12 +42,14 @@ export default async function ClientsListPage() {
             Listado de clientes registrados en el CRM.
           </p>
         </div>
-        <Link
-          href="/dashboard/clients/new"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-        >
-          Agregar cliente
-        </Link>
+        {isAdmin ? (
+          <Link
+            href="/dashboard/users/new"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+          >
+            Agregar usuario
+          </Link>
+        ) : null}
       </div>
 
       {error ? (
@@ -69,12 +79,16 @@ export default async function ClientsListPage() {
                     className="px-4 py-10 text-center text-slate-500"
                   >
                     Aún no hay clientes.{" "}
-                    <Link
-                      href="/dashboard/clients/new"
-                      className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                    >
-                      Crear el primero
-                    </Link>
+                    {isAdmin ? (
+                      <Link
+                        href="/dashboard/users/new"
+                        className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
+                      >
+                        Crear usuario cliente
+                      </Link>
+                    ) : (
+                      "Contacta a un administrador para registrar clientes."
+                    )}
                   </td>
                 </tr>
               ) : (
