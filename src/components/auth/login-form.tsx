@@ -1,3 +1,6 @@
+"use client";
+
+import { useFormStatus } from "react-dom";
 import { login } from "../../../app/login/actions";
 
 type LoginFormProps = {
@@ -42,6 +45,83 @@ function LockIcon() {
   );
 }
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      aria-busy={pending}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-75"
+    >
+      {pending ? (
+        <span
+          className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white border-t-transparent"
+          aria-hidden
+        />
+      ) : null}
+      Entrar
+    </button>
+  );
+}
+
+function LoginFields() {
+  const { pending } = useFormStatus();
+
+  return (
+    <>
+      <div>
+        <label
+          htmlFor="email"
+          className="mb-1.5 block text-sm font-medium text-slate-700"
+        >
+          Correo electrónico
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 transition-all duration-200">
+            <EnvelopeIcon />
+          </span>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            disabled={pending}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20 disabled:opacity-60"
+            placeholder="tu@empresa.com"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label
+          htmlFor="password"
+          className="mb-1.5 block text-sm font-medium text-slate-700"
+        >
+          Contraseña
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 transition-all duration-200">
+            <LockIcon />
+          </span>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            disabled={pending}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20 disabled:opacity-60"
+            placeholder="••••••••"
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function LoginForm({ errorMessage }: LoginFormProps) {
   return (
     <div className="font-poppins flex min-h-screen flex-col bg-white lg:flex-row">
@@ -68,51 +148,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
             </header>
 
             <form action={login} className="space-y-5">
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Correo electrónico
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 transition-all duration-200">
-                    <EnvelopeIcon />
-                  </span>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20"
-                    placeholder="tu@empresa.com"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 transition-all duration-200">
-                    <LockIcon />
-                  </span>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
+              <LoginFields />
 
               {errorMessage ? (
                 <p
@@ -123,12 +159,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
                 </p>
               ) : null}
 
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-[#227DE8] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/40 focus-visible:ring-offset-2"
-              >
-                Entrar
-              </button>
+              <SubmitButton />
             </form>
           </div>
         </div>
@@ -138,10 +169,7 @@ export function LoginForm({ errorMessage }: LoginFormProps) {
         className="relative flex min-h-[22rem] w-full flex-1 flex-col items-center justify-center overflow-hidden bg-[#227DE8] px-8 py-12 text-white sm:min-h-[26rem] lg:min-h-screen lg:w-1/2 lg:flex-none"
         aria-label="Bienvenida"
       >
-        <div
-          className="pointer-events-none absolute inset-0"
-          aria-hidden
-        >
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div className="absolute -right-16 -top-20 h-72 w-72 rounded-full bg-white/10 blur-0 transition-transform duration-500" />
           <div className="absolute -bottom-12 -left-20 h-80 w-80 rounded-full bg-white/10" />
           <div className="absolute left-1/2 top-1/4 h-40 w-40 -translate-x-1/2 rounded-full bg-white/5" />
