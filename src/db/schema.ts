@@ -57,3 +57,16 @@ export const pedimentos = pgTable("pedimentos", {
   notas: text("notas"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const activityLogs = pgTable("activity_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => profiles.id),
+  userEmail: text("user_email").notNull(),
+  action: text("action").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  entityName: text("entity_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});

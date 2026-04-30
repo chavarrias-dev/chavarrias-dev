@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity-log";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ProfileRole } from "@/lib/supabase/middleware";
 import { getUserRole } from "@/lib/supabase/middleware";
@@ -35,7 +36,7 @@ async function requireStaff() {
 }
 
 export async function createUser(formData: FormData) {
-  await requireStaff();
+  const { supabase: actorSupabase, user: actor } = await requireStaff();
 
   const fullName = formData.get("full_name");
   const emailRaw = formData.get("email");
@@ -139,10 +140,28 @@ export async function createUser(formData: FormData) {
       );
     }
 
+    await logActivity(actorSupabase, {
+      userId: actor.id,
+      userEmail: actor.email ?? "",
+      action: "creó usuario",
+      entityType: "usuario",
+      entityId: uid,
+      entityName: fullName.trim(),
+    });
+
     redirect(
       `/dashboard/users?success=cliente_invite&invited_email=${encodeURIComponent(email)}`,
     );
   }
+
+  await logActivity(actorSupabase, {
+    userId: actor.id,
+    userEmail: actor.email ?? "",
+    action: "creó usuario",
+    entityType: "usuario",
+    entityId: uid,
+    entityName: fullName.trim(),
+  });
 
   redirect("/dashboard/users");
 }
@@ -326,9 +345,13 @@ export async function deleteUser(formData: FormData) {
 
   const { data: profile, error: profileLoadErr } = await admin
     .from("profiles")
-    .select("email, role")
+    .select("email, role, full_name")
     .eq("id", targetId)
-    .maybeSingle<{ email: string; role: ProfileRole | null }>();
+    .maybeSingle<{
+      email: string;
+      role: ProfileRole | null;
+      full_name: string | null;
+    }>();
 
   if (profileLoadErr || !profile) {
     redirect(
@@ -368,6 +391,18 @@ export async function deleteUser(formData: FormData) {
       `/dashboard/users?error=${encodeURIComponent(authDelErr.message)}`,
     );
   }
+
+  const entityDisplay =
+    profile.full_name?.trim() || emailNorm;
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "eliminó usuario",
+    entityType: "usuario",
+    entityId: targetId,
+    entityName: entityDisplay,
+  });
 
   redirect("/dashboard/users");
 }

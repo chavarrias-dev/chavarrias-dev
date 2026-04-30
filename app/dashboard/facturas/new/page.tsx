@@ -5,7 +5,7 @@ import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PageProps = {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; cliente_id?: string }>;
 };
 
 export default async function NewFacturaPage({ searchParams }: PageProps) {
@@ -26,6 +26,7 @@ export default async function NewFacturaPage({ searchParams }: PageProps) {
   const errorMessage = params.error
     ? decodeURIComponent(params.error)
     : undefined;
+  const defaultClienteId = params.cliente_id?.trim() || undefined;
 
   if (clients.length === 0) {
     return (
@@ -53,7 +54,11 @@ export default async function NewFacturaPage({ searchParams }: PageProps) {
 
   return (
     <main className="w-full flex-1 px-6 py-8 lg:px-10">
-      <NewFacturaForm clients={clients} errorMessage={errorMessage} />
+      <NewFacturaForm
+        clients={clients}
+        errorMessage={errorMessage}
+        defaultClienteId={defaultClienteId}
+      />
     </main>
   );
 }

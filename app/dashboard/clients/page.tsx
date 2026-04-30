@@ -118,7 +118,12 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
                     className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">
-                      {c.full_name}
+                      <Link
+                        href={`/dashboard/clients/${c.id}`}
+                        className="text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
+                      >
+                        {c.full_name}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{c.email}</td>
                     <td className="px-4 py-3 text-slate-600">
@@ -142,6 +147,12 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
                     {isStaff ? (
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/dashboard/clients/${c.id}`}
+                            className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
+                          >
+                            Ver perfil
+                          </Link>
                           <Link
                             href={`/dashboard/clients/${c.id}/edit`}
                             className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"

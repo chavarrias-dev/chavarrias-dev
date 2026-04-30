@@ -30,12 +30,20 @@ function isStaffRole(role: ProfileRole | null): boolean {
   return role === "admin" || role === "empleado";
 }
 
+/** Clientes may open exactly `/dashboard/clients/<id>` (profile view); list and edit remain blocked. */
+function isClienteAllowedClientsProfile(pathname: string): boolean {
+  return /^\/dashboard\/clients\/[^/]+$/.test(pathname);
+}
+
 function clienteForbiddenPath(pathname: string): boolean {
   if (pathname.startsWith("/dashboard/tools")) return true;
-  if (pathname.startsWith("/dashboard/clients")) return true;
+  if (pathname.startsWith("/dashboard/clients")) {
+    return !isClienteAllowedClientsProfile(pathname);
+  }
   if (pathname === "/dashboard/facturas/new") return true;
   if (/^\/dashboard\/facturas\/[^/]+\/edit$/.test(pathname)) return true;
   if (pathname === "/dashboard/pedimentos/new") return true;
+  if (/^\/dashboard\/pedimentos\/[^/]+\/edit$/.test(pathname)) return true;
   return false;
 }
 
@@ -111,6 +119,15 @@ export async function updateSession(request: NextRequest) {
     const role = await getUserRole(supabase, user.id);
 
     if (pathname.startsWith("/dashboard/users") && !isStaffRole(role)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      url.search = "";
+      const redirect = NextResponse.redirect(url);
+      applyResponseCookies(redirect, supabaseResponse);
+      return redirect;
+    }
+
+    if (pathname.startsWith("/dashboard/activity") && role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       url.search = "";

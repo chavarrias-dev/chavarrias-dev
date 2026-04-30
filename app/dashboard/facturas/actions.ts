@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity-log";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
@@ -89,6 +90,15 @@ export async function saveFactura(formData: FormData) {
         .eq("id", row.id);
     }
   }
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "creó factura",
+    entityType: "factura",
+    entityId: row.id,
+    entityName: numero.trim(),
+  });
 
   redirect("/dashboard/facturas");
 }
@@ -196,6 +206,15 @@ export async function updateFactura(formData: FormData) {
     }
   }
 
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "editó factura",
+    entityType: "factura",
+    entityId: id,
+    entityName: numero.trim(),
+  });
+
   redirect("/dashboard/facturas");
 }
 
@@ -216,13 +235,16 @@ export async function deleteFactura(formData: FormData) {
 
   const { data: row, error: fetchErr } = await supabase
     .from("facturas")
-    .select("id, archivo_url")
+    .select("id, archivo_url, numero_factura")
     .eq("id", id)
     .maybeSingle();
 
   if (fetchErr || !row) {
     redirect("/dashboard/facturas?error=Factura%20no%20encontrada");
   }
+
+  const numeroLabel =
+    (row as { numero_factura?: string }).numero_factura?.trim() ?? id;
 
   if (row.archivo_url) {
     const path = `facturas/${user.id}/${id}.pdf`;
@@ -236,6 +258,15 @@ export async function deleteFactura(formData: FormData) {
       `/dashboard/facturas?error=${encodeURIComponent(delErr.message)}`,
     );
   }
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "eliminó factura",
+    entityType: "factura",
+    entityId: id,
+    entityName: numeroLabel,
+  });
 
   redirect("/dashboard/facturas");
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity-log";
 import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -22,11 +23,11 @@ async function requireStaff() {
   if (role !== "admin" && role !== "empleado") {
     redirect("/dashboard");
   }
-  return supabase;
+  return { supabase, user };
 }
 
 export async function updateClient(formData: FormData) {
-  const supabase = await requireStaff();
+  const { supabase, user } = await requireStaff();
 
   const rawId = formData.get("client_id");
   if (typeof rawId !== "string" || !rawId.trim()) {
@@ -66,17 +67,35 @@ export async function updateClient(formData: FormData) {
     );
   }
 
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "editó cliente",
+    entityType: "cliente",
+    entityId: clientId,
+    entityName: fullName.trim(),
+  });
+
   redirect("/dashboard/clients");
 }
 
 export async function deleteClient(formData: FormData) {
-  const supabase = await requireStaff();
+  const { supabase, user } = await requireStaff();
 
   const rawId = formData.get("client_id");
   if (typeof rawId !== "string" || !rawId.trim()) {
     redirect("/dashboard/clients?error=Identificador%20invalido");
   }
   const clientId = rawId.trim();
+
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("full_name")
+    .eq("id", clientId)
+    .maybeSingle();
+
+  const displayName =
+    (existing as { full_name: string } | null)?.full_name?.trim() ?? clientId;
 
   const { error } = await supabase.from("clients").delete().eq("id", clientId);
 
@@ -85,6 +104,15 @@ export async function deleteClient(formData: FormData) {
       `/dashboard/clients?error=${encodeURIComponent(error.message)}`,
     );
   }
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "eliminó cliente",
+    entityType: "cliente",
+    entityId: clientId,
+    entityName: displayName,
+  });
 
   redirect("/dashboard/clients");
 }

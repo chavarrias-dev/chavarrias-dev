@@ -25,6 +25,7 @@ export default async function DashboardLayout({
 
   const role = await getUserRole(supabase, user.id);
   const isStaff = role === "admin" || role === "empleado";
+  const isAdmin = role === "admin";
 
   return (
     <div className="font-poppins min-h-screen w-full bg-[#FFFFFF]">
@@ -56,6 +57,11 @@ export default async function DashboardLayout({
               {isStaff ? (
                 <Link href="/dashboard/users" className={navLinkClass}>
                   Usuarios
+                </Link>
+              ) : null}
+              {isAdmin ? (
+                <Link href="/dashboard/activity" className={navLinkClass}>
+                  Actividad
                 </Link>
               ) : null}
               <Link href="/dashboard/facturas" className={navLinkClass}>

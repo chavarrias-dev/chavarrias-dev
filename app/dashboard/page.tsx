@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
+import { RecentPedimentosCard } from "@/components/dashboard/recent-pedimentos-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
 import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { clients, facturas } from "@/db/schema";
+import { clients, facturas, pedimentos } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 type Profile = {
@@ -39,6 +40,17 @@ export default async function DashboardPage() {
   const resolvedRole = await getUserRole(supabase, user.id);
   const isStaff =
     resolvedRole === "admin" || resolvedRole === "empleado";
+
+  let clienteOwnProfileId: string | null = null;
+  if (resolvedRole === "cliente" && user.email) {
+    const { data: clientSelf } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("email", user.email.trim())
+      .maybeSingle();
+    clienteOwnProfileId =
+      (clientSelf as { id: string } | null)?.id ?? null;
+  }
 
   let recentClients: {
     id: string;
@@ -128,6 +140,71 @@ export default async function DashboardPage() {
     recentFacturas = [];
   }
 
+  let recentPedimentos: {
+    id: string;
+    numeroPedimento: string;
+    clientName: string | null;
+    aduana: string;
+    fecha: string;
+  }[] = [];
+  try {
+    if (isStaff) {
+      const rows = await db
+        .select({
+          id: pedimentos.id,
+          numeroPedimento: pedimentos.numeroPedimento,
+          fecha: pedimentos.fecha,
+          aduana: pedimentos.aduana,
+          clientName: clients.fullName,
+        })
+        .from(pedimentos)
+        .leftJoin(clients, eq(pedimentos.clienteId, clients.id))
+        .orderBy(desc(pedimentos.createdAt))
+        .limit(4);
+
+      recentPedimentos = rows.map((r) => ({
+        id: r.id,
+        numeroPedimento: r.numeroPedimento,
+        clientName: r.clientName,
+        aduana: r.aduana,
+        fecha: r.fecha,
+      }));
+    } else if (user.email) {
+      const clientMatch = await db
+        .select({ id: clients.id })
+        .from(clients)
+        .where(eq(clients.email, user.email.trim()))
+        .limit(1);
+
+      const cid = clientMatch[0]?.id;
+      if (cid) {
+        const rows = await db
+          .select({
+            id: pedimentos.id,
+            numeroPedimento: pedimentos.numeroPedimento,
+            fecha: pedimentos.fecha,
+            aduana: pedimentos.aduana,
+            clientName: clients.fullName,
+          })
+          .from(pedimentos)
+          .innerJoin(clients, eq(pedimentos.clienteId, clients.id))
+          .where(eq(pedimentos.clienteId, cid))
+          .orderBy(desc(pedimentos.createdAt))
+          .limit(4);
+
+        recentPedimentos = rows.map((r) => ({
+          id: r.id,
+          numeroPedimento: r.numeroPedimento,
+          clientName: r.clientName,
+          aduana: r.aduana,
+          fecha: r.fecha,
+        }));
+      }
+    }
+  } catch {
+    recentPedimentos = [];
+  }
+
   return (
     <main className="w-full flex-1 px-6 py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -166,10 +243,32 @@ export default async function DashboardPage() {
         ) : null}
       </div>
 
+      {resolvedRole === "cliente" && clienteOwnProfileId ? (
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-medium tracking-tight text-slate-900">
+                Mis documentos
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Revisa tus facturas y pedimentos en un solo lugar.
+              </p>
+            </div>
+            <Link
+              href={`/dashboard/clients/${clienteOwnProfileId}`}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+            >
+              Mi perfil de cliente
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       {isStaff ? (
         <RecentClientsCard clients={recentClients} />
       ) : null}
       <RecentFacturasCard facturas={recentFacturas} />
+      <RecentPedimentosCard pedimentos={recentPedimentos} />
     </main>
   );
 }

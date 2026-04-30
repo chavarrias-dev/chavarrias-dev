@@ -5,12 +5,24 @@ import { saveFactura } from "../../../app/dashboard/facturas/actions";
 type NewFacturaFormProps = {
   clients: ClientOption[];
   errorMessage?: string;
+  /** Pre-select cliente when linked from client profile (?cliente_id=…) */
+  defaultClienteId?: string;
 };
 
 const fieldClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
-export function NewFacturaForm({ clients, errorMessage }: NewFacturaFormProps) {
+export function NewFacturaForm({
+  clients,
+  errorMessage,
+  defaultClienteId,
+}: NewFacturaFormProps) {
+  const clienteDefault =
+    defaultClienteId &&
+    clients.some((c) => c.id === defaultClienteId)
+      ? defaultClienteId
+      : "";
+
   return (
     <div className="mx-auto w-full max-w-xl">
       <header className="mb-8">
@@ -35,7 +47,7 @@ export function NewFacturaForm({ clients, errorMessage }: NewFacturaFormProps) {
             name="cliente_id"
             required
             className={fieldClass}
-            defaultValue=""
+            defaultValue={clienteDefault}
           >
             <option value="" disabled>
               Selecciona un cliente
