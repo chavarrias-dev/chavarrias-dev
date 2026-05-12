@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ClientOption } from "@/components/clients/types";
 import { EditFacturaForm } from "@/components/facturas/edit-factura-form";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type FacturaRecord = {
@@ -32,6 +32,10 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
 
   const authRole = await getUserRole(supabase, user.id);
   const isAdmin = authRole === "admin";
+
+  if (authRole !== "admin" && authRole !== "empleado") {
+    redirect("/dashboard");
+  }
 
   const { data: factura, error } = await supabase
     .from("facturas")

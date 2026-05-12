@@ -1,7 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { MergePdfTool } from "@/components/tools/merge-pdf-tool";
+import { getUserRole } from "@/lib/supabase/profile-role";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default function MergePdfPage() {
+export default async function MergePdfPage() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const role = await getUserRole(supabase, user.id);
+  if (role !== "admin" && role !== "empleado") {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
       <div className="mb-8">

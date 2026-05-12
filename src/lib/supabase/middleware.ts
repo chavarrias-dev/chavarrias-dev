@@ -1,51 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export type ProfileRole = "admin" | "empleado" | "cliente";
-
-/**
- * Loads the user's role from `profiles`. Returns null if missing or on error.
- */
-export async function getUserRole(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<ProfileRole | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle<{ role: ProfileRole | null }>();
-
-  if (error || data?.role == null) {
-    return null;
-  }
-  return data.role;
-}
-
-function isStaffRole(role: ProfileRole | null): boolean {
-  return role === "admin" || role === "empleado";
-}
-
-/** Clientes may open exactly `/dashboard/clients/<id>` (profile view); list and edit remain blocked. */
-function isClienteAllowedClientsProfile(pathname: string): boolean {
-  return /^\/dashboard\/clients\/[^/]+$/.test(pathname);
-}
-
-function clienteForbiddenPath(pathname: string): boolean {
-  if (pathname.startsWith("/dashboard/tools")) return true;
-  if (pathname.startsWith("/dashboard/clients")) {
-    return !isClienteAllowedClientsProfile(pathname);
-  }
-  if (pathname === "/dashboard/facturas/new") return true;
-  if (/^\/dashboard\/facturas\/[^/]+\/edit$/.test(pathname)) return true;
-  if (pathname === "/dashboard/pedimentos/new") return true;
-  if (/^\/dashboard\/pedimentos\/[^/]+\/edit$/.test(pathname)) return true;
-  return false;
-}
 
 /**
  * Apply cookies set during session refresh to a new response.
@@ -105,45 +62,6 @@ export async function updateSession(request: NextRequest) {
     const redirect = NextResponse.redirect(url);
     applyResponseCookies(redirect, supabaseResponse);
     return redirect;
-  }
-
-  if (user && isDashboardPath) {
-    if (pathname === "/dashboard/clients/new") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard/users/new";
-      const redirectClientsNew = NextResponse.redirect(url);
-      applyResponseCookies(redirectClientsNew, supabaseResponse);
-      return redirectClientsNew;
-    }
-
-    const role = await getUserRole(supabase, user.id);
-
-    if (pathname.startsWith("/dashboard/users") && !isStaffRole(role)) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      url.search = "";
-      const redirect = NextResponse.redirect(url);
-      applyResponseCookies(redirect, supabaseResponse);
-      return redirect;
-    }
-
-    if (pathname.startsWith("/dashboard/activity") && role !== "admin") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      url.search = "";
-      const redirect = NextResponse.redirect(url);
-      applyResponseCookies(redirect, supabaseResponse);
-      return redirect;
-    }
-
-    if (!isStaffRole(role) && clienteForbiddenPath(pathname)) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      url.search = "";
-      const redirect = NextResponse.redirect(url);
-      applyResponseCookies(redirect, supabaseResponse);
-      return redirect;
-    }
   }
 
   if (user && isAuthPage) {

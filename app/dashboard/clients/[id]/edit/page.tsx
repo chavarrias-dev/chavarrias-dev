@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EditClientForm } from "@/components/clients/edit-client-form";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 
 type ClientRecord = {
   id: string;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ClientOption } from "@/components/clients/types";
 import { EditPedimentoForm } from "@/components/pedimentos/edit-pedimento-form";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PedimentoRecord = {
@@ -35,6 +35,10 @@ export default async function EditPedimentoPage({
 
   const authRole = await getUserRole(supabase, user.id);
   const isAdmin = authRole === "admin";
+
+  if (authRole !== "admin" && authRole !== "empleado") {
+    redirect("/dashboard");
+  }
 
   const { data: pedimento, error } = await supabase
     .from("pedimentos")

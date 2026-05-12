@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function emptyToNull(v: unknown): string | null {

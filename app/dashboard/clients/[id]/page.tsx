@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ClientRecord = {

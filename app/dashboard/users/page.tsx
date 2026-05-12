@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RoleBadge } from "@/components/dashboard/role-badge";
-import type { ProfileRole } from "@/lib/supabase/middleware";
+import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DeleteUserButton } from "./delete-user-button";
 

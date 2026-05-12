@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { DeleteClientForm } from "@/components/clients/delete-client-form";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ClientRow = {
@@ -27,6 +28,10 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
   const role = user ? await getUserRole(supabase, user.id) : null;
   const isAdmin = role === "admin";
   const isStaff = role === "admin" || role === "empleado";
+
+  if (role !== "admin" && role !== "empleado") {
+    redirect("/dashboard");
+  }
 
   const sp = await searchParams;
   const actionError = sp.error ? decodeURIComponent(sp.error) : undefined;

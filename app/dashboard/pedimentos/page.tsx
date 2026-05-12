@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PedimentoRow = {

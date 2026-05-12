@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { ProfileRole } from "@/lib/supabase/middleware";
+import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { updateUser } from "../../actions";
 
 type EditUserFormProps = {

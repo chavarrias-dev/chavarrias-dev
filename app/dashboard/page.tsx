@@ -4,7 +4,6 @@ import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
 import { RecentPedimentosCard } from "@/components/dashboard/recent-pedimentos-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
-import { getUserRole } from "@/lib/supabase/middleware";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { clients, facturas, pedimentos } from "@/db/schema";
@@ -37,7 +36,7 @@ export default async function DashboardPage() {
 
   const welcomeName = profile?.full_name?.trim() || user.email || "Usuario";
   const userRole = profile?.role ?? "user";
-  const resolvedRole = await getUserRole(supabase, user.id);
+  const resolvedRole = profile?.role ?? null;
   const isStaff =
     resolvedRole === "admin" || resolvedRole === "empleado";
 

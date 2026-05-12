@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { NewPedimentoForm } from "@/components/pedimentos/new-pedimento-form";
 import type { ClientOption } from "@/components/clients/types";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -15,6 +16,10 @@ export default async function NewPedimentoPage({ searchParams }: PageProps) {
   } = await supabase.auth.getUser();
   const role = user ? await getUserRole(supabase, user.id) : null;
   const isAdmin = role === "admin";
+
+  if (role !== "admin" && role !== "empleado") {
+    redirect("/dashboard");
+  }
 
   const { data: clientRows } = await supabase
     .from("clients")

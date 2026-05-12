@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import type { ProfileRole } from "@/lib/supabase/middleware";
+import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EditUserForm } from "./edit-user-form";
 

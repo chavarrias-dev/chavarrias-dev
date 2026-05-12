@@ -3,8 +3,8 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { ProfileRole } from "@/lib/supabase/middleware";
-import { getUserRole } from "@/lib/supabase/middleware";
+import type { ProfileRole } from "@/lib/supabase/profile-role";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function emptyToNull(v: unknown): string | null {

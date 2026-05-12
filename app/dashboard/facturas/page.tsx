@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
-import { getUserRole } from "@/lib/supabase/middleware";
+import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type FacturaRow = {
