@@ -181,7 +181,7 @@ export function StorageChart() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`${value.toFixed(1)} MB`, ""]}
+                formatter={(value) => [`${Number(value).toFixed(1)} MB`, ""]}
                 contentStyle={{
                   borderRadius: "10px",
                   border: "1px solid #e2e8f0",
