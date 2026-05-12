@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DatabaseStatusCard } from "@/components/dashboard/database-status-card";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
 import { RecentPedimentosCard } from "@/components/dashboard/recent-pedimentos-card";
+import { StorageChart } from "@/components/dashboard/storage-chart";
+import { TotalClientsCard } from "@/components/dashboard/total-clients-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
@@ -204,6 +207,32 @@ export default async function DashboardPage() {
     recentPedimentos = [];
   }
 
+  let adminDbConnected = false;
+  let adminTotalClients = 0;
+  let adminClientsThisMonth = 0;
+
+  if (resolvedRole === "admin") {
+    const { error: profilesPingError } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+    adminDbConnected = !profilesPingError;
+
+    const { count: totalC } = await supabase
+      .from("clients")
+      .select("*", { count: "exact", head: true });
+    adminTotalClients = totalC ?? 0;
+
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
+
+    const { count: monthC } = await supabase
+      .from("clients")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", startOfMonth.toISOString());
+    adminClientsThisMonth = monthC ?? 0;
+  }
+
   return (
     <main className="w-full flex-1 px-6 py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -241,6 +270,27 @@ export default async function DashboardPage() {
           </div>
         ) : null}
       </div>
+
+      {resolvedRole === "admin" ? (
+        <section
+          className="mb-8 grid grid-cols-1 gap-3 font-poppins md:grid-cols-3 md:items-stretch"
+          aria-label="Estadísticas de administración"
+        >
+          <DatabaseStatusCard connected={adminDbConnected} />
+          <TotalClientsCard
+            total={adminTotalClients}
+            thisMonth={adminClientsThisMonth}
+          />
+          <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="mb-2 text-sm font-medium tracking-tight text-slate-900">
+              Almacenamiento
+            </h3>
+            <div className="min-h-0 flex-1">
+              <StorageChart />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {resolvedRole === "cliente" && clienteOwnProfileId ? (
         <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">

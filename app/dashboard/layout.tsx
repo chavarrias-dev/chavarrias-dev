@@ -28,7 +28,7 @@ export default async function DashboardLayout({
   const isAdmin = role === "admin";
 
   return (
-    <div className="font-poppins min-h-screen w-full bg-[#FFFFFF]">
+    <div className="font-poppins flex min-h-screen w-full flex-col bg-[#FFFFFF]">
       <header className="border-b border-slate-200/80 bg-white shadow-sm">
         <div className="flex w-full flex-wrap items-center justify-between gap-4 px-6 py-4 lg:px-10">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 lg:gap-6">
@@ -120,7 +120,11 @@ export default async function DashboardLayout({
           </div>
         </div>
       </header>
-      {children}
+      <div className="flex w-full flex-1 flex-col">{children}</div>
+      <footer className="border-t border-slate-100 px-6 py-3 text-center text-xs text-slate-400 lg:px-10">
+        © 2025 Chavarrias Servicios Aduanales SA de CV. Todos los derechos
+        reservados.
+      </footer>
     </div>
   );
 }
