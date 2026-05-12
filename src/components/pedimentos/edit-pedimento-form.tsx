@@ -48,7 +48,6 @@ export function EditPedimentoForm({
 
       <form
         action={updatePedimento}
-        encType="multipart/form-data"
         className="space-y-5"
       >
         <input type="hidden" name="pedimento_id" value={pedimento.id} />

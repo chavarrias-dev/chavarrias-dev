@@ -34,11 +34,7 @@ export function NewPedimentoForm({
         </p>
       </header>
 
-      <form
-        action={savePedimento}
-        encType="multipart/form-data"
-        className="space-y-5"
-      >
+      <form action={savePedimento} className="space-y-5">
         <div>
           <label
             htmlFor="cliente_id"

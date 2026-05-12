@@ -54,7 +54,6 @@ export function EditFacturaForm({
 
       <form
         action={updateFactura}
-        encType="multipart/form-data"
         className="space-y-5"
       >
         <input type="hidden" name="factura_id" value={factura.id} />
