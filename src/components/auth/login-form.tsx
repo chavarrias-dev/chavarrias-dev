@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { login } from "../../../app/login/actions";
 
@@ -7,10 +8,13 @@ type LoginFormProps = {
   errorMessage?: string;
 };
 
-function EnvelopeIcon() {
+const inputClass =
+  "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20 disabled:opacity-60";
+
+function EyeIcon({ className }: { className?: string }) {
   return (
     <svg
-      className="pointer-events-none h-5 w-5 text-slate-400"
+      className={className}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -20,16 +24,21 @@ function EnvelopeIcon() {
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
+        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
       />
     </svg>
   );
 }
 
-function LockIcon() {
+function EyeSlashIcon({ className }: { className?: string }) {
   return (
     <svg
-      className="pointer-events-none h-5 w-5 text-slate-400"
+      className={className}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -39,7 +48,7 @@ function LockIcon() {
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+        d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
       />
     </svg>
   );
@@ -53,7 +62,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-75"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 py-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1a6ed4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-75"
     >
       {pending ? (
         <span
@@ -68,6 +77,7 @@ function SubmitButton() {
 
 function LoginFields() {
   const { pending } = useFormStatus();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <>
@@ -78,21 +88,16 @@ function LoginFields() {
         >
           Correo electrónico
         </label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 transition-all duration-200">
-            <EnvelopeIcon />
-          </span>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            disabled={pending}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20 disabled:opacity-60"
-            placeholder="tu@empresa.com"
-          />
-        </div>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          disabled={pending}
+          className={inputClass}
+          placeholder="tu@empresa.com"
+        />
       </div>
 
       <div>
@@ -103,19 +108,29 @@ function LoginFields() {
           Contraseña
         </label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 transition-all duration-200">
-            <LockIcon />
-          </span>
           <input
             id="password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             required
             autoComplete="current-password"
             disabled={pending}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20 disabled:opacity-60"
+            className={`${inputClass} pr-11`}
             placeholder="••••••••"
           />
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/30 disabled:pointer-events-none"
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+          >
+            {showPassword ? (
+              <EyeSlashIcon className="h-5 w-5" />
+            ) : (
+              <EyeIcon className="h-5 w-5" />
+            )}
+          </button>
         </div>
       </div>
     </>
@@ -124,78 +139,43 @@ function LoginFields() {
 
 export function LoginForm({ errorMessage }: LoginFormProps) {
   return (
-    <div className="font-poppins flex min-h-screen flex-col bg-white lg:flex-row">
-      <section
-        className="relative flex w-full flex-1 flex-col bg-[#FFFFFF] px-5 py-8 sm:px-8 lg:min-h-0 lg:w-1/2 lg:flex-none"
-        aria-labelledby="login-heading"
-      >
-        <p className="shrink-0 text-left text-2xl font-bold tracking-tight text-[#227DE8] sm:text-[1.65rem]">
-          CHAVARRIAS
-        </p>
+    <div className="relative min-h-screen bg-white font-poppins">
+      <img
+        src="/chavarrias_logo.svg"
+        alt="Chavarrias"
+        className="absolute left-6 top-6 z-10 h-10 w-auto"
+      />
 
-        <div className="flex flex-1 flex-col items-center justify-center py-8 lg:py-12">
-          <div className="w-full max-w-md">
-            <header className="mb-8 text-left">
-              <h1
-                id="login-heading"
-                className="text-2xl font-medium tracking-tight text-slate-900 sm:text-[1.75rem]"
+      <main className="flex min-h-screen flex-col items-center justify-center px-5 py-20 sm:px-8">
+        <div className="w-full max-w-[420px]">
+          <header className="mb-10 text-center sm:mb-12">
+            <h1
+              id="login-heading"
+              className="text-3xl font-bold tracking-tight text-slate-900 sm:text-[2rem]"
+            >
+              Iniciar sesión
+            </h1>
+            <p className="mt-3 text-base text-slate-500">
+              Bienvenido de nuevo <span aria-hidden>👋</span>
+            </p>
+          </header>
+
+          <form action={login} className="space-y-6">
+            <LoginFields />
+
+            {errorMessage ? (
+              <p
+                className="rounded-lg border border-red-200/80 bg-red-50/90 px-3.5 py-2.5 text-sm leading-snug text-red-800"
+                role="alert"
               >
-                Inicia sesión
-              </h1>
-              <p className="mt-2 text-sm text-slate-500">
-                Ingresa tus datos para acceder
+                {errorMessage}
               </p>
-            </header>
+            ) : null}
 
-            <form action={login} className="space-y-5">
-              <LoginFields />
-
-              {errorMessage ? (
-                <p
-                  className="rounded-lg border border-red-200/80 bg-red-50/90 px-3.5 py-2.5 text-sm leading-snug text-red-800 transition-all duration-200"
-                  role="alert"
-                >
-                  {errorMessage}
-                </p>
-              ) : null}
-
-              <SubmitButton />
-            </form>
-          </div>
+            <SubmitButton />
+          </form>
         </div>
-      </section>
-
-      <aside
-        className="relative flex min-h-[22rem] w-full flex-1 flex-col items-center justify-center overflow-hidden bg-[#227DE8] px-8 py-12 text-white sm:min-h-[26rem] lg:min-h-screen lg:w-1/2 lg:flex-none"
-        aria-label="Bienvenida"
-      >
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <div className="absolute -right-16 -top-20 h-72 w-72 rounded-full bg-white/10 blur-0 transition-transform duration-500" />
-          <div className="absolute -bottom-12 -left-20 h-80 w-80 rounded-full bg-white/10" />
-          <div className="absolute left-1/2 top-1/4 h-40 w-40 -translate-x-1/2 rounded-full bg-white/5" />
-          <div className="absolute right-1/4 top-1/2 h-24 w-24 rounded-full bg-white/10" />
-        </div>
-
-        <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
-          <h2 className="text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-[1.85rem] xl:text-4xl">
-            Bienvenido al CRM Chavarrias
-          </h2>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-white/90 sm:text-base">
-            Gestiona relaciones, seguimientos y resultados en un solo lugar, con un
-            diseño claro y profesional.
-          </p>
-
-          <div
-            className="mt-10 w-full max-w-sm rounded-2xl border border-white/20 bg-white/10 p-1 shadow-sm backdrop-blur-sm transition-all duration-200"
-            role="img"
-            aria-label="Vista previa: imagen en preparación"
-          >
-            <div className="flex aspect-[4/3] w-full items-center justify-center rounded-[0.9rem] bg-white/15 text-sm text-white/80">
-              Imagen / captura
-            </div>
-          </div>
-        </div>
-      </aside>
+      </main>
     </div>
   );
 }

@@ -122,7 +122,7 @@ export default async function DashboardLayout({
       </header>
       <div className="flex w-full flex-1 flex-col">{children}</div>
       <footer className="border-t border-slate-100 px-6 py-3 text-center text-xs text-slate-400 lg:px-10">
-        © 2025 Chavarrias Servicios Aduanales SA de CV. Todos los derechos
+        © 2026 Chavarrias Servicios Aduanales SA de CV. Todos los derechos
         reservados.
       </footer>
     </div>

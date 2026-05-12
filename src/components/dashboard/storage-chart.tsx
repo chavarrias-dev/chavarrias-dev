@@ -149,7 +149,7 @@ export function StorageChart() {
           className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-900"
           role="status"
         >
-          Has superado el {WARNING_PCT}% del límite del plan gratuito (1&nbsp;GB).
+          Has superado el {WARNING_PCT}% del límite de almacenamiento (1&nbsp;GB).
           Considera liberar espacio o actualizar tu plan.
         </p>
       ) : null}
@@ -210,7 +210,7 @@ export function StorageChart() {
             disponibles de {LIMIT_MB} MB
           </p>
           <p className="text-[11px] leading-snug text-slate-500">
-            {usedMb.toFixed(2)} MB / {LIMIT_MB} MB totales plan gratuito
+            {usedMb.toFixed(2)} MB / {LIMIT_MB} MB totales
           </p>
         </div>
       </div>
