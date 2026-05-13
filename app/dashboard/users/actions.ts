@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
+import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { getUserRole } from "@/lib/supabase/profile-role";
@@ -41,6 +42,7 @@ export async function createUser(formData: FormData) {
   const fullName = formData.get("full_name");
   const emailRaw = formData.get("email");
   const passwordRaw = formData.get("password");
+  const passwordConfirmRaw = formData.get("password_confirm");
 
   if (typeof fullName !== "string" || !fullName.trim()) {
     redirect("/dashboard/users/new?error=Nombre%20requerido");
@@ -54,18 +56,43 @@ export async function createUser(formData: FormData) {
     redirect("/dashboard/users/new?error=Rol%20invalido");
   }
 
-  if (role !== "cliente") {
-    if (typeof passwordRaw !== "string" || passwordRaw.trim().length < 6) {
+  if (role === "cliente") {
+    const constanciaEarly = formData.get("constancia_fiscal");
+    if (
+      constanciaEarly instanceof File &&
+      constanciaEarly.size > 0 &&
+      constanciaEarly.type !== "application/pdf"
+    ) {
       redirect(
-        "/dashboard/users/new?error=Contrase%C3%B1a%20requerida%20%286%20caracteres%20m%C3%ADnimo%29",
+        `/dashboard/users/new?error=${encodeURIComponent("Solo se permiten archivos PDF para la constancia")}`,
       );
     }
+  }
+
+  if (typeof passwordRaw !== "string" || passwordRaw.trim().length < 6) {
+    redirect(
+      "/dashboard/users/new?error=Contrase%C3%B1a%20requerida%20%286%20caracteres%20m%C3%ADnimo%29",
+    );
+  }
+  if (
+    typeof passwordConfirmRaw !== "string" ||
+    passwordRaw !== passwordConfirmRaw
+  ) {
+    redirect(
+      `/dashboard/users/new?error=${encodeURIComponent("Las contraseñas no coinciden")}`,
+    );
   }
 
   const email = emailRaw.trim().toLowerCase();
   const phone = emptyToNull(formData.get("phone"));
   const companyName = emptyToNull(formData.get("company_name"));
   const rfc = emptyToNull(formData.get("rfc"));
+  const curp = emptyToNull(formData.get("curp"));
+  const codigoPostal = emptyToNull(formData.get("codigo_postal"));
+  const direccion = emptyToNull(formData.get("direccion"));
+  const fechaInicioOperaciones = emptyToNull(
+    formData.get("fecha_inicio_operaciones"),
+  );
 
   const admin = createSupabaseAdminClient();
 
@@ -74,36 +101,20 @@ export async function createUser(formData: FormData) {
     meta.phone = phone;
   }
 
-  let uid: string;
+  const { data: created, error: authErr } =
+    await admin.auth.admin.createUser({
+      email,
+      password: passwordRaw as string,
+      email_confirm: true,
+      user_metadata: meta,
+    });
 
-  if (role === "cliente") {
-    const { data: invited, error: inviteErr } =
-      await admin.auth.admin.inviteUserByEmail(email, {
-        data: meta,
-      });
-
-    if (inviteErr || !invited?.user) {
-      redirect(
-        `/dashboard/users/new?error=${encodeURIComponent(inviteErr?.message ?? "Error al enviar invitación")}`,
-      );
-    }
-    uid = invited.user.id;
-  } else {
-    const { data: created, error: authErr } =
-      await admin.auth.admin.createUser({
-        email,
-        password: passwordRaw as string,
-        email_confirm: true,
-        user_metadata: meta,
-      });
-
-    if (authErr || !created?.user) {
-      redirect(
-        `/dashboard/users/new?error=${encodeURIComponent(authErr?.message ?? "Error al crear usuario en Auth")}`,
-      );
-    }
-    uid = created.user.id;
+  if (authErr || !created?.user) {
+    redirect(
+      `/dashboard/users/new?error=${encodeURIComponent(authErr?.message ?? "Error al crear usuario en Auth")}`,
+    );
   }
+  const uid = created.user.id;
 
   const { error: profileErr } = await admin.from("profiles").upsert(
     {
@@ -123,21 +134,74 @@ export async function createUser(formData: FormData) {
   }
 
   if (role === "cliente") {
-    const { error: clientErr } = await admin.from("clients").insert({
-      full_name: fullName.trim(),
-      email,
-      phone,
-      company_name: companyName,
-      rfc,
-      notes: null,
-    });
+    const constanciaFile = formData.get("constancia_fiscal");
 
-    if (clientErr) {
+    const { data: insertedClient, error: clientErr } = await admin
+      .from("clients")
+      .insert({
+        full_name: fullName.trim(),
+        email,
+        phone,
+        company_name: companyName,
+        rfc,
+        curp,
+        codigo_postal: codigoPostal,
+        direccion,
+        fecha_inicio_operaciones: fechaInicioOperaciones,
+        notes: null,
+      })
+      .select("id")
+      .single<{ id: string }>();
+
+    if (clientErr || !insertedClient) {
       await admin.from("profiles").delete().eq("id", uid);
       await admin.auth.admin.deleteUser(uid);
       redirect(
-        `/dashboard/users/new?error=${encodeURIComponent(clientErr.message)}`,
+        `/dashboard/users/new?error=${encodeURIComponent(clientErr?.message ?? "Error al crear cliente")}`,
       );
+    }
+
+    const clientId = insertedClient.id;
+
+    if (
+      constanciaFile instanceof File &&
+      constanciaFile.size > 0
+    ) {
+      const path = `constancias/${clientId}.pdf`;
+      const { error: upErr } = await admin.storage
+        .from(CRM_DOCUMENTS_BUCKET)
+        .upload(path, constanciaFile, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+
+      if (upErr) {
+        await admin.from("clients").delete().eq("id", clientId);
+        await admin.from("profiles").delete().eq("id", uid);
+        await admin.auth.admin.deleteUser(uid);
+        redirect(
+          `/dashboard/users/new?error=${encodeURIComponent(upErr.message)}`,
+        );
+      }
+
+      const { data: pub } = admin.storage
+        .from(CRM_DOCUMENTS_BUCKET)
+        .getPublicUrl(path);
+
+      const { error: urlErr } = await admin
+        .from("clients")
+        .update({ constancia_url: pub.publicUrl })
+        .eq("id", clientId);
+
+      if (urlErr) {
+        await admin.storage.from(CRM_DOCUMENTS_BUCKET).remove([path]);
+        await admin.from("clients").delete().eq("id", clientId);
+        await admin.from("profiles").delete().eq("id", uid);
+        await admin.auth.admin.deleteUser(uid);
+        redirect(
+          `/dashboard/users/new?error=${encodeURIComponent(urlErr.message)}`,
+        );
+      }
     }
 
     await logActivity(actorSupabase, {
@@ -149,9 +213,7 @@ export async function createUser(formData: FormData) {
       entityName: fullName.trim(),
     });
 
-    redirect(
-      `/dashboard/users?success=cliente_invite&invited_email=${encodeURIComponent(email)}`,
-    );
+    redirect("/dashboard/users");
   }
 
   await logActivity(actorSupabase, {

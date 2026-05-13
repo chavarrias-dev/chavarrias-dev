@@ -3,7 +3,12 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import { getUserRole } from "@/lib/supabase/profile-role";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  CRM_DOCUMENTS_BUCKET,
+  storageObjectPathFromPublicUrl,
+} from "@/lib/supabase-storage";
 
 function emptyToNull(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -88,16 +93,91 @@ export async function deleteClient(formData: FormData) {
   }
   const clientId = rawId.trim();
 
-  const { data: existing } = await supabase
+  const admin = createSupabaseAdminClient();
+
+  const { data: clientRow, error: clientFetchErr } = await admin
     .from("clients")
-    .select("full_name")
+    .select("full_name, constancia_url")
     .eq("id", clientId)
     .maybeSingle();
 
-  const displayName =
-    (existing as { full_name: string } | null)?.full_name?.trim() ?? clientId;
+  if (clientFetchErr || !clientRow) {
+    redirect(
+      `/dashboard/clients?error=${encodeURIComponent(clientFetchErr?.message ?? "Cliente no encontrado")}`,
+    );
+  }
 
-  const { error } = await supabase.from("clients").delete().eq("id", clientId);
+  const displayName =
+    (clientRow as { full_name?: string }).full_name?.trim() ?? clientId;
+
+  const constanciaUrl =
+    (clientRow as { constancia_url?: string | null }).constancia_url ?? null;
+
+  const { data: facturasRows } = await admin
+    .from("facturas")
+    .select("archivo_url")
+    .eq("cliente_id", clientId);
+
+  const { data: pedimentosRows } = await admin
+    .from("pedimentos")
+    .select("archivo_url")
+    .eq("cliente_id", clientId);
+
+  const pathsToRemove = new Set<string>();
+
+  for (const row of facturasRows ?? []) {
+    const url = (row as { archivo_url?: string | null }).archivo_url;
+    if (typeof url === "string" && url.trim()) {
+      const p = storageObjectPathFromPublicUrl(url);
+      if (p) pathsToRemove.add(p);
+    }
+  }
+
+  for (const row of pedimentosRows ?? []) {
+    const url = (row as { archivo_url?: string | null }).archivo_url;
+    if (typeof url === "string" && url.trim()) {
+      const p = storageObjectPathFromPublicUrl(url);
+      if (p) pathsToRemove.add(p);
+    }
+  }
+
+  if (constanciaUrl?.trim()) {
+    const fromUrl = storageObjectPathFromPublicUrl(constanciaUrl);
+    if (fromUrl) {
+      pathsToRemove.add(fromUrl);
+    } else {
+      pathsToRemove.add(`constancias/${clientId}.pdf`);
+    }
+  }
+
+  const paths = [...pathsToRemove];
+  if (paths.length > 0) {
+    await admin.storage.from(CRM_DOCUMENTS_BUCKET).remove(paths);
+  }
+
+  const { error: facturasDelErr } = await admin
+    .from("facturas")
+    .delete()
+    .eq("cliente_id", clientId);
+
+  if (facturasDelErr) {
+    redirect(
+      `/dashboard/clients?error=${encodeURIComponent(facturasDelErr.message)}`,
+    );
+  }
+
+  const { error: pedimentosDelErr } = await admin
+    .from("pedimentos")
+    .delete()
+    .eq("cliente_id", clientId);
+
+  if (pedimentosDelErr) {
+    redirect(
+      `/dashboard/clients?error=${encodeURIComponent(pedimentosDelErr.message)}`,
+    );
+  }
+
+  const { error } = await admin.from("clients").delete().eq("id", clientId);
 
   if (error) {
     redirect(

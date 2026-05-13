@@ -12,7 +12,7 @@ type ClientRecord = {
   phone: string | null;
   company_name: string | null;
   rfc: string | null;
-  notes: string | null;
+  constancia_url: string | null;
   created_at: string | null;
 };
 
@@ -100,7 +100,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
   const { data: clientRow, error: clientErr } = await supabase
     .from("clients")
     .select(
-      "id, full_name, email, phone, company_name, rfc, notes, created_at",
+      "id, full_name, email, phone, company_name, rfc, constancia_url, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -233,10 +233,30 @@ export default async function ClientProfilePage({ params }: PageProps) {
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Notas
+                  Constancia fiscal
                 </dt>
-                <dd className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-                  {client.notes?.trim() ? client.notes : "—"}
+                <dd className="mt-1 text-sm text-slate-800">
+                  {client.constancia_url ? (
+                    <a
+                      href={client.constancia_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#227DE8] px-3 py-1.5 text-xs font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="size-3.5 shrink-0 opacity-90"
+                        aria-hidden
+                      >
+                        <path d="M6 22a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3h8l7 7v17a3 3 0 0 1-3 3H6Zm-1-19v16a1 1 0 0 0 1 1h11v-7h-6V4H6a1 1 0 0 0-1 1Zm13 .586V9h4.586L18 3.586ZM9 17h6v-2H9v2Zm0-4h6v-2H9v2Z" />
+                      </svg>
+                      Ver Constancia
+                    </a>
+                  ) : (
+                    "—"
+                  )}
                 </dd>
               </div>
             </dl>

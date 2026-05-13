@@ -18,8 +18,6 @@ type ProfileRow = {
 type PageProps = {
   searchParams: Promise<{
     error?: string;
-    success?: string;
-    invited_email?: string;
   }>;
 };
 
@@ -49,10 +47,6 @@ export default async function UsersListPage({ searchParams }: PageProps) {
 
   const sp = await searchParams;
   const listError = sp.error ? decodeURIComponent(sp.error) : undefined;
-  const clienteInviteSuccess =
-    sp.success === "cliente_invite" && sp.invited_email
-      ? decodeURIComponent(sp.invited_email)
-      : null;
 
   return (
     <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
@@ -76,17 +70,6 @@ export default async function UsersListPage({ searchParams }: PageProps) {
       {listError ? (
         <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {listError}
-        </p>
-      ) : null}
-
-      {clienteInviteSuccess ? (
-        <p
-          className="mb-4 rounded-lg border border-emerald-200/90 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm"
-          role="status"
-        >
-          Se envió un email a{" "}
-          <span className="font-medium">{clienteInviteSuccess}</span> para que el
-          cliente establezca su contraseña.
         </p>
       ) : null}
 

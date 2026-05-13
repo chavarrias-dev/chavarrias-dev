@@ -30,7 +30,12 @@ export const clients = pgTable("clients", {
   phone: text("phone"),
   companyName: text("company_name"),
   rfc: text("rfc"),
+  curp: text("curp"),
+  codigoPostal: text("codigo_postal"),
+  direccion: text("direccion"),
+  fechaInicioOperaciones: text("fecha_inicio_operaciones"),
   notes: text("notes"),
+  constanciaUrl: text("constancia_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
