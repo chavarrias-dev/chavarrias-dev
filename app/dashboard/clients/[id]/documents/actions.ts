@@ -1,0 +1,368 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { logActivity } from "@/lib/activity-log";
+import {
+  calculateDocumentStatus,
+  recalculateDocumentStatuses,
+} from "@/lib/document-status";
+import {
+  calculateExpirationFromPeriod,
+  documentStoragePath,
+  isDocumentType,
+  isValidityPeriod,
+  type ValidityPeriod,
+} from "@/lib/documents-config";
+import { getUserRole } from "@/lib/supabase/profile-role";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+
+function emptyToNull(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t.length ? t : null;
+}
+
+function parseBooleanField(value: FormDataEntryValue | null): boolean {
+  if (value === "true" || value === "on") {
+    return true;
+  }
+  return false;
+}
+
+function parseExpirationFromForm(
+  formData: FormData,
+  fechaSubida: Date,
+): {
+  fechaVencimiento: string | null;
+  sinVencimiento: boolean;
+  validoManualmente: boolean;
+} {
+  const validoPorRaw = formData.get("valido_por");
+  const validoPor =
+    typeof validoPorRaw === "string" && isValidityPeriod(validoPorRaw)
+      ? validoPorRaw
+      : ("1_mes" as ValidityPeriod);
+
+  const sinVencimientoHidden = formData.get("sin_vencimiento");
+  const sinVencimiento =
+    sinVencimientoHidden === "true" || validoPor === "indefinido";
+
+  const validoManualmente = parseBooleanField(
+    formData.get("valido_manualmente"),
+  );
+
+  let fechaVencimiento: string | null = null;
+
+  if (validoPor === "indefinido") {
+    fechaVencimiento = null;
+  } else if (validoPor === "fecha_especifica") {
+    fechaVencimiento =
+      emptyToNull(formData.get("fecha_vencimiento_resolved")) ??
+      emptyToNull(formData.get("fecha_vencimiento"));
+  } else {
+    fechaVencimiento = calculateExpirationFromPeriod(fechaSubida, validoPor);
+  }
+
+  return { fechaVencimiento, sinVencimiento, validoManualmente };
+}
+
+async function requireStaff() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const role = await getUserRole(supabase, user.id);
+  if (role !== "admin" && role !== "empleado") {
+    redirect("/dashboard");
+  }
+  return { supabase, user };
+}
+
+function buildRedirectUrl(
+  clientId: string,
+  documentType: string,
+  error: string,
+  mode: "upload" | "edit",
+  docId?: string,
+): string {
+  if (mode === "edit" && docId) {
+    return `/dashboard/clients/${clientId}/documents/${docId}/edit?error=${encodeURIComponent(error)}`;
+  }
+  return `/dashboard/clients/${clientId}/documents/upload?tipo=${encodeURIComponent(documentType)}&error=${encodeURIComponent(error)}`;
+}
+
+export async function uploadClientDocument(formData: FormData) {
+  const { supabase, user } = await requireStaff();
+
+  const clientId = formData.get("client_id");
+  const documentType = formData.get("document_type");
+
+  if (typeof clientId !== "string" || !clientId.trim()) {
+    redirect("/dashboard/clients?error=Cliente%20requerido");
+  }
+  if (typeof documentType !== "string" || !isDocumentType(documentType)) {
+    redirect(
+      `/dashboard/clients/${clientId}/documents/upload?error=${encodeURIComponent("Tipo de documento inválido")}`,
+    );
+  }
+
+  const trimmedClientId = clientId.trim();
+
+  const file = formData.get("archivo");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(
+      buildRedirectUrl(
+        trimmedClientId,
+        documentType,
+        "Debes seleccionar un archivo PDF",
+        "upload",
+      ),
+    );
+  }
+  if (file.type !== "application/pdf") {
+    redirect(
+      buildRedirectUrl(
+        trimmedClientId,
+        documentType,
+        "Solo se permiten archivos PDF",
+        "upload",
+      ),
+    );
+  }
+
+  const notas = emptyToNull(formData.get("notas"));
+  const fechaSubida = new Date();
+  const expiration = parseExpirationFromForm(formData, fechaSubida);
+
+  const { data: clientRow } = await supabase
+    .from("clients")
+    .select("id, full_name")
+    .eq("id", trimmedClientId)
+    .maybeSingle();
+
+  if (!clientRow) {
+    redirect("/dashboard/clients?error=Cliente%20no%20encontrado");
+  }
+
+  const path = documentStoragePath(trimmedClientId, documentType);
+  const { error: upErr } = await supabase.storage
+    .from(CRM_DOCUMENTS_BUCKET)
+    .upload(path, file, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (upErr) {
+    redirect(
+      buildRedirectUrl(
+        trimmedClientId,
+        documentType,
+        `Error al subir el PDF: ${upErr.message}`,
+        "upload",
+      ),
+    );
+  }
+
+  const { data: pub } = supabase.storage
+    .from(CRM_DOCUMENTS_BUCKET)
+    .getPublicUrl(path);
+  const archivoUrl = pub.publicUrl;
+  const status = calculateDocumentStatus(archivoUrl, expiration);
+
+  const { data: existing } = await supabase
+    .from("client_documents")
+    .select("id")
+    .eq("client_id", trimmedClientId)
+    .eq("document_type", documentType)
+    .maybeSingle();
+
+  const payload = {
+    client_id: trimmedClientId,
+    document_type: documentType,
+    archivo_url: archivoUrl,
+    fecha_vencimiento: expiration.fechaVencimiento,
+    fecha_subida: fechaSubida.toISOString(),
+    subido_por: user.id,
+    notas,
+    sin_vencimiento: expiration.sinVencimiento,
+    valido_manualmente: expiration.validoManualmente,
+    status,
+  };
+
+  if (existing) {
+    const { error: updErr } = await supabase
+      .from("client_documents")
+      .update(payload)
+      .eq("id", (existing as { id: string }).id);
+
+    if (updErr) {
+      redirect(
+        buildRedirectUrl(trimmedClientId, documentType, updErr.message, "upload"),
+      );
+    }
+  } else {
+    const { error: insErr } = await supabase
+      .from("client_documents")
+      .insert(payload);
+
+    if (insErr) {
+      redirect(
+        buildRedirectUrl(trimmedClientId, documentType, insErr.message, "upload"),
+      );
+    }
+  }
+
+  await recalculateDocumentStatuses(supabase);
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: existing ? "actualizó documento" : "subió documento",
+    entityType: "documento",
+    entityId: trimmedClientId,
+    entityName: `${documentType} — ${(clientRow as { full_name: string }).full_name}`,
+  });
+
+  redirect(`/dashboard/clients/${trimmedClientId}`);
+}
+
+export async function updateClientDocument(formData: FormData) {
+  const { supabase, user } = await requireStaff();
+
+  const clientId = formData.get("client_id");
+  const docId = formData.get("document_id");
+
+  if (typeof clientId !== "string" || !clientId.trim()) {
+    redirect("/dashboard/clients?error=Cliente%20requerido");
+  }
+  if (typeof docId !== "string" || !docId.trim()) {
+    redirect(`/dashboard/clients/${clientId}?error=Documento%20invalido`);
+  }
+
+  const trimmedClientId = clientId.trim();
+  const trimmedDocId = docId.trim();
+
+  const { data: existingDoc, error: fetchErr } = await supabase
+    .from("client_documents")
+    .select(
+      "id, client_id, document_type, archivo_url, fecha_subida, notas",
+    )
+    .eq("id", trimmedDocId)
+    .eq("client_id", trimmedClientId)
+    .maybeSingle();
+
+  if (fetchErr || !existingDoc) {
+    redirect(
+      `/dashboard/clients/${trimmedClientId}?error=${encodeURIComponent("Documento no encontrado")}`,
+    );
+  }
+
+  const documentType = (existingDoc as { document_type: string }).document_type;
+  const notas = emptyToNull(formData.get("notas"));
+  const fechaSubidaRaw = (existingDoc as { fecha_subida: string | null })
+    .fecha_subida;
+  const fechaSubida = fechaSubidaRaw ? new Date(fechaSubidaRaw) : new Date();
+  const expiration = parseExpirationFromForm(formData, fechaSubida);
+
+  let archivoUrl = (existingDoc as { archivo_url: string | null }).archivo_url;
+
+  const file = formData.get("archivo");
+  if (file instanceof File && file.size > 0) {
+    if (file.type !== "application/pdf") {
+      redirect(
+        buildRedirectUrl(
+          trimmedClientId,
+          documentType,
+          "Solo se permiten archivos PDF",
+          "edit",
+          trimmedDocId,
+        ),
+      );
+    }
+
+    const path = documentStoragePath(trimmedClientId, documentType);
+    const { error: upErr } = await supabase.storage
+      .from(CRM_DOCUMENTS_BUCKET)
+      .upload(path, file, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+
+    if (upErr) {
+      redirect(
+        buildRedirectUrl(
+          trimmedClientId,
+          documentType,
+          `Error al subir el PDF: ${upErr.message}`,
+          "edit",
+          trimmedDocId,
+        ),
+      );
+    }
+
+    const { data: pub } = supabase.storage
+      .from(CRM_DOCUMENTS_BUCKET)
+      .getPublicUrl(path);
+    archivoUrl = pub.publicUrl;
+  }
+
+  const status = calculateDocumentStatus(archivoUrl, expiration);
+
+  const { error: updErr } = await supabase
+    .from("client_documents")
+    .update({
+      archivo_url: archivoUrl,
+      fecha_vencimiento: expiration.fechaVencimiento,
+      notas,
+      sin_vencimiento: expiration.sinVencimiento,
+      valido_manualmente: expiration.validoManualmente,
+      status,
+    })
+    .eq("id", trimmedDocId);
+
+  if (updErr) {
+    redirect(
+      buildRedirectUrl(
+        trimmedClientId,
+        documentType,
+        updErr.message,
+        "edit",
+        trimmedDocId,
+      ),
+    );
+  }
+
+  await recalculateDocumentStatuses(supabase);
+
+  const { data: clientRow } = await supabase
+    .from("clients")
+    .select("full_name")
+    .eq("id", trimmedClientId)
+    .maybeSingle();
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "editó vigencia de documento",
+    entityType: "documento",
+    entityId: trimmedDocId,
+    entityName: `${documentType} — ${(clientRow as { full_name?: string } | null)?.full_name ?? trimmedClientId}`,
+  });
+
+  redirect(`/dashboard/clients/${trimmedClientId}`);
+}
+
+export async function refreshDocumentStatuses() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return;
+  }
+  await recalculateDocumentStatuses(supabase);
+}

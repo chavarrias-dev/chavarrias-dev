@@ -123,6 +123,11 @@ export async function deleteClient(formData: FormData) {
     .select("archivo_url")
     .eq("cliente_id", clientId);
 
+  const { data: documentsRows } = await admin
+    .from("client_documents")
+    .select("archivo_url")
+    .eq("client_id", clientId);
+
   const pathsToRemove = new Set<string>();
 
   for (const row of facturasRows ?? []) {
@@ -134,6 +139,14 @@ export async function deleteClient(formData: FormData) {
   }
 
   for (const row of pedimentosRows ?? []) {
+    const url = (row as { archivo_url?: string | null }).archivo_url;
+    if (typeof url === "string" && url.trim()) {
+      const p = storageObjectPathFromPublicUrl(url);
+      if (p) pathsToRemove.add(p);
+    }
+  }
+
+  for (const row of documentsRows ?? []) {
     const url = (row as { archivo_url?: string | null }).archivo_url;
     if (typeof url === "string" && url.trim()) {
       const p = storageObjectPathFromPublicUrl(url);
@@ -174,6 +187,17 @@ export async function deleteClient(formData: FormData) {
   if (pedimentosDelErr) {
     redirect(
       `/dashboard/clients?error=${encodeURIComponent(pedimentosDelErr.message)}`,
+    );
+  }
+
+  const { error: documentsDelErr } = await admin
+    .from("client_documents")
+    .delete()
+    .eq("client_id", clientId);
+
+  if (documentsDelErr) {
+    redirect(
+      `/dashboard/clients?error=${encodeURIComponent(documentsDelErr.message)}`,
     );
   }
 

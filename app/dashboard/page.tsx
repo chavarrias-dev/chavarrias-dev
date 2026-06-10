@@ -6,7 +6,9 @@ import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card"
 import { RecentPedimentosCard } from "@/components/dashboard/recent-pedimentos-card";
 import { StorageChart } from "@/components/dashboard/storage-chart";
 import { TotalClientsCard } from "@/components/dashboard/total-clients-card";
+import { DocumentExpiringCard } from "@/components/dashboard/document-expiring-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
+import { fetchDocumentAlerts } from "@/lib/document-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { clients, facturas, pedimentos } from "@/db/schema";
@@ -233,6 +235,19 @@ export default async function DashboardPage() {
     adminClientsThisMonth = monthC ?? 0;
   }
 
+  let documentAlerts: Awaited<ReturnType<typeof fetchDocumentAlerts>> = [];
+  try {
+    if (isStaff) {
+      documentAlerts = await fetchDocumentAlerts(supabase);
+    } else if (resolvedRole === "cliente" && clienteOwnProfileId) {
+      documentAlerts = await fetchDocumentAlerts(supabase, {
+        clientId: clienteOwnProfileId,
+      });
+    }
+  } catch {
+    documentAlerts = [];
+  }
+
   return (
     <main className="w-full flex-1 px-6 py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -312,6 +327,8 @@ export default async function DashboardPage() {
           </div>
         </section>
       ) : null}
+
+      <DocumentExpiringCard alerts={documentAlerts} />
 
       {isStaff ? (
         <RecentClientsCard clients={recentClients} />

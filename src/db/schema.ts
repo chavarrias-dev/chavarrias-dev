@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   numeric,
   pgEnum,
@@ -74,4 +75,20 @@ export const activityLogs = pgTable("activity_logs", {
   entityId: text("entity_id").notNull(),
   entityName: text("entity_name").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const clientDocuments = pgTable("client_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => clients.id),
+  documentType: text("document_type").notNull(),
+  archivoUrl: text("archivo_url"),
+  fechaVencimiento: date("fecha_vencimiento", { mode: "string" }),
+  fechaSubida: timestamp("fecha_subida").defaultNow(),
+  subidoPor: uuid("subido_por").references(() => profiles.id),
+  notas: text("notas"),
+  status: text("status").notNull().default("pendiente"),
+  validoManualmente: boolean("valido_manualmente").default(true),
+  sinVencimiento: boolean("sin_vencimiento").default(false),
 });

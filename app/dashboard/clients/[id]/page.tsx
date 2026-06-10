@@ -2,6 +2,15 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
+import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import {
+  DOCUMENT_TYPES,
+  type DocumentStatus,
+} from "@/lib/documents-config";
+import {
+  calculateDocumentStatusFromRow,
+  recalculateDocumentStatuses,
+} from "@/lib/document-status";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -30,6 +39,17 @@ type PedimentoRow = {
   fecha: string;
   aduana: string;
   archivo_url: string | null;
+};
+
+type ClientDocumentRow = {
+  id: string;
+  document_type: string;
+  archivo_url: string | null;
+  fecha_vencimiento: string | null;
+  fecha_subida: string | null;
+  sin_vencimiento: boolean | null;
+  valido_manualmente: boolean | null;
+  status: DocumentStatus;
 };
 
 function initialsFromName(fullName: string): string {
@@ -111,7 +131,9 @@ export default async function ClientProfilePage({ params }: PageProps) {
 
   const client = clientRow as ClientRecord;
 
-  const [{ data: facturasData }, { data: pedimentosData }] =
+  await recalculateDocumentStatuses(supabase);
+
+  const [{ data: facturasData }, { data: pedimentosData }, { data: documentsData }] =
     await Promise.all([
       supabase
         .from("facturas")
@@ -123,10 +145,22 @@ export default async function ClientProfilePage({ params }: PageProps) {
         .select("id, numero_pedimento, fecha, aduana, archivo_url")
         .eq("cliente_id", id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("client_documents")
+        .select(
+          "id, document_type, archivo_url, fecha_vencimiento, fecha_subida, sin_vencimiento, valido_manualmente, status",
+        )
+        .eq("client_id", id),
     ]);
 
   const facturas = (facturasData ?? []) as FacturaRow[];
   const pedimentos = (pedimentosData ?? []) as PedimentoRow[];
+  const documentsByType = new Map(
+    ((documentsData ?? []) as ClientDocumentRow[]).map((doc) => [
+      doc.document_type,
+      doc,
+    ]),
+  );
 
   const initials = initialsFromName(client.full_name);
 
@@ -260,6 +294,109 @@ export default async function ClientProfilePage({ params }: PageProps) {
                 </dd>
               </div>
             </dl>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-medium tracking-tight text-slate-900">
+            Documentos
+          </h2>
+        </div>
+        <div className={sectionShell}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[880px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Documento
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Estado
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Vencimiento
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Subida
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                  {isStaff ? (
+                    <th className="px-4 py-3 font-medium text-slate-700"> </th>
+                  ) : null}
+                </tr>
+              </thead>
+              <tbody>
+                {DOCUMENT_TYPES.map((documentType) => {
+                  const doc = documentsByType.get(documentType);
+                  const status: DocumentStatus = doc
+                    ? calculateDocumentStatusFromRow({
+                        archivoUrl: doc.archivo_url,
+                        fechaVencimiento: doc.fecha_vencimiento,
+                        sinVencimiento: doc.sin_vencimiento ?? false,
+                        validoManualmente: doc.valido_manualmente ?? true,
+                      })
+                    : "pendiente";
+
+                  return (
+                    <tr
+                      key={documentType}
+                      className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {documentType}
+                      </td>
+                      <td className="px-4 py-3">
+                        <DocumentStatusBadge status={status} />
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {doc?.sin_vencimiento
+                          ? "Indefinido"
+                          : formatShortDate(doc?.fecha_vencimiento ?? null)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatShortDate(doc?.fecha_subida ?? null)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {doc?.archivo_url ? (
+                          <a
+                            href={doc.archivo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
+                          >
+                            Ver PDF
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      {isStaff ? (
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/dashboard/clients/${id}/documents/upload?tipo=${encodeURIComponent(documentType)}`}
+                              className="inline-flex h-8 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-3 text-xs font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5"
+                            >
+                              {doc?.archivo_url ? "Actualizar" : "Subir"}
+                            </Link>
+                            {doc?.archivo_url ? (
+                              <Link
+                                href={`/dashboard/clients/${id}/documents/${doc.id}/edit`}
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                              >
+                                Editar
+                              </Link>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

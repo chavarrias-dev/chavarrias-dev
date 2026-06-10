@@ -6,16 +6,6 @@ import {
 export default function DashboardLoading() {
   return (
     <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
-      <div
-        className="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-5"
-        aria-hidden
-      >
-        <SkeletonLine className="h-10 w-24 rounded-lg sm:w-28" />
-        <SkeletonLine className="h-10 w-24 rounded-lg sm:w-28" />
-        <SkeletonLine className="h-10 w-24 rounded-lg sm:w-28" />
-        <SkeletonLine className="h-10 w-24 rounded-lg sm:w-28" />
-      </div>
-
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
