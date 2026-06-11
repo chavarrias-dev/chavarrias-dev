@@ -38,7 +38,7 @@ export function DocumentExpiringCard({ alerts }: DocumentExpiringCardProps) {
   }
 
   return (
-    <section className="mb-8 overflow-hidden rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/90 to-white shadow-sm">
+    <section className="card-hover-lift animate-card-in mb-8 overflow-hidden rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/90 to-white shadow-sm">
       <div className="border-b border-amber-200/60 px-5 py-4 sm:px-6">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">

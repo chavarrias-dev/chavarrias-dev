@@ -29,6 +29,9 @@ type ClientDocumentsSectionProps = {
   clientId: string;
   isStaff: boolean;
   documents: ClientDocumentRowData[];
+  allowClientUpload?: boolean;
+  sectionTitle?: string;
+  prominent?: boolean;
 };
 
 function formatShortDate(value: string | null): string {
@@ -52,6 +55,9 @@ export function ClientDocumentsSection({
   clientId,
   isStaff,
   documents,
+  allowClientUpload = false,
+  sectionTitle = "Documentos",
+  prominent = false,
 }: ClientDocumentsSectionProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -145,13 +151,44 @@ export function ClientDocumentsSection({
   const sectionShell =
     "overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm";
 
+  const pendingCount = documents.filter((row) => row.status === "pendiente").length;
+  const showActions = isStaff || allowClientUpload;
+
   return (
-    <section className="mb-10 font-poppins">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-medium tracking-tight text-slate-900">
-          Documentos
-        </h2>
-      </div>
+    <section
+      className={`mb-10 font-poppins ${prominent ? "scroll-mt-24" : ""}`}
+      id={prominent ? "mi-expediente" : undefined}
+    >
+      {prominent ? (
+        <div className="mb-4 rounded-2xl border border-[#227DE8]/25 bg-gradient-to-br from-[#227DE8]/8 via-white to-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-medium tracking-tight text-slate-900">
+                {sectionTitle}
+              </h2>
+              <p className="mt-1.5 text-sm text-slate-600">
+                Sube y consulta los documentos requeridos para operar con
+                Chavarrias.
+              </p>
+            </div>
+            {pendingCount > 0 ? (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-200/70">
+                {pendingCount} pendiente{pendingCount === 1 ? "" : "s"}
+              </span>
+            ) : (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200/70">
+                Al día
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-medium tracking-tight text-slate-900">
+            {sectionTitle}
+          </h2>
+        </div>
+      )}
 
       {successMessage ? (
         <div
@@ -164,7 +201,7 @@ export function ClientDocumentsSection({
 
       {errorMessage ? (
         <div
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+          className="animate-error-in mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
           role="alert"
         >
           {errorMessage}
@@ -189,7 +226,7 @@ export function ClientDocumentsSection({
                   Subida
                 </th>
                 <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
-                {isStaff ? (
+                {showActions ? (
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Acciones
                   </th>
@@ -203,7 +240,7 @@ export function ClientDocumentsSection({
                 return (
                   <tr
                     key={row.documentType}
-                    className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                    className="border-b border-slate-100 table-row-interactive last:border-0 hover:bg-slate-50/60"
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {row.documentType}
@@ -217,7 +254,9 @@ export function ClientDocumentsSection({
                         : formatShortDate(row.fechaVencimiento)}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {formatShortDate(row.fechaSubida)}
+                      {row.archivoUrl
+                        ? formatShortDate(row.fechaSubida)
+                        : "—"}
                     </td>
                     <td className="px-4 py-3">
                       {row.archivoUrl ? (
@@ -233,7 +272,7 @@ export function ClientDocumentsSection({
                         <span className="text-slate-400">—</span>
                       )}
                     </td>
-                    {isStaff ? (
+                    {showActions ? (
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <button
@@ -244,14 +283,16 @@ export function ClientDocumentsSection({
                           >
                             {isUploading ? "Subiendo…" : "Subir"}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => openConfigureModal(row)}
-                            className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                          >
-                            <Settings className="size-3.5 shrink-0" aria-hidden />
-                            Configurar
-                          </button>
+                          {isStaff ? (
+                            <button
+                              type="button"
+                              onClick={() => openConfigureModal(row)}
+                              className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <Settings className="size-3.5 shrink-0" aria-hidden />
+                              Configurar
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     ) : null}
@@ -263,7 +304,7 @@ export function ClientDocumentsSection({
         </div>
       </div>
 
-      {isStaff ? (
+      {showActions ? (
         <>
           <input
             ref={fileInputRef}
@@ -272,16 +313,18 @@ export function ClientDocumentsSection({
             className="hidden"
             onChange={handleQuickFileChange}
           />
-          <ConfigureDocumentModal
-            clientId={clientId}
-            open={configureOpen}
-            document={configureDocument}
-            onClose={() => {
-              setConfigureOpen(false);
-              setConfigureDocument(null);
-            }}
-            onSuccess={setSuccessMessage}
-          />
+          {isStaff ? (
+            <ConfigureDocumentModal
+              clientId={clientId}
+              open={configureOpen}
+              document={configureDocument}
+              onClose={() => {
+                setConfigureOpen(false);
+                setConfigureDocument(null);
+              }}
+              onSuccess={setSuccessMessage}
+            />
+          ) : null}
         </>
       ) : null}
     </section>

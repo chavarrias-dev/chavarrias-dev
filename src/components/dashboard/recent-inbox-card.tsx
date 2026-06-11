@@ -16,14 +16,14 @@ export function RecentInboxCard({
   unreadCount,
 }: RecentInboxCardProps) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 font-poppins shadow-sm">
+    <div className="card-hover-lift animate-card-in card-stagger-2 flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 font-poppins shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="text-sm font-medium tracking-tight text-slate-900">
             Bandeja de entrada
           </h3>
           {unreadCount > 0 ? (
-            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+            <span className="badge-pulse-subtle inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           ) : null}

@@ -100,6 +100,37 @@ async function requireStaff() {
   return { supabase, user };
 }
 
+async function requireStaffOrOwnClient(clientId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const role = await getUserRole(supabase, user.id);
+  if (role === "admin" || role === "empleado") {
+    return { supabase, user };
+  }
+  if (role === "cliente") {
+    const email = user.email?.trim();
+    if (!email) {
+      redirect("/dashboard");
+    }
+    const { data: ownRow } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    const ownClientId = (ownRow as { id: string } | null)?.id;
+    if (!ownClientId || ownClientId !== clientId) {
+      redirect("/dashboard");
+    }
+    return { supabase, user };
+  }
+  redirect("/dashboard");
+}
+
 function buildRedirectUrl(
   clientId: string,
   documentType: string,
@@ -128,7 +159,7 @@ type ExistingDocumentRow = {
 };
 
 async function fetchExistingDocument(
-  supabase: Awaited<ReturnType<typeof requireStaff>>["supabase"],
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   clientId: string,
   documentType: string,
 ): Promise<ExistingDocumentRow | null> {
@@ -147,14 +178,14 @@ async function fetchExistingDocument(
 export async function quickUploadClientDocument(
   formData: FormData,
 ): Promise<UploadDocumentResult> {
-  const { supabase, user } = await requireStaff();
-
   const clientId = getFormString(formData, "clientId", "client_id");
-  const documentType = getFormString(formData, "documentType", "document_type");
-
   if (!clientId) {
     return { ok: false, error: "Cliente requerido" };
   }
+
+  const { supabase, user } = await requireStaffOrOwnClient(clientId);
+
+  const documentType = getFormString(formData, "documentType", "document_type");
   if (!documentType || !isDocumentType(documentType)) {
     return { ok: false, error: "Tipo de documento inválido" };
   }

@@ -65,17 +65,17 @@ export function SidebarMessagesLink({
       onClick={onNavigate}
       className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
         active
-          ? "bg-[#227DE8]/10 text-[#227DE8]"
+          ? "bg-[#227DE8]/10 text-[#227DE8] shadow-sm"
           : "text-slate-600 hover:bg-slate-100"
       } ${collapsed ? "justify-center px-2" : ""}`}
     >
       <span className="relative shrink-0">
         <MessageCircle
-          className={`size-5 ${active ? "text-[#227DE8]" : "text-slate-500 group-hover:text-slate-700"}`}
+          className={`size-5 transition-colors duration-300 ${active ? "text-[#227DE8]" : "text-slate-500 group-hover:text-slate-700"}`}
           aria-hidden
         />
         {unreadCount > 0 ? (
-          <span className="absolute -right-1.5 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white">
+          <span className="badge-pulse-subtle absolute -right-1.5 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}

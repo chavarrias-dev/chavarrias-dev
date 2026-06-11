@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  FolderOpen,
   Home,
   LogOut,
   Menu,
@@ -117,12 +118,12 @@ function SidebarNavLink({
       onClick={onNavigate}
       className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
         active
-          ? "bg-[#227DE8]/10 text-[#227DE8]"
+          ? "bg-[#227DE8]/10 text-[#227DE8] shadow-sm"
           : "text-slate-600 hover:bg-slate-100"
       } ${collapsed ? "justify-center px-2" : ""}`}
     >
       <Icon
-        className={`size-5 shrink-0 ${active ? "text-[#227DE8]" : "text-slate-500 group-hover:text-slate-700"}`}
+        className={`size-5 shrink-0 transition-colors duration-300 ${active ? "text-[#227DE8]" : "text-slate-500 group-hover:text-slate-700"}`}
         aria-hidden
       />
       <span
@@ -196,6 +197,12 @@ export function DashboardShell({
       label: "Pedimentos",
       icon: Package,
       show: true,
+    },
+    {
+      href: "/dashboard/expediente",
+      label: "Mi Expediente",
+      icon: FolderOpen,
+      show: role === "cliente",
     },
     {
       href: "/dashboard/activity",
@@ -311,7 +318,7 @@ export function DashboardShell({
             href="/dashboard/profile"
             title={collapsed ? "Mi perfil" : undefined}
             onClick={() => setMobileOpen(false)}
-            className={`group relative flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-all duration-300 hover:bg-slate-100 ${
+            className={`group relative flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-all duration-300 hover:bg-slate-100/90 ${
               collapsed ? "justify-center" : ""
             }`}
           >
@@ -397,7 +404,9 @@ export function DashboardShell({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {children}
+          <div key={pathname} className="animate-page-in">
+            {children}
+          </div>
           <footer className="border-t border-slate-100 px-6 py-3 text-center text-xs text-slate-400 lg:px-10">
             © 2026 Chavarrias Servicios Aduanales SA de CV. Todos los derechos
             reservados.

@@ -195,7 +195,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
   const actionsColSpan = isStaff ? 5 : 4;
 
   const btnPrimary =
-    "inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow";
+    "btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow";
   const btnOutline =
     "inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5";
 
@@ -216,10 +216,12 @@ export default async function ClientProfilePage({ params }: PageProps) {
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-            Perfil del cliente
+            {isStaff ? "Perfil del cliente" : "Mi perfil"}
           </h1>
           <p className="mt-1.5 text-sm text-slate-500">
-            Datos de contacto y documentos asociados.
+            {isStaff
+              ? "Datos de contacto y documentos asociados."
+              : "Consulta tus datos y gestiona tu expediente documental."}
           </p>
         </div>
         {isStaff ? (
@@ -242,6 +244,17 @@ export default async function ClientProfilePage({ params }: PageProps) {
           </div>
         ) : null}
       </div>
+
+      {!isStaff ? (
+        <ClientDocumentsSection
+          clientId={id}
+          isStaff={isStaff}
+          documents={clientDocuments}
+          allowClientUpload
+          sectionTitle="Mi Expediente"
+          prominent
+        />
+      ) : null}
 
       <section
         className={`${sectionShell} mb-10 p-6 sm:p-8`}
@@ -326,11 +339,13 @@ export default async function ClientProfilePage({ params }: PageProps) {
         </div>
       </section>
 
-      <ClientDocumentsSection
-        clientId={id}
-        isStaff={isStaff}
-        documents={clientDocuments}
-      />
+      {isStaff ? (
+        <ClientDocumentsSection
+          clientId={id}
+          isStaff={isStaff}
+          documents={clientDocuments}
+        />
+      ) : null}
 
       <section className="mb-10">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -380,7 +395,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                   facturas.map((f) => (
                     <tr
                       key={f.id}
-                      className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                      className="border-b border-slate-100 table-row-interactive last:border-0 hover:bg-slate-50/60"
                     >
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {f.numero_factura}
@@ -478,7 +493,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                   pedimentos.map((p) => (
                     <tr
                       key={p.id}
-                      className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                      className="border-b border-slate-100 table-row-interactive last:border-0 hover:bg-slate-50/60"
                     >
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {p.numero_pedimento}

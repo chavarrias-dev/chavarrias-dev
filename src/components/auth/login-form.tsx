@@ -62,7 +62,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 py-3 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#1a6ed4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-75"
+      className="btn-primary-motion inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#1a6ed4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#227DE8]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-75"
     >
       {pending ? (
         <span

@@ -76,7 +76,7 @@ export async function DocumentAlerts() {
           />
         </svg>
         <span className="hidden sm:inline">Documentos</span>
-        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 py-0.5 text-xs font-bold text-white">
+        <span className="badge-pulse-subtle inline-flex min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 py-0.5 text-xs font-bold text-white">
           {alerts.length}
         </span>
       </summary>

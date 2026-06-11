@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { DocumentExpirationFields } from "@/components/documents/document-expiration-fields";
+import { ModalShell } from "@/components/ui/modal-shell";
 import type { DocumentType, ValidityPeriod } from "@/lib/documents-config";
 import { uploadClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
 
 const fieldClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
+  "form-field w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
 export type UploadModalDocument = {
   documentType: DocumentType;
@@ -62,22 +63,7 @@ export function UploadDocumentModal({
     }
   }, [open, document?.documentType]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
-
-  if (!open || !document) {
+  if (!document) {
     return null;
   }
 
@@ -103,20 +89,13 @@ export function UploadDocumentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
-        aria-label="Cerrar"
-        onClick={onClose}
-      />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="upload-document-title"
-        className="font-poppins relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:rounded-2xl"
-      >
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      align="bottom-sheet"
+      overlayClassName="bg-slate-900/40 backdrop-blur-[1px]"
+      panelClassName="font-poppins flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:rounded-2xl"
+    >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
           <div className="min-w-0">
             <h2
@@ -152,7 +131,7 @@ export function UploadDocumentModal({
 
             {errorMessage ? (
               <p
-                className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                className="animate-error-in rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                 role="alert"
               >
                 {errorMessage}
@@ -219,7 +198,7 @@ export function UploadDocumentModal({
             <button
               type="submit"
               disabled={isPending}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-primary-motion inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isPending ? "Guardando…" : "Guardar"}
             </button>
@@ -233,7 +212,6 @@ export function UploadDocumentModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

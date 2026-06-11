@@ -309,3 +309,42 @@ export async function fetchClientsWithDocumentIssues(
     clients: clientsWithIssues,
   };
 }
+
+export async function fetchPendingDocumentTypesForClient(
+  supabase: SupabaseClient,
+  clientId: string,
+): Promise<string[]> {
+  await recalculateDocumentStatuses(supabase);
+
+  const { data: docRows, error } = await supabase
+    .from("client_documents")
+    .select(
+      "document_type, archivo_url, fecha_vencimiento, sin_vencimiento, valido_manualmente",
+    )
+    .eq("client_id", clientId);
+
+  if (error) {
+    return [];
+  }
+
+  const docsByType = new Map(
+    ((docRows ?? []) as ClientDocumentDbRow[]).map((row) => [
+      row.document_type,
+      row,
+    ]),
+  );
+
+  return DOCUMENT_TYPES.filter((documentType) => {
+    const row = docsByType.get(documentType);
+    const status: DocumentStatus = row?.archivo_url
+      ? calculateDocumentStatusFromRow({
+          archivoUrl: row.archivo_url,
+          fechaVencimiento: row.fecha_vencimiento,
+          sinVencimiento: row.sin_vencimiento ?? false,
+          validoManualmente: row.valido_manualmente ?? true,
+        })
+      : "pendiente";
+
+    return status === "pendiente";
+  });
+}

@@ -357,7 +357,7 @@ export function MessagesPanel({
             </div>
 
             {error ? (
-              <p className="px-5 pb-2 text-sm text-red-600" role="alert">
+              <p className="animate-error-in px-5 pb-2 text-sm text-red-600" role="alert">
                 {error}
               </p>
             ) : null}
@@ -445,7 +445,7 @@ function ConversationListItem({
               {conversation.lastMessage}
             </p>
             {conversation.unreadCount > 0 ? (
-              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              <span className="badge-pulse-subtle inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {conversation.unreadCount}
               </span>
             ) : null}

@@ -7,10 +7,12 @@ import { RecentInboxCard } from "@/components/dashboard/recent-inbox-card";
 import { RecentPedimentosCard } from "@/components/dashboard/recent-pedimentos-card";
 import { StorageChart } from "@/components/dashboard/storage-chart";
 import { DocumentExpiringCard } from "@/components/dashboard/document-expiring-card";
+import { PendingDocsAlert } from "@/components/dashboard/pending-docs-alert";
 import { RoleBadge } from "@/components/dashboard/role-badge";
 import {
   fetchClientsWithDocumentIssues,
   fetchDocumentAlerts,
+  fetchPendingDocumentTypesForClient,
 } from "@/lib/document-status";
 import {
   displayName,
@@ -294,6 +296,7 @@ export default async function DashboardPage() {
     }
   }
 
+  let clientePendingDocuments: string[] = [];
   let documentAlerts: Awaited<ReturnType<typeof fetchDocumentAlerts>> = [];
   try {
     if (isStaff) {
@@ -302,13 +305,27 @@ export default async function DashboardPage() {
       documentAlerts = await fetchDocumentAlerts(supabase, {
         clientId: clienteOwnProfileId,
       });
+      clientePendingDocuments = await fetchPendingDocumentTypesForClient(
+        supabase,
+        clienteOwnProfileId,
+      );
     }
   } catch {
     documentAlerts = [];
+    clientePendingDocuments = [];
   }
 
   return (
     <main className="w-full flex-1 px-6 py-8 lg:px-10">
+      {resolvedRole === "cliente" ? (
+        <PendingDocsAlert
+          userId={user.id}
+          role={resolvedRole}
+          clientId={clienteOwnProfileId}
+          pendingDocuments={clientePendingDocuments}
+        />
+      ) : null}
+
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -325,7 +342,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/users/new"
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+              className="btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
             >
               Nuevo usuario
             </Link>
@@ -358,7 +375,7 @@ export default async function DashboardPage() {
             messages={adminInboxMessages}
             unreadCount={adminUnreadMessageCount}
           />
-          <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="card-hover-lift animate-card-in card-stagger-3 flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-2 text-sm font-medium tracking-tight text-slate-900">
               Almacenamiento
             </h3>
@@ -382,7 +399,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href={`/dashboard/clients/${clienteOwnProfileId}`}
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+              className="btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
             >
               Mi perfil de cliente
             </Link>
