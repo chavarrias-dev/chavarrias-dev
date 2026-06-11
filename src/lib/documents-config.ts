@@ -35,12 +35,12 @@ export function documentStoragePath(
 }
 
 export const VALIDITY_PERIODS = [
-  { value: "fecha_especifica", label: "Fecha específica" },
+  { value: "indefinido", label: "Indefinido" },
   { value: "1_mes", label: "1 mes" },
   { value: "3_meses", label: "3 meses" },
   { value: "6_meses", label: "6 meses" },
   { value: "1_anio", label: "1 año" },
-  { value: "indefinido", label: "Indefinido" },
+  { value: "fecha_especifica", label: "Fecha específica" },
 ] as const;
 
 export type ValidityPeriod = (typeof VALIDITY_PERIODS)[number]["value"];

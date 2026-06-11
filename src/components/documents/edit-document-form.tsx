@@ -33,7 +33,7 @@ function inferDefaultValidoPor(
   if (fechaVencimiento?.trim()) {
     return "fecha_especifica";
   }
-  return "1_mes";
+  return "indefinido";
 }
 
 export function EditDocumentForm({

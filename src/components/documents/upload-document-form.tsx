@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { DocumentExpirationFields } from "@/components/documents/document-expiration-fields";
 import type { DocumentType } from "@/lib/documents-config";
 import { uploadClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
@@ -20,9 +21,28 @@ export function UploadDocumentForm({
   clientId,
   clientName,
   documentType,
-  errorMessage,
+  errorMessage: initialError,
 }: UploadDocumentFormProps) {
+  const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState(initialError ?? null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await uploadClientDocument(formData);
+      if (result.ok) {
+        router.push(`/dashboard/clients/${clientId}`);
+        router.refresh();
+      } else {
+        setErrorMessage(result.error);
+      }
+    });
+  };
 
   return (
     <div className="mx-auto max-w-xl">
@@ -53,21 +73,9 @@ export function UploadDocumentForm({
           </p>
         ) : null}
 
-        <form action={uploadClientDocument} className="mt-6 space-y-5">
-          <input type="hidden" name="client_id" value={clientId} />
-          <input type="hidden" name="document_type" value={documentType} />
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Tipo de documento
-            </label>
-            <input
-              type="text"
-              value={documentType}
-              readOnly
-              className={`${fieldClass} bg-slate-50 text-slate-600`}
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+          <input type="hidden" name="clientId" value={clientId} />
+          <input type="hidden" name="documentType" value={documentType} />
 
           <div>
             <label
@@ -113,9 +121,10 @@ export function UploadDocumentForm({
           <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+              disabled={isPending}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow disabled:opacity-60"
             >
-              Guardar documento
+              {isPending ? "Guardando…" : "Guardar documento"}
             </button>
             <Link
               href={`/dashboard/clients/${clientId}`}

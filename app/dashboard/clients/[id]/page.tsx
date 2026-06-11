@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
-import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import {
+  ClientDocumentsSection,
+  type ClientDocumentRowData,
+} from "@/components/documents/client-documents-section";
 import {
   DOCUMENT_TYPES,
   type DocumentStatus,
@@ -49,6 +52,7 @@ type ClientDocumentRow = {
   fecha_subida: string | null;
   sin_vencimiento: boolean | null;
   valido_manualmente: boolean | null;
+  notas: string | null;
   status: DocumentStatus;
 };
 
@@ -148,7 +152,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
       supabase
         .from("client_documents")
         .select(
-          "id, document_type, archivo_url, fecha_vencimiento, fecha_subida, sin_vencimiento, valido_manualmente, status",
+          "id, document_type, archivo_url, fecha_vencimiento, fecha_subida, sin_vencimiento, valido_manualmente, notas, status",
         )
         .eq("client_id", id),
     ]);
@@ -160,6 +164,30 @@ export default async function ClientProfilePage({ params }: PageProps) {
       doc.document_type,
       doc,
     ]),
+  );
+
+  const clientDocuments: ClientDocumentRowData[] = DOCUMENT_TYPES.map(
+    (documentType) => {
+      const doc = documentsByType.get(documentType);
+      return {
+        id: doc?.id,
+        documentType,
+        archivoUrl: doc?.archivo_url ?? null,
+        fechaVencimiento: doc?.fecha_vencimiento ?? null,
+        fechaSubida: doc?.fecha_subida ?? null,
+        sinVencimiento: doc?.sin_vencimiento ?? false,
+        validoManualmente: doc?.valido_manualmente ?? true,
+        notas: doc?.notas ?? null,
+        status: doc
+          ? calculateDocumentStatusFromRow({
+              archivoUrl: doc.archivo_url,
+              fechaVencimiento: doc.fecha_vencimiento,
+              sinVencimiento: doc.sin_vencimiento ?? false,
+              validoManualmente: doc.valido_manualmente ?? true,
+            })
+          : "pendiente",
+      };
+    },
   );
 
   const initials = initialsFromName(client.full_name);
@@ -298,108 +326,11 @@ export default async function ClientProfilePage({ params }: PageProps) {
         </div>
       </section>
 
-      <section className="mb-10">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-medium tracking-tight text-slate-900">
-            Documentos
-          </h2>
-        </div>
-        <div className={sectionShell}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Documento
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Estado
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Vencimiento
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Subida
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
-                  {isStaff ? (
-                    <th className="px-4 py-3 font-medium text-slate-700"> </th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody>
-                {DOCUMENT_TYPES.map((documentType) => {
-                  const doc = documentsByType.get(documentType);
-                  const status: DocumentStatus = doc
-                    ? calculateDocumentStatusFromRow({
-                        archivoUrl: doc.archivo_url,
-                        fechaVencimiento: doc.fecha_vencimiento,
-                        sinVencimiento: doc.sin_vencimiento ?? false,
-                        validoManualmente: doc.valido_manualmente ?? true,
-                      })
-                    : "pendiente";
-
-                  return (
-                    <tr
-                      key={documentType}
-                      className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
-                    >
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {documentType}
-                      </td>
-                      <td className="px-4 py-3">
-                        <DocumentStatusBadge status={status} />
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {doc?.sin_vencimiento
-                          ? "Indefinido"
-                          : formatShortDate(doc?.fecha_vencimiento ?? null)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatShortDate(doc?.fecha_subida ?? null)}
-                      </td>
-                      <td className="px-4 py-3">
-                        {doc?.archivo_url ? (
-                          <a
-                            href={doc.archivo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                          >
-                            Ver PDF
-                          </a>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      {isStaff ? (
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link
-                              href={`/dashboard/clients/${id}/documents/upload?tipo=${encodeURIComponent(documentType)}`}
-                              className="inline-flex h-8 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-3 text-xs font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5"
-                            >
-                              {doc?.archivo_url ? "Actualizar" : "Subir"}
-                            </Link>
-                            {doc?.archivo_url ? (
-                              <Link
-                                href={`/dashboard/clients/${id}/documents/${doc.id}/edit`}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                              >
-                                Editar
-                              </Link>
-                            ) : null}
-                          </div>
-                        </td>
-                      ) : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      <ClientDocumentsSection
+        clientId={id}
+        isStaff={isStaff}
+        documents={clientDocuments}
+      />
 
       <section className="mb-10">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

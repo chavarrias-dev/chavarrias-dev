@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { RoleBadge } from "@/components/dashboard/role-badge";
+import { SidebarMessagesLink } from "@/components/dashboard/sidebar-messages-link";
 
 const STORAGE_KEY = "dashboard-sidebar-collapsed";
 
@@ -30,6 +31,42 @@ type NavItem = {
   show: boolean;
 };
 
+function DatabaseStatusIndicator({
+  connected,
+  collapsed,
+}: {
+  connected: boolean;
+  collapsed: boolean;
+}) {
+  const label = connected
+    ? "Base de datos conectada"
+    : "Error de conexión a la base de datos";
+
+  return (
+    <span
+      title={label}
+      className="group relative flex shrink-0 items-center"
+      aria-label={label}
+    >
+      <span className="relative flex h-2 w-2">
+        {connected ? (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+        ) : null}
+        <span
+          className={`relative inline-flex h-2 w-2 rounded-full ${
+            connected ? "bg-emerald-500" : "bg-red-500"
+          }`}
+        />
+      </span>
+      {collapsed ? (
+        <span className="pointer-events-none absolute left-full z-50 ml-3 hidden whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block">
+          {label}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 type DashboardShellProps = {
   children: ReactNode;
   alerts?: ReactNode;
@@ -38,6 +75,8 @@ type DashboardShellProps = {
   role: string;
   isStaff: boolean;
   isAdmin: boolean;
+  dbConnected?: boolean;
+  currentUserId: string;
   logoutAction: () => Promise<void>;
 };
 
@@ -110,6 +149,8 @@ export function DashboardShell({
   role,
   isStaff,
   isAdmin,
+  dbConnected,
+  currentUserId,
   logoutAction,
 }: DashboardShellProps) {
   const pathname = usePathname();
@@ -180,26 +221,38 @@ export function DashboardShell({
           collapsed ? "justify-center" : "justify-between gap-2"
         }`}
       >
-        <Link
-          href="/dashboard"
-          className={`flex min-w-0 items-center transition-opacity hover:opacity-90 ${
-            collapsed ? "justify-center" : ""
+        <div
+          className={`flex min-w-0 items-center gap-2 ${
+            collapsed ? "flex-col" : ""
           }`}
-          onClick={() => setMobileOpen(false)}
         >
-          <Image
-            src="/chavarrias_logo.svg"
-            alt="Chavarrias"
-            width={1715}
-            height={395}
-            className={
-              collapsed
-                ? "h-8 w-8 object-contain object-center"
-                : "h-8 w-auto max-w-[170px] object-contain object-left"
-            }
-            priority
-          />
-        </Link>
+          <Link
+            href="/dashboard"
+            className={`flex min-w-0 items-center transition-opacity hover:opacity-90 ${
+              collapsed ? "justify-center" : ""
+            }`}
+            onClick={() => setMobileOpen(false)}
+          >
+            <Image
+              src="/chavarrias_logo.svg"
+              alt="Chavarrias"
+              width={1715}
+              height={395}
+              className={
+                collapsed
+                  ? "h-8 w-8 object-contain object-center"
+                  : "h-8 w-auto max-w-[170px] object-contain object-left"
+              }
+              priority
+            />
+          </Link>
+          {isAdmin && dbConnected !== undefined ? (
+            <DatabaseStatusIndicator
+              connected={dbConnected}
+              collapsed={collapsed && !mobileOpen}
+            />
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={() => setMobileOpen(false)}
@@ -223,6 +276,11 @@ export function DashboardShell({
             onNavigate={() => setMobileOpen(false)}
           />
         ))}
+        <SidebarMessagesLink
+          collapsed={collapsed && !mobileOpen}
+          currentUserId={currentUserId}
+          onNavigate={() => setMobileOpen(false)}
+        />
       </nav>
 
       <div className="shrink-0 space-y-2 border-t border-slate-100 p-2">

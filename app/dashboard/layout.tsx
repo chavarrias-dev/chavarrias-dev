@@ -40,6 +40,14 @@ export default async function DashboardLayout({
   const userEmail = profile?.email ?? user.email ?? "";
   const userRole = profile?.role ?? role ?? "user";
 
+  let dbConnected: boolean | undefined;
+  if (isAdmin) {
+    const { error: profilesPingError } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+    dbConnected = !profilesPingError;
+  }
+
   return (
     <DashboardShell
       userName={userName}
@@ -47,6 +55,8 @@ export default async function DashboardLayout({
       role={userRole}
       isStaff={isStaff}
       isAdmin={isAdmin}
+      dbConnected={dbConnected}
+      currentUserId={user.id}
       logoutAction={logout}
       alerts={<DocumentAlerts />}
     >

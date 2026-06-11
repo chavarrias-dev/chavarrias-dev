@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { DatabaseStatusCard } from "@/components/dashboard/database-status-card";
+import { PendingDocumentsCard } from "@/components/dashboard/pending-documents-card";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
+import { RecentInboxCard } from "@/components/dashboard/recent-inbox-card";
 import { RecentPedimentosCard } from "@/components/dashboard/recent-pedimentos-card";
 import { StorageChart } from "@/components/dashboard/storage-chart";
-import { TotalClientsCard } from "@/components/dashboard/total-clients-card";
 import { DocumentExpiringCard } from "@/components/dashboard/document-expiring-card";
 import { RoleBadge } from "@/components/dashboard/role-badge";
-import { fetchDocumentAlerts } from "@/lib/document-status";
+import {
+  fetchClientsWithDocumentIssues,
+  fetchDocumentAlerts,
+} from "@/lib/document-status";
+import {
+  displayName,
+  type InboxMessagePreview,
+  type MessageProfile,
+} from "@/lib/messages";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { clients, facturas, pedimentos } from "@/db/schema";
@@ -209,30 +217,81 @@ export default async function DashboardPage() {
     recentPedimentos = [];
   }
 
-  let adminDbConnected = false;
-  let adminTotalClients = 0;
-  let adminClientsThisMonth = 0;
+  let adminInboxMessages: InboxMessagePreview[] = [];
+  let adminUnreadMessageCount = 0;
+  let documentIssues = {
+    totalClientsWithIssues: 0,
+    clients: [] as Awaited<
+      ReturnType<typeof fetchClientsWithDocumentIssues>
+    >["clients"],
+  };
 
   if (resolvedRole === "admin") {
-    const { error: profilesPingError } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true });
-    adminDbConnected = !profilesPingError;
+    const [{ count: unreadCount }, { data: inboxRows }] = await Promise.all([
+      supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", user.id)
+        .eq("read", false),
+      supabase
+        .from("messages")
+        .select("id, sender_id, content, read, created_at")
+        .eq("receiver_id", user.id)
+        .order("read", { ascending: true })
+        .order("created_at", { ascending: false })
+        .limit(4),
+    ]);
 
-    const { count: totalC } = await supabase
-      .from("clients")
-      .select("*", { count: "exact", head: true });
-    adminTotalClients = totalC ?? 0;
+    adminUnreadMessageCount = unreadCount ?? 0;
 
-    const startOfMonth = new Date();
-    startOfMonth.setUTCDate(1);
-    startOfMonth.setUTCHours(0, 0, 0, 0);
+    const senderIds = [
+      ...new Set(
+        ((inboxRows ?? []) as { sender_id: string }[]).map(
+          (row) => row.sender_id,
+        ),
+      ),
+    ];
 
-    const { count: monthC } = await supabase
-      .from("clients")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startOfMonth.toISOString());
-    adminClientsThisMonth = monthC ?? 0;
+    let sendersById = new Map<string, MessageProfile>();
+    if (senderIds.length > 0) {
+      const { data: senderProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .in("id", senderIds);
+
+      sendersById = new Map(
+        ((senderProfiles ?? []) as MessageProfile[]).map((profile) => [
+          profile.id,
+          profile,
+        ]),
+      );
+    }
+
+    adminInboxMessages = (
+      (inboxRows ?? []) as {
+        id: string;
+        sender_id: string;
+        content: string;
+        read: boolean;
+        created_at: string;
+      }[]
+    ).map((row) => {
+      const sender = sendersById.get(row.sender_id);
+      return {
+        id: row.id,
+        senderId: row.sender_id,
+        senderName: sender ? displayName(sender) : "Usuario",
+        content: row.content,
+        read: row.read,
+        createdAt: row.created_at,
+      };
+    });
+
+    try {
+      documentIssues = await fetchClientsWithDocumentIssues(supabase);
+    } catch {
+      documentIssues = { totalClientsWithIssues: 0, clients: [] };
+    }
   }
 
   let documentAlerts: Awaited<ReturnType<typeof fetchDocumentAlerts>> = [];
@@ -291,10 +350,13 @@ export default async function DashboardPage() {
           className="mb-8 grid grid-cols-1 gap-3 font-poppins md:grid-cols-3 md:items-stretch"
           aria-label="Estadísticas de administración"
         >
-          <DatabaseStatusCard connected={adminDbConnected} />
-          <TotalClientsCard
-            total={adminTotalClients}
-            thisMonth={adminClientsThisMonth}
+          <PendingDocumentsCard
+            totalClientsWithIssues={documentIssues.totalClientsWithIssues}
+            clients={documentIssues.clients}
+          />
+          <RecentInboxCard
+            messages={adminInboxMessages}
+            unreadCount={adminUnreadMessageCount}
           />
           <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-2 text-sm font-medium tracking-tight text-slate-900">

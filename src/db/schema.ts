@@ -92,3 +92,16 @@ export const clientDocuments = pgTable("client_documents", {
   validoManualmente: boolean("valido_manualmente").default(true),
   sinVencimiento: boolean("sin_vencimiento").default(false),
 });
+
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  senderId: uuid("sender_id")
+    .notNull()
+    .references(() => profiles.id),
+  receiverId: uuid("receiver_id")
+    .notNull()
+    .references(() => profiles.id),
+  content: text("content").notNull(),
+  read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});

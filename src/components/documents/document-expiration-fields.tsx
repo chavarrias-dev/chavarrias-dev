@@ -15,6 +15,7 @@ type DocumentExpirationFieldsProps = {
   defaultFechaVencimiento?: string | null;
   defaultValidoManualmente?: boolean;
   fechaSubida?: string | null;
+  compact?: boolean;
 };
 
 function inferValidoPor(
@@ -27,7 +28,7 @@ function inferValidoPor(
   if (fechaVencimiento?.trim()) {
     return "fecha_especifica";
   }
-  return "1_mes";
+  return "indefinido";
 }
 
 export function DocumentExpirationFields({
@@ -35,6 +36,7 @@ export function DocumentExpirationFields({
   defaultFechaVencimiento,
   defaultValidoManualmente = true,
   fechaSubida,
+  compact = false,
 }: DocumentExpirationFieldsProps) {
   const initialValidoPor =
     defaultValidoPor ??
@@ -61,34 +63,35 @@ export function DocumentExpirationFields({
     return calculateExpirationFromPeriod(base, validoPor);
   }, [validoPor, fechaSubida]);
 
-  const resolvedFechaVencimiento =
-    validoPor === "fecha_especifica"
-      ? fechaVencimiento
-      : validoPor === "indefinido"
-        ? ""
-        : (computedExpiration ?? "");
-
   return (
-    <div className="space-y-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-      <div>
-        <h3 className="text-sm font-medium text-slate-900">
-          Vigencia del documento
-        </h3>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Controla la fecha de vencimiento y validez por cliente.
-        </p>
-      </div>
+    <div
+      className={
+        compact
+          ? "space-y-4"
+          : "space-y-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4"
+      }
+    >
+      {!compact ? (
+        <div>
+          <h3 className="text-sm font-medium text-slate-900">
+            Vigencia del documento
+          </h3>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Controla la fecha de vencimiento y validez por cliente.
+          </p>
+        </div>
+      ) : null}
 
       <div>
         <label
-          htmlFor="valido_por"
+          htmlFor="validityPeriod"
           className="mb-1.5 block text-sm font-medium text-slate-700"
         >
           Válido por
         </label>
         <select
-          id="valido_por"
-          name="valido_por"
+          id="validityPeriod"
+          name="validityPeriod"
           value={validoPor}
           onChange={(e) => setValidoPor(e.target.value as ValidityPeriod)}
           className={fieldClass}
@@ -104,14 +107,14 @@ export function DocumentExpirationFields({
       {validoPor === "fecha_especifica" ? (
         <div>
           <label
-            htmlFor="fecha_vencimiento"
+            htmlFor="fechaEspecifica"
             className="mb-1.5 block text-sm font-medium text-slate-700"
           >
             Fecha de vencimiento
           </label>
           <input
-            id="fecha_vencimiento"
-            name="fecha_vencimiento"
+            id="fechaEspecifica"
+            name="fechaEspecifica"
             type="date"
             value={fechaVencimiento}
             onChange={(e) => setFechaVencimiento(e.target.value)}
@@ -137,21 +140,10 @@ export function DocumentExpirationFields({
         </p>
       ) : null}
 
-      <input
-        type="hidden"
-        name="fecha_vencimiento_resolved"
-        value={resolvedFechaVencimiento}
-      />
-      <input
-        type="hidden"
-        name="sin_vencimiento"
-        value={validoPor === "indefinido" ? "true" : "false"}
-      />
-
       <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
         <input
-          id="valido_manualmente"
-          name="valido_manualmente"
+          id="validoManualmente"
+          name="validoManualmente"
           type="checkbox"
           checked={validoManualmente}
           onChange={(e) => setValidoManualmente(e.target.checked)}
@@ -160,10 +152,10 @@ export function DocumentExpirationFields({
         />
         <div>
           <label
-            htmlFor="valido_manualmente"
+            htmlFor="validoManualmente"
             className="text-sm font-medium text-slate-800"
           >
-            Documento válido
+            Válido manualmente
           </label>
           <p className="mt-0.5 text-xs text-slate-500">
             Desmarca para marcar como inválido o vencido manualmente, sin

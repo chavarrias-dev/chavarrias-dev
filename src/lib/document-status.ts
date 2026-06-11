@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DocumentStatus } from "@/lib/documents-config";
+import {
+  DOCUMENT_TYPES,
+  type DocumentStatus,
+} from "@/lib/documents-config";
 
 function startOfDay(date: Date): Date {
   const d = new Date(date);
@@ -194,4 +197,115 @@ export async function fetchDocumentAlerts(
       daysRemaining: daysUntilExpiration(row.fecha_vencimiento, today) ?? 0,
     };
   });
+}
+
+export type ClientDocumentTypeStatus = {
+  documentType: string;
+  status: DocumentStatus;
+};
+
+export type ClientDocumentIssueSummary = {
+  clientId: string;
+  clientName: string;
+  pendientesCount: number;
+  vencidosCount: number;
+  documents: ClientDocumentTypeStatus[];
+};
+
+type ClientDocumentDbRow = {
+  client_id: string;
+  document_type: string;
+  archivo_url: string | null;
+  fecha_vencimiento: string | null;
+  sin_vencimiento: boolean | null;
+  valido_manualmente: boolean | null;
+};
+
+export async function fetchClientsWithDocumentIssues(
+  supabase: SupabaseClient,
+): Promise<{
+  totalClientsWithIssues: number;
+  clients: ClientDocumentIssueSummary[];
+}> {
+  await recalculateDocumentStatuses(supabase);
+
+  const [{ data: clientRows, error: clientsError }, { data: docRows, error: docsError }] =
+    await Promise.all([
+      supabase
+        .from("clients")
+        .select("id, full_name")
+        .order("full_name", { ascending: true }),
+      supabase
+        .from("client_documents")
+        .select(
+          "client_id, document_type, archivo_url, fecha_vencimiento, sin_vencimiento, valido_manualmente",
+        ),
+    ]);
+
+  if (clientsError || docsError || !clientRows) {
+    return { totalClientsWithIssues: 0, clients: [] };
+  }
+
+  const docsByClient = new Map<string, Map<string, ClientDocumentDbRow>>();
+
+  for (const row of (docRows ?? []) as ClientDocumentDbRow[]) {
+    if (!docsByClient.has(row.client_id)) {
+      docsByClient.set(row.client_id, new Map());
+    }
+    docsByClient.get(row.client_id)!.set(row.document_type, row);
+  }
+
+  const clientsWithIssues: ClientDocumentIssueSummary[] = [];
+
+  for (const client of clientRows as Array<{
+    id: string;
+    full_name: string;
+  }>) {
+    const docMap = docsByClient.get(client.id) ?? new Map();
+
+    const documents: ClientDocumentTypeStatus[] = DOCUMENT_TYPES.map(
+      (documentType) => {
+        const row = docMap.get(documentType);
+        const status: DocumentStatus = row?.archivo_url
+          ? calculateDocumentStatusFromRow({
+              archivoUrl: row.archivo_url,
+              fechaVencimiento: row.fecha_vencimiento,
+              sinVencimiento: row.sin_vencimiento ?? false,
+              validoManualmente: row.valido_manualmente ?? true,
+            })
+          : "pendiente";
+
+        return { documentType, status };
+      },
+    );
+
+    const pendientesCount = documents.filter(
+      (d) => d.status === "pendiente",
+    ).length;
+    const vencidosCount = documents.filter((d) => d.status === "vencido").length;
+
+    if (pendientesCount > 0 || vencidosCount > 0) {
+      clientsWithIssues.push({
+        clientId: client.id,
+        clientName: client.full_name,
+        pendientesCount,
+        vencidosCount,
+        documents,
+      });
+    }
+  }
+
+  clientsWithIssues.sort((a, b) => {
+    const scoreA = a.pendientesCount + a.vencidosCount;
+    const scoreB = b.pendientesCount + b.vencidosCount;
+    if (scoreB !== scoreA) {
+      return scoreB - scoreA;
+    }
+    return a.clientName.localeCompare(b.clientName, "es");
+  });
+
+  return {
+    totalClientsWithIssues: clientsWithIssues.length,
+    clients: clientsWithIssues,
+  };
 }
