@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PendingDocumentsCard } from "@/components/dashboard/pending-documents-card";
 import {
+  ClientOnboardingTour,
+  ClientTutorialButton,
   OnboardingTour,
   TutorialButton,
 } from "@/components/dashboard/onboarding-tour";
@@ -333,6 +335,9 @@ export default async function DashboardPage() {
       {resolvedRole === "admin" ? (
         <OnboardingTour userId={user.id} />
       ) : null}
+      {resolvedRole === "cliente" ? (
+        <ClientOnboardingTour userId={user.id} />
+      ) : null}
 
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
@@ -343,6 +348,9 @@ export default async function DashboardPage() {
             <RoleBadge role={userRole} />
             {resolvedRole === "admin" ? (
               <TutorialButton userId={user.id} />
+            ) : null}
+            {resolvedRole === "cliente" ? (
+              <ClientTutorialButton userId={user.id} />
             ) : null}
           </div>
           <p className="text-sm text-slate-500">
@@ -398,34 +406,46 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {resolvedRole === "cliente" && clienteOwnProfileId ? (
-        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-medium tracking-tight text-slate-900">
-                Mis documentos
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Revisa tus facturas y pedimentos en un solo lugar.
-              </p>
+      {resolvedRole === "cliente" ? (
+        <section
+          data-tour="dashboard-client-home"
+          aria-label="Resumen del dashboard"
+          className="space-y-8"
+        >
+          {clienteOwnProfileId ? (
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-medium tracking-tight text-slate-900">
+                    Mis documentos
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Revisa tus facturas y pedimentos en un solo lugar.
+                  </p>
+                </div>
+                <Link
+                  href={`/dashboard/clients/${clienteOwnProfileId}`}
+                  className="btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+                >
+                  Mi perfil de cliente
+                </Link>
+              </div>
             </div>
-            <Link
-              href={`/dashboard/clients/${clienteOwnProfileId}`}
-              className="btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
-            >
-              Mi perfil de cliente
-            </Link>
-          </div>
+          ) : null}
+          <DocumentExpiringCard alerts={documentAlerts} />
+          <RecentFacturasCard facturas={recentFacturas} />
+          <RecentPedimentosCard pedimentos={recentPedimentos} />
         </section>
-      ) : null}
-
-      <DocumentExpiringCard alerts={documentAlerts} />
-
-      {isStaff ? (
-        <RecentClientsCard clients={recentClients} />
-      ) : null}
-      <RecentFacturasCard facturas={recentFacturas} />
-      <RecentPedimentosCard pedimentos={recentPedimentos} />
+      ) : (
+        <>
+          <DocumentExpiringCard alerts={documentAlerts} />
+          {isStaff ? (
+            <RecentClientsCard clients={recentClients} />
+          ) : null}
+          <RecentFacturasCard facturas={recentFacturas} />
+          <RecentPedimentosCard pedimentos={recentPedimentos} />
+        </>
+      )}
     </main>
   );
 }

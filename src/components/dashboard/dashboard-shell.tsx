@@ -208,6 +208,7 @@ export function DashboardShell({
       label: "Mi Expediente",
       icon: FolderOpen,
       show: role === "cliente",
+      tourId: "nav-expediente",
     },
     {
       href: "/dashboard/activity",
