@@ -30,6 +30,7 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   show: boolean;
+  tourId?: string;
 };
 
 function DatabaseStatusIndicator({
@@ -116,6 +117,7 @@ function SidebarNavLink({
       href={item.href}
       title={collapsed ? item.label : undefined}
       onClick={onNavigate}
+      data-tour={item.tourId}
       className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
         active
           ? "bg-[#227DE8]/10 text-[#227DE8] shadow-sm"
@@ -179,24 +181,27 @@ export function DashboardShell({
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: Home, show: true },
-    { href: "/dashboard/clients", label: "Clientes", icon: Users, show: isStaff },
+    { href: "/dashboard/clients", label: "Clientes", icon: Users, show: isStaff, tourId: "nav-clients" },
     {
       href: "/dashboard/users",
       label: "Usuarios",
       icon: UserPlus,
       show: isStaff,
+      tourId: "nav-users",
     },
     {
       href: "/dashboard/facturas",
       label: "Facturas",
       icon: FileText,
       show: true,
+      tourId: "nav-facturas",
     },
     {
       href: "/dashboard/pedimentos",
       label: "Pedimentos",
       icon: Package,
       show: true,
+      tourId: "nav-pedimentos",
     },
     {
       href: "/dashboard/expediente",
@@ -215,6 +220,7 @@ export function DashboardShell({
       label: "Herramientas",
       icon: Wrench,
       show: isStaff,
+      tourId: "nav-tools",
     },
   ].filter((item) => item.show);
 
@@ -316,6 +322,7 @@ export function DashboardShell({
         >
           <Link
             href="/dashboard/profile"
+            data-tour="user-profile"
             title={collapsed ? "Mi perfil" : undefined}
             onClick={() => setMobileOpen(false)}
             className={`group relative flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-all duration-300 hover:bg-slate-100/90 ${
@@ -381,6 +388,7 @@ export function DashboardShell({
       ) : null}
 
       <aside
+        data-tour="sidebar"
         className={`${sidebarWidth} sticky top-0 z-50 flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-300 ${
           mobileOpen
             ? "fixed inset-y-0 left-0 w-60"

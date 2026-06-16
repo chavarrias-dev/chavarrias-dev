@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PendingDocumentsCard } from "@/components/dashboard/pending-documents-card";
+import {
+  OnboardingTour,
+  TutorialButton,
+} from "@/components/dashboard/onboarding-tour";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
 import { RecentInboxCard } from "@/components/dashboard/recent-inbox-card";
@@ -326,6 +330,10 @@ export default async function DashboardPage() {
         />
       ) : null}
 
+      {resolvedRole === "admin" ? (
+        <OnboardingTour userId={user.id} />
+      ) : null}
+
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -333,6 +341,9 @@ export default async function DashboardPage() {
               Hola, {welcomeName}
             </h1>
             <RoleBadge role={userRole} />
+            {resolvedRole === "admin" ? (
+              <TutorialButton userId={user.id} />
+            ) : null}
           </div>
           <p className="text-sm text-slate-500">
             Bienvenido al CRM Chavarrias. Aquí tienes un resumen de actividad.
@@ -364,6 +375,7 @@ export default async function DashboardPage() {
 
       {resolvedRole === "admin" ? (
         <section
+          data-tour="dashboard-stats"
           className="mb-8 grid grid-cols-1 gap-3 font-poppins md:grid-cols-3 md:items-stretch"
           aria-label="Estadísticas de administración"
         >

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessageSquarePlus, Send, X } from "lucide-react";
+import { MessageSquarePlus, Search, Send, X } from "lucide-react";
 import {
   markConversationAsRead,
   sendMessage,
@@ -12,6 +12,7 @@ import {
   canMessageUser,
   displayName,
   formatMessageTime,
+  groupContactsByCompany,
   type ConversationSummary,
   type MessageProfile,
   type MessageRecord,
@@ -36,6 +37,10 @@ function mergeMessage(list: MessageRecord[], incoming: MessageRecord): MessageRe
   );
 }
 
+function normalizeSearchQuery(query: string): string {
+  return query.trim().toLowerCase();
+}
+
 export function MessagesPanel({
   currentUserId,
   currentUserRole,
@@ -52,6 +57,7 @@ export function MessagesPanel({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const profilesById = useMemo(
@@ -72,10 +78,54 @@ export function MessagesPanel({
     [allProfiles, currentUserRole, currentUserId],
   );
 
+  const groupedContacts = useMemo(
+    () => groupContactsByCompany(contacts),
+    [contacts],
+  );
+
   const conversations = useMemo(
     () => buildConversations(messages, profilesById, currentUserId),
     [messages, profilesById, currentUserId],
   );
+
+  const normalizedSearch = normalizeSearchQuery(searchQuery);
+
+  const filteredConversations = useMemo(() => {
+    if (!normalizedSearch) {
+      return conversations;
+    }
+
+    return conversations.filter(
+      (conversation) =>
+        conversation.partnerName.toLowerCase().includes(normalizedSearch) ||
+        conversation.lastMessage.toLowerCase().includes(normalizedSearch),
+    );
+  }, [conversations, normalizedSearch]);
+
+  const filteredGroupedContacts = useMemo(() => {
+    if (!normalizedSearch) {
+      return groupedContacts;
+    }
+
+    return groupedContacts
+      .map((group) => ({
+        ...group,
+        contacts: group.contacts.filter((contact) => {
+          const name = displayName(contact).toLowerCase();
+          const email = contact.email.toLowerCase();
+          const company = contact.companyName?.toLowerCase() ?? "";
+          const role = contact.role?.toLowerCase() ?? "";
+
+          return (
+            name.includes(normalizedSearch) ||
+            email.includes(normalizedSearch) ||
+            company.includes(normalizedSearch) ||
+            role.includes(normalizedSearch)
+          );
+        }),
+      }))
+      .filter((group) => group.contacts.length > 0);
+  }, [groupedContacts, normalizedSearch]);
 
   const selectedMessages = useMemo(() => {
     if (!selectedPartnerId) {
@@ -223,8 +273,6 @@ export function MessagesPanel({
     selectConversation(partnerId);
   };
 
-  const canStartWith = contacts;
-
   return (
     <div className="flex h-[calc(100vh-8.5rem)] min-h-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <aside className="flex w-full max-w-sm flex-col border-r border-slate-200 bg-slate-50/60 md:w-80">
@@ -240,6 +288,29 @@ export function MessagesPanel({
               Nueva
             </button>
           </div>
+          <div className="relative mt-3">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Buscar conversación o contacto…"
+              className="form-field w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 transition hover:text-slate-600"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {showNewConversation ? (
@@ -248,25 +319,36 @@ export function MessagesPanel({
               Iniciar conversación
             </p>
             <div className="max-h-40 space-y-1 overflow-y-auto">
-              {canStartWith.length === 0 ? (
+              {contacts.length === 0 ? (
                 <p className="text-xs text-slate-500">
                   No hay usuarios disponibles.
                 </p>
+              ) : filteredGroupedContacts.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  No se encontraron contactos.
+                </p>
               ) : (
-                canStartWith.map((contact) => (
-                  <button
-                    key={contact.id}
-                    type="button"
-                    onClick={() => startConversation(contact.id)}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition hover:bg-slate-50"
-                  >
-                    <span className="font-medium text-slate-800">
-                      {displayName(contact)}
-                    </span>
-                    <span className="text-[10px] uppercase text-slate-400">
-                      {contact.role}
-                    </span>
-                  </button>
+                filteredGroupedContacts.map((group) => (
+                  <div key={group.label}>
+                    <p className="mb-1 mt-2 px-2 text-xs font-medium uppercase tracking-wide text-slate-500 first:mt-0">
+                      {group.label}
+                    </p>
+                    {group.contacts.map((contact) => (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        onClick={() => startConversation(contact.id)}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition hover:bg-slate-50"
+                      >
+                        <span className="font-medium text-slate-800">
+                          {displayName(contact)}
+                        </span>
+                        <span className="text-[10px] uppercase text-slate-400">
+                          {contact.role}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 ))
               )}
             </div>
@@ -278,9 +360,13 @@ export function MessagesPanel({
             <p className="px-4 py-6 text-sm text-slate-500">
               Aún no tienes conversaciones. Inicia una con el botón Nueva.
             </p>
+          ) : filteredConversations.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-500">
+              No se encontraron conversaciones.
+            </p>
           ) : (
             <ul>
-              {conversations.map((conversation) => (
+              {filteredConversations.map((conversation) => (
                 <ConversationListItem
                   key={conversation.partnerId}
                   conversation={conversation}

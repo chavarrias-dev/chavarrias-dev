@@ -61,6 +61,7 @@ export function SidebarMessagesLink({
   return (
     <Link
       href="/dashboard/messages"
+      data-tour="nav-messages"
       title={collapsed ? "Mensajes" : undefined}
       onClick={onNavigate}
       className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${

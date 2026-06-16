@@ -14,6 +14,14 @@ export type MessageProfile = {
   full_name: string | null;
   email: string;
   role: ProfileRole | null;
+  companyName: string | null;
+};
+
+export const INTERNAL_COMPANY_NAME = "Chavarrias";
+
+export type ContactCompanyGroup = {
+  label: string;
+  contacts: MessageProfile[];
 };
 
 export type ConversationSummary = {
@@ -48,6 +56,83 @@ export function canMessageUser(
   }
 
   return false;
+}
+
+function contactCompanyKey(contact: MessageProfile): string {
+  if (contact.role === "admin" || contact.role === "empleado") {
+    return "__internal__";
+  }
+
+  const company = contact.companyName?.trim();
+  if (company) {
+    return company;
+  }
+
+  return "__none__";
+}
+
+function companyGroupLabel(key: string): string {
+  if (key === "__internal__") {
+    return INTERNAL_COMPANY_NAME;
+  }
+  if (key === "__none__") {
+    return "SIN EMPRESA";
+  }
+  return key;
+}
+
+function companyGroupSortKey(key: string): string {
+  if (key === "__internal__") {
+    return "0";
+  }
+  if (key === "__none__") {
+    return "z";
+  }
+  return key.toLowerCase();
+}
+
+export function groupContactsByCompany(
+  contacts: MessageProfile[],
+): ContactCompanyGroup[] {
+  const grouped = contacts.reduce<Record<string, MessageProfile[]>>(
+    (acc, contact) => {
+      const key = contactCompanyKey(contact);
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key]!.push(contact);
+      return acc;
+    },
+    {},
+  );
+
+  return Object.entries(grouped)
+    .map(([key, groupContacts]) => ({
+      label: companyGroupLabel(key),
+      sortKey: companyGroupSortKey(key),
+      contacts: [...groupContacts].sort((a, b) =>
+        displayName(a).localeCompare(displayName(b), "es"),
+      ),
+    }))
+    .sort((a, b) => {
+      if (a.sortKey === "0") {
+        return -1;
+      }
+      if (b.sortKey === "0") {
+        return 1;
+      }
+      if (a.sortKey === "z") {
+        return 1;
+      }
+      if (b.sortKey === "z") {
+        return -1;
+      }
+      return a.label.localeCompare(b.label, "es", { sensitivity: "base" });
+    })
+    .map(({ label, contacts: groupContacts }) => ({
+      label,
+      contacts: groupContacts,
+    }));
 }
 
 export function buildConversations(
