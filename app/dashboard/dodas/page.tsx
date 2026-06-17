@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { ClientOption } from "@/components/clients/types";
 import { DodaLookupUploader } from "@/components/dodas/doda-lookup-uploader";
 import { DodaLookupStatusBadge } from "@/components/dodas/doda-lookup-status-badge";
-import { parseSatDetails } from "@/lib/decode-doda-qr";
+import { parseSatDetails } from "@/lib/doda-sat-details";
 import type { DodaLookupStatus, DodaRecord } from "@/lib/doda-types";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

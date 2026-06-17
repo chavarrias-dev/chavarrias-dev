@@ -4,7 +4,10 @@ import { createCanvas } from "@napi-rs/canvas";
 import jsQR from "jsqr";
 import { getDocument, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import sharp from "sharp";
-import type { SatDodaDetails } from "@/lib/doda-types";
+import {
+  extractIntegrationNumberFromUrl,
+  isSatDodaValidatorUrl,
+} from "@/lib/doda-sat-details";
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
@@ -28,30 +31,6 @@ export class DodaQrDecodeError extends Error {
 
 function normalizeQrPayload(payload: string): string {
   return payload.trim().replace(/\s+/g, "");
-}
-
-export function isSatDodaValidatorUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-    const pathname = parsed.pathname.toLowerCase();
-
-    if (!hostname.endsWith("sat.gob.mx")) {
-      return false;
-    }
-
-    if (!pathname.includes("validadorqr.jsf")) {
-      return false;
-    }
-
-    const d1 = parsed.searchParams.get("D1");
-    const d2 = parsed.searchParams.get("D2");
-    const d3 = parsed.searchParams.get("D3");
-
-    return Boolean(d1?.trim() && d2?.trim() && d3?.trim());
-  } catch {
-    return false;
-  }
 }
 
 type QrPayload = {
@@ -179,16 +158,6 @@ async function decodeQrFromPdfBuffer(buffer: Buffer): Promise<QrScanResult> {
   return { validatorUrl: null, rawQrPayload: firstRawPayload };
 }
 
-export function extractIntegrationNumberFromUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const d3 = parsed.searchParams.get("D3");
-    return d3?.trim() || null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Decodes the SAT validator URL embedded in a DODA image or PDF QR code.
  */
@@ -241,22 +210,4 @@ export async function decodeDodaQrFromFile(
     numeroIntegracion: extractIntegrationNumberFromUrl(scan.validatorUrl),
     rawQrPayload: scan.rawQrPayload,
   };
-}
-
-/** Parses SAT details JSON stored in the database. */
-export function parseSatDetails(raw: string | null): SatDodaDetails {
-  if (!raw?.trim()) {
-    return {};
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(parsed).map(([key, value]) => [key, String(value ?? "")]),
-    );
-  } catch {
-    return {};
-  }
 }

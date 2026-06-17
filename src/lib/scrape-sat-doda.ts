@@ -2,7 +2,7 @@ import "server-only";
 
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import type { SatDodaDetails, SatDodaLookupOutcome } from "@/lib/doda-types";
-import { extractIntegrationNumberFromUrl } from "@/lib/decode-doda-qr";
+import { extractIntegrationNumberFromUrl } from "@/lib/doda-sat-details";
 
 const NAVIGATION_TIMEOUT_MS = 60_000;
 const CONTENT_TIMEOUT_MS = 45_000;
