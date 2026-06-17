@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
-import { runDodaLookupAndSave } from "@/lib/doda-service";
 import { logActivity } from "@/lib/activity-log";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+
+function jsonError(message: string, status: number) {
+  return NextResponse.json({ ok: false, error: message }, { status });
+}
 
 function emptyToNull(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string") {
@@ -16,39 +19,36 @@ function emptyToNull(value: FormDataEntryValue | null): string | null {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const actorRole = await getUserRole(supabase, user.id);
-  if (actorRole !== "admin" && actorRole !== "empleado") {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-  }
-
-  let formData: FormData;
   try {
-    formData = await req.formData();
-  } catch {
-    return NextResponse.json(
-      { error: "Cuerpo de solicitud inválido" },
-      { status: 400 },
-    );
-  }
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json(
-      { error: "Falta el archivo del DODA (campo \"file\")" },
-      { status: 400 },
-    );
-  }
+    if (!user) {
+      return jsonError("No autorizado", 401);
+    }
 
-  try {
+    const actorRole = await getUserRole(supabase, user.id);
+    if (actorRole !== "admin" && actorRole !== "empleado") {
+      return jsonError("No autorizado", 403);
+    }
+
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return jsonError("Cuerpo de solicitud inválido", 400);
+    }
+
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return jsonError('Falta el archivo del DODA (campo "file")', 400);
+    }
+
+    // Dynamic import keeps sharp/puppeteer load failures inside this try/catch.
+    const { runDodaLookupAndSave } = await import("@/lib/doda-service");
+
     const { lookup, doda } = await runDodaLookupAndSave({
       supabase,
       file,
@@ -83,6 +83,9 @@ export async function POST(req: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error al procesar el DODA";
-    return NextResponse.json({ error: message }, { status: 400 });
+
+    console.error("[api/doda/lookup]", error);
+
+    return jsonError(message, 500);
   }
 }

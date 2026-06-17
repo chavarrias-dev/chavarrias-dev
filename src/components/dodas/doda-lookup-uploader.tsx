@@ -76,12 +76,23 @@ export function DodaLookupUploader({ clients }: DodaLookupUploaderProps) {
         body: formData,
       });
 
-      const payload = (await response.json()) as {
+      const rawBody = await response.text();
+      let payload: {
         ok?: boolean;
         error?: string;
         doda?: DodaRecord;
         debugRawQrPayload?: string | null;
       };
+
+      try {
+        payload = JSON.parse(rawBody) as typeof payload;
+      } catch {
+        throw new Error(
+          response.ok
+            ? "Respuesta inválida del servidor"
+            : `Error del servidor (${response.status})`,
+        );
+      }
 
       if (!response.ok || !payload.doda) {
         throw new Error(payload.error ?? "No se pudo procesar el DODA");

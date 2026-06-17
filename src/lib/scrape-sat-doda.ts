@@ -1,8 +1,9 @@
 import "server-only";
 
-import puppeteer, { type Browser, type Page } from "puppeteer";
+import type { Browser, Page } from "puppeteer-core";
 import type { SatDodaDetails, SatDodaLookupOutcome } from "@/lib/doda-types";
 import { extractIntegrationNumberFromUrl } from "@/lib/doda-sat-details";
+import { launchPuppeteerBrowser } from "@/lib/launch-puppeteer";
 
 const NAVIGATION_TIMEOUT_MS = 60_000;
 const CONTENT_TIMEOUT_MS = 45_000;
@@ -179,15 +180,7 @@ export async function scrapeSatDodaStatus(
   let browser: Browser | null = null;
 
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-    });
+    browser = await launchPuppeteerBrowser();
 
     const page = await browser.newPage();
     await page.setUserAgent(
