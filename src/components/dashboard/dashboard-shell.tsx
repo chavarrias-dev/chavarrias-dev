@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   Package,
+  QrCode,
   UserPlus,
   Users,
   Wrench,
@@ -202,6 +203,12 @@ export function DashboardShell({
       icon: Package,
       show: true,
       tourId: "nav-pedimentos",
+    },
+    {
+      href: "/dashboard/dodas",
+      label: "DODA",
+      icon: QrCode,
+      show: isStaff,
     },
     {
       href: "/dashboard/expediente",

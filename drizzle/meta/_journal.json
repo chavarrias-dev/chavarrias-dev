@@ -8,6 +8,20 @@
       "when": 1776971365172,
       "tag": "0000_aberrant_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781730068447,
+      "tag": "0001_add_dodas_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781735758138,
+      "tag": "0002_add_dodas_whatsapp_fields",
+      "breakpoints": true
     }
   ]
 }

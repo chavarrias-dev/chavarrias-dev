@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: [
+    "puppeteer",
+    "sharp",
+    "@napi-rs/canvas",
+    "pdfjs-dist",
+  ],
 };
 
 export default nextConfig;

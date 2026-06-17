@@ -93,6 +93,34 @@ export const clientDocuments = pgTable("client_documents", {
   sinVencimiento: boolean("sin_vencimiento").default(false),
 });
 
+export const dodaLookupStatusEnum = pgEnum("doda_lookup_status", [
+  "pendiente",
+  "consultando",
+  "verificado",
+  "revision_manual",
+]);
+
+export const dodas = pgTable("dodas", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clienteId: uuid("cliente_id").references(() => clients.id),
+  pedimentoId: uuid("pedimento_id").references(() => pedimentos.id),
+  numeroIntegracion: text("numero_integracion"),
+  archivoUrl: text("archivo_url"),
+  qrValidatorUrl: text("qr_validator_url"),
+  satStatus: text("sat_status"),
+  satDetails: text("sat_details"),
+  lookupStatus: dodaLookupStatusEnum("lookup_status")
+    .notNull()
+    .default("pendiente"),
+  lookupError: text("lookup_error"),
+  lookedUpAt: timestamp("looked_up_at"),
+  whatsappPhone: text("whatsapp_phone"),
+  source: text("source"),
+  createdBy: uuid("created_by").references(() => profiles.id),
+  notas: text("notas"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const messages = pgTable("messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   senderId: uuid("sender_id")
