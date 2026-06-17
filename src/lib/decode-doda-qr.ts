@@ -1,8 +1,14 @@
 import "server-only";
 
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createCanvas } from "@napi-rs/canvas";
 import jsQR from "jsqr";
-import { getDocument, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
+import {
+  GlobalWorkerOptions,
+  getDocument,
+  type PDFDocumentProxy,
+} from "pdfjs-dist/legacy/build/pdf.mjs";
 import sharp from "sharp";
 import {
   extractIntegrationNumberFromUrl,
@@ -10,6 +16,31 @@ import {
 } from "@/lib/doda-sat-details";
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
+
+let pdfJsWorkerConfigured = false;
+
+/**
+ * pdfjs-dist loads a separate worker module even in Node. On Vercel the worker
+ * file must exist under /var/task and be referenced as a file:// URL.
+ */
+function ensurePdfJsWorkerConfigured(): void {
+  if (pdfJsWorkerConfigured) {
+    return;
+  }
+
+  pdfJsWorkerConfigured = true;
+
+  const workerPath = path.join(
+    process.cwd(),
+    "node_modules",
+    "pdfjs-dist",
+    "legacy",
+    "build",
+    "pdf.worker.mjs",
+  );
+
+  GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
+}
 
 const IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
@@ -127,10 +158,14 @@ async function renderPdfPageToRgba(
 }
 
 async function decodeQrFromPdfBuffer(buffer: Buffer): Promise<QrScanResult> {
+  ensurePdfJsWorkerConfigured();
+
   const pdf = await getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
     disableFontFace: true,
+    isOffscreenCanvasSupported: false,
+    useWorkerFetch: false,
   }).promise;
 
   let firstRawPayload: string | null = null;
