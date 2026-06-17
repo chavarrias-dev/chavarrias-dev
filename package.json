@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "postinstall": "npm install --include=optional sharp"
+    "lint": "eslint"
   },
   "dependencies": {
     "@libsql/client": "^0.17.3",
@@ -28,11 +27,12 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "sharp": "^0.35.1"
+    "sharp": "0.35.1"
   },
   "optionalDependencies": {
-    "@img/sharp-linux-x64": "^0.35.1",
-    "@img/sharp-linuxmusl-x64": "^0.35.1"
+    "@img/sharp-linux-x64": "0.35.1",
+    "@img/sharp-linuxmusl-x64": "0.35.1",
+    "@img/sharp-win32-x64": "0.35.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
