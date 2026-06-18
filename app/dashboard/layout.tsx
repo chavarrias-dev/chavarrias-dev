@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DocumentAlerts } from "@/components/dashboard/document-alerts";
+import { DashboardNotificationsBell } from "@/components/dashboard/dashboard-notifications-bell";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -58,7 +59,14 @@ export default async function DashboardLayout({
       dbConnected={dbConnected}
       currentUserId={user.id}
       logoutAction={logout}
-      alerts={<DocumentAlerts />}
+      alerts={
+        <>
+          {isStaff ? (
+            <DashboardNotificationsBell currentUserId={user.id} />
+          ) : null}
+          <DocumentAlerts />
+        </>
+      }
     >
       {children}
     </DashboardShell>

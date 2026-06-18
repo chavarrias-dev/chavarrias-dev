@@ -17,6 +17,11 @@ const dodaApiTraceIncludes = [
   ...pdfJsTraceIncludes,
 ] as const;
 
+const cronTraceIncludes = [
+  ...dodaApiTraceIncludes,
+  "./node_modules/@sparticuz/chromium/**/*",
+] as const;
+
 const nextConfig: NextConfig = {
   // Next.js 15+ stable key (replaces experimental.serverComponentsExternalPackages).
   serverExternalPackages: [
@@ -35,10 +40,9 @@ const nextConfig: NextConfig = {
   // Ensure native sharp/libvips binaries are bundled into serverless functions.
   outputFileTracingIncludes: {
     "/api/doda/lookup": [...dodaApiTraceIncludes],
-    "/api/whatsapp/webhook": [
-      ...dodaApiTraceIncludes,
-      "./node_modules/@sparticuz/chromium/**/*",
-    ],
+    "/api/doda/schedule": [...dodaApiTraceIncludes],
+    "/api/whatsapp/webhook": [...cronTraceIncludes],
+    "/api/cron/check-dodas": [...cronTraceIncludes],
   },
 };
 

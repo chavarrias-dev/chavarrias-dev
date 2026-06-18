@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import type { ClientOption } from "@/components/clients/types";
-import { DodaLookupUploader } from "@/components/dodas/doda-lookup-uploader";
+import { DodaHighlightOnQuery } from "@/components/dodas/doda-highlight-on-query";
 import { DodaLookupStatusBadge } from "@/components/dodas/doda-lookup-status-badge";
+import { DodaToolsSection } from "@/components/dodas/doda-tools-section";
 import { parseSatDetails } from "@/lib/doda-sat-details";
-import type { DodaLookupStatus, DodaRecord } from "@/lib/doda-types";
+import { DODA_RECORD_SELECT, type DodaLookupStatus, type DodaRecord } from "@/lib/doda-types";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -21,6 +23,16 @@ function formatDateTime(value: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function monitoringLabel(doda: DodaListRow): string | null {
+  if (!doda.is_monitored) {
+    return null;
+  }
+  if (doda.is_resolved) {
+    return "Monitoreo completado";
+  }
+  return "Monitoreo activo";
 }
 
 export default async function DodasPage() {
@@ -42,9 +54,7 @@ export default async function DodasPage() {
     supabase.from("clients").select("id, full_name").order("full_name"),
     supabase
       .from("dodas")
-      .select(
-        "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, looked_up_at, whatsapp_phone, source, notas, created_at",
-      )
+      .select(DODA_RECORD_SELECT)
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
@@ -63,16 +73,20 @@ export default async function DodasPage() {
 
   return (
     <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
+      <Suspense fallback={null}>
+        <DodaHighlightOnQuery dodaIds={dodas.map((doda) => doda.id)} />
+      </Suspense>
+
       <div className="mb-8">
         <h1 className="text-2xl font-medium tracking-tight text-slate-900">
           DODA
         </h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Consulta automática del estado en el validador QR del SAT.
+          Consulta puntual o monitoreo continuo del estado en el validador QR del SAT.
         </p>
       </div>
 
-      <DodaLookupUploader clients={clients} />
+      <DodaToolsSection clients={clients} />
 
       <section className="mt-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
@@ -87,7 +101,7 @@ export default async function DodasPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
                   <th className="px-4 py-3 font-medium text-slate-700">
@@ -98,6 +112,9 @@ export default async function DodasPage() {
                   </th>
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Consulta
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Monitoreo
                   </th>
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Cliente
@@ -117,10 +134,12 @@ export default async function DodasPage() {
                     details["Pedimento"] ??
                     details["Información de Pedimento(s)"] ??
                     null;
+                  const monitoring = monitoringLabel(doda);
 
                   return (
                     <tr
                       key={doda.id}
+                      id={`doda-row-${doda.id}`}
                       className="table-row-interactive border-b border-slate-100 last:border-0 hover:bg-slate-50/60"
                     >
                       <td className="px-4 py-3 font-medium text-slate-900">
@@ -146,6 +165,26 @@ export default async function DodasPage() {
                       </td>
                       <td className="px-4 py-3">
                         <DodaLookupStatusBadge status={doda.lookup_status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {monitoring ? (
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                              doda.is_resolved
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : "border-sky-200 bg-sky-50 text-sky-800"
+                            }`}
+                          >
+                            {monitoring}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                        {doda.last_checked_at ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Última revisión: {formatDateTime(doda.last_checked_at)}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         <div className="space-y-1">

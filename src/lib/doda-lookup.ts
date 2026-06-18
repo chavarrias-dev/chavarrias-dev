@@ -93,3 +93,39 @@ export async function processDodaLookup(
     debugRawQrPayload,
   };
 }
+
+export type ProcessDodaSatRecheckResult = ProcessDodaLookupSuccess;
+
+/**
+ * Re-scrapes the SAT validator URL without decoding a file (for cron monitoring).
+ */
+export async function processDodaSatRecheck(
+  validatorUrl: string,
+): Promise<ProcessDodaSatRecheckResult> {
+  const lookedUpAt = new Date().toISOString();
+  const scrapeResult = await scrapeSatDodaStatus(validatorUrl);
+
+  if (!scrapeResult.ok) {
+    return {
+      lookupStatus: "revision_manual",
+      validatorUrl,
+      numeroIntegracion: null,
+      satStatus: null,
+      satDetails: null,
+      lookupError: scrapeResult.reason,
+      lookedUpAt,
+      debugRawQrPayload: null,
+    };
+  }
+
+  return {
+    lookupStatus: "verificado",
+    validatorUrl: scrapeResult.validatorUrl,
+    numeroIntegracion: scrapeResult.numeroIntegracion,
+    satStatus: scrapeResult.satStatus,
+    satDetails: scrapeResult.details,
+    lookupError: null,
+    lookedUpAt,
+    debugRawQrPayload: null,
+  };
+}

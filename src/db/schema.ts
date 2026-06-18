@@ -114,10 +114,25 @@ export const dodas = pgTable("dodas", {
     .default("pendiente"),
   lookupError: text("lookup_error"),
   lookedUpAt: timestamp("looked_up_at"),
+  lastCheckedAt: timestamp("last_checked_at"),
+  isMonitored: boolean("is_monitored").notNull().default(false),
+  isResolved: boolean("is_resolved").notNull().default(false),
   whatsappPhone: text("whatsapp_phone"),
   source: text("source"),
   createdBy: uuid("created_by").references(() => profiles.id),
   notas: text("notas"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => profiles.id),
+  type: text("type").notNull(),
+  relatedId: text("related_id").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -34,11 +34,34 @@ export type DodaRecord = {
   lookup_status: DodaLookupStatus;
   lookup_error: string | null;
   looked_up_at: string | null;
+  last_checked_at: string | null;
+  is_monitored: boolean;
+  is_resolved: boolean;
   whatsapp_phone: string | null;
   source: string | null;
   notas: string | null;
   created_at: string | null;
 };
+
+export const DODA_RECORD_SELECT =
+  "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, looked_up_at, last_checked_at, is_monitored, is_resolved, whatsapp_phone, source, notas, created_at";
+
+export type NotificationRecord = {
+  id: string;
+  user_id: string;
+  type: string;
+  related_id: string;
+  message: string;
+  is_read: boolean;
+  created_at: string | null;
+};
+
+export const NOTIFICATION_SELECT =
+  "id, user_id, type, related_id, message, is_read, created_at";
+
+export function dodaNotificationHref(dodaId: string): string {
+  return `/dashboard/dodas?highlight=${encodeURIComponent(dodaId)}`;
+}
 
 export const DODA_LOOKUP_STATUS_LABELS: Record<DodaLookupStatus, string> = {
   pendiente: "Pendiente",

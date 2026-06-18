@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { processDodaLookup } from "@/lib/doda-lookup";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaRecord } from "@/lib/doda-types";
+import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { phonesMatch } from "@/lib/phone-match";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
@@ -25,6 +26,7 @@ export type RunDodaLookupInput = {
   source?: string | null;
   notas?: string | null;
   createdBy?: string | null;
+  isMonitored?: boolean;
   storagePathPrefix: string;
 };
 
@@ -122,6 +124,7 @@ export async function runDodaLookupAndSave(
     source = null,
     notas = null,
     createdBy = null,
+    isMonitored = false,
     storagePathPrefix,
   } = input;
 
@@ -140,6 +143,8 @@ export async function runDodaLookupAndSave(
       source,
       notas,
       lookup_status: "consultando",
+      is_monitored: isMonitored,
+      is_resolved: false,
       created_by: createdBy,
     })
     .select("id")
@@ -187,11 +192,11 @@ export async function runDodaLookupAndSave(
       lookup_status: lookup.lookupStatus,
       lookup_error: lookup.lookupError,
       looked_up_at: lookup.lookedUpAt,
+      last_checked_at: lookup.lookedUpAt,
+      ...(isMonitored ? { is_monitored: true, is_resolved: false } : {}),
     })
     .eq("id", dodaId)
-    .select(
-      "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, looked_up_at, whatsapp_phone, source, notas, created_at",
-    )
+    .select(DODA_RECORD_SELECT)
     .single();
 
   if (updateError || !updatedRow) {
