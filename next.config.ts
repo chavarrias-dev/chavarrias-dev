@@ -15,15 +15,17 @@ const pdfJsTraceIncludes = [
 const dodaApiTraceIncludes = [
   ...sharpTraceIncludes,
   ...pdfJsTraceIncludes,
+  "./node_modules/@sparticuz/chromium/**/*",
+  "./node_modules/puppeteer-core/**/*",
 ] as const;
 
-const cronTraceIncludes = [
-  ...dodaApiTraceIncludes,
+/** Cron + lookup-by-number: Puppeteer only (no sharp/pdfjs). */
+const dodaPuppeteerTraceIncludes = [
   "./node_modules/@sparticuz/chromium/**/*",
+  "./node_modules/puppeteer-core/**/*",
 ] as const;
 
 const nextConfig: NextConfig = {
-  // Next.js 15+ stable key (replaces experimental.serverComponentsExternalPackages).
   serverExternalPackages: [
     "sharp",
     "@img/sharp-linux-x64",
@@ -32,18 +34,17 @@ const nextConfig: NextConfig = {
     "@img/sharp-libvips-linuxmusl-x64",
     "@sparticuz/chromium",
     "puppeteer-core",
-    "puppeteer",
     "@napi-rs/canvas",
     "pdfjs-dist",
     "jsqr",
   ],
-  // Ensure native sharp/libvips binaries are bundled into serverless functions.
   outputFileTracingIncludes: {
     "/api/doda/lookup": [...dodaApiTraceIncludes],
-    "/api/doda/lookup-by-number": [...dodaApiTraceIncludes],
+    "/api/doda/lookup-by-number": [...dodaPuppeteerTraceIncludes],
     "/api/doda/schedule": [...dodaApiTraceIncludes],
-    "/api/whatsapp/webhook": [...cronTraceIncludes],
-    "/api/cron/check-dodas": [...cronTraceIncludes],
+    "/api/doda/cron": [...dodaPuppeteerTraceIncludes],
+    "/api/cron/check-dodas": [...dodaPuppeteerTraceIncludes],
+    "/api/whatsapp/webhook": [...dodaApiTraceIncludes],
   },
 };
 

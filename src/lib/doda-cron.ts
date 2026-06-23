@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { processDodaSatRecheck } from "@/lib/doda-lookup";
+import { processDodaSatRecheck } from "@/lib/doda-sat-recheck";
 import {
   isDodaResolvedSatStatus,
   MAX_DODAS_PER_CRON_RUN,

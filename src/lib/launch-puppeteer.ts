@@ -14,12 +14,13 @@ function isVercelRuntime(): boolean {
 }
 
 /**
- * Launches Puppeteer with Chromium bundled locally, or @sparticuz/chromium on Vercel.
+ * Launches Puppeteer with @sparticuz/chromium on Vercel, or local Chrome via puppeteer-core.
  */
 export async function launchPuppeteerBrowser(): Promise<Browser> {
+  const puppeteer = await import("puppeteer-core");
+
   if (isVercelRuntime()) {
     const chromium = (await import("@sparticuz/chromium")).default;
-    const puppeteer = await import("puppeteer-core");
 
     chromium.setGraphicsMode = false;
 
@@ -31,9 +32,9 @@ export async function launchPuppeteerBrowser(): Promise<Browser> {
     });
   }
 
-  const puppeteer = await import("puppeteer");
   return puppeteer.default.launch({
     headless: true,
     args: [...LOCAL_LAUNCH_ARGS],
+    channel: "chrome",
   });
 }

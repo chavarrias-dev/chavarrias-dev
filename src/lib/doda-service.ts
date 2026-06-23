@@ -1,7 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { processDodaLookup, processDodaLookupByIntegrationNumber } from "@/lib/doda-lookup";
+import { processDodaLookup } from "@/lib/doda-lookup";
+import { processDodaLookupByIntegrationNumber } from "@/lib/doda-sat-recheck";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
