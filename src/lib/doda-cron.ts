@@ -2,13 +2,17 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { processDodaSatRecheck } from "@/lib/doda-lookup";
-import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import {
+  isDodaResolvedSatStatus,
+  MAX_DODAS_PER_CRON_RUN,
+} from "@/lib/doda-monitoring-constants";
+import { DODA_RECORD_SELECT, type DodaLookupStatus } from "@/lib/doda-types";
+import {
+  notifyStaffDodaMonitoringComplete,
   notifyStaffDodaStatusChange,
   type MonitoredDodaRow,
 } from "@/lib/notifications";
 
-const MAX_DODAS_PER_RUN = 5;
 const DELAY_BETWEEN_CHECKS_MS = 750;
 
 function sleep(ms: number): Promise<void> {
@@ -19,6 +23,22 @@ function statusesEqual(a: string | null, b: string | null): boolean {
   return (a ?? "").trim() === (b ?? "").trim();
 }
 
+export type DodaCronItemResult = {
+  id: string;
+  numero_integracion: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  lookup_status: DodaLookupStatus;
+  check_count: number;
+  completed: boolean;
+  error?: string;
+};
+
+export type ProcessMonitoredDodasBatchResult = {
+  processed: number;
+  results: DodaCronItemResult[];
+};
+
 export type CheckMonitoredDodasResult = {
   checked: number;
   changed: number;
@@ -27,39 +47,57 @@ export type CheckMonitoredDodasResult = {
 };
 
 /**
- * Re-checks monitored DODAs sequentially to stay within serverless limits.
+ * Fetches active monitored DODAs (is_monitored = active monitoring flag),
+ * oldest last_checked_at first, excluding those already at DESADUANAMIENTO LIBRE.
  */
-export async function checkMonitoredDodas(
+async function fetchMonitoredDodaBatch(
   supabase: SupabaseClient,
-): Promise<CheckMonitoredDodasResult> {
+): Promise<MonitoredDodaRow[]> {
   const { data: rows, error } = await supabase
     .from("dodas")
     .select(
-      "id, numero_integracion, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, last_checked_at",
+      "id, numero_integracion, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, last_checked_at, check_count",
     )
     .eq("is_monitored", true)
     .eq("is_resolved", false)
     .not("qr_validator_url", "is", null)
+    .or("sat_status.is.null,sat_status.neq.DESADUANAMIENTO LIBRE")
     .order("last_checked_at", { ascending: true, nullsFirst: true })
-    .limit(MAX_DODAS_PER_RUN);
+    .limit(MAX_DODAS_PER_CRON_RUN);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const dodas = (rows ?? []) as MonitoredDodaRow[];
-  const result: CheckMonitoredDodasResult = {
-    checked: 0,
-    changed: 0,
-    skipped: 0,
-    errors: 0,
-  };
+  return (rows ?? []) as MonitoredDodaRow[];
+}
+
+/**
+ * Re-checks up to 5 monitored DODAs sequentially (Vercel free tier ~10s limit).
+ */
+export async function processMonitoredDodasBatch(
+  supabase: SupabaseClient,
+): Promise<ProcessMonitoredDodasBatchResult> {
+  const dodas = await fetchMonitoredDodaBatch(supabase);
+  const results: DodaCronItemResult[] = [];
 
   for (let index = 0; index < dodas.length; index += 1) {
     const doda = dodas[index]!;
     const validatorUrl = doda.qr_validator_url;
+    const previousStatus = doda.sat_status;
+    const nextCheckCount = (doda.check_count ?? 0) + 1;
+
     if (!validatorUrl) {
-      result.skipped += 1;
+      results.push({
+        id: doda.id,
+        numero_integracion: doda.numero_integracion,
+        previous_status: previousStatus,
+        new_status: previousStatus,
+        lookup_status: doda.lookup_status,
+        check_count: doda.check_count ?? 0,
+        completed: false,
+        error: "Sin URL del validador SAT",
+      });
       continue;
     }
 
@@ -68,87 +106,143 @@ export async function checkMonitoredDodas(
     }
 
     try {
-      const previousStatus = doda.sat_status;
       const recheck = await processDodaSatRecheck(validatorUrl);
       const checkedAt = recheck.lookedUpAt;
-
-      if (
+      const newStatus = recheck.satStatus;
+      const resolved =
         recheck.lookupStatus === "verificado" &&
-        recheck.satStatus &&
-        !statusesEqual(previousStatus, recheck.satStatus)
+        isDodaResolvedSatStatus(newStatus);
+
+      const baseUpdate = {
+        last_checked_at: checkedAt,
+        looked_up_at: checkedAt,
+        check_count: nextCheckCount,
+        ...(recheck.lookupStatus === "verificado" && newStatus
+          ? {
+              sat_status: newStatus,
+              sat_details: recheck.satDetails
+                ? JSON.stringify(recheck.satDetails)
+                : null,
+              numero_integracion:
+                recheck.numeroIntegracion ?? doda.numero_integracion,
+              lookup_status: "verificado" as const,
+              lookup_error: null,
+            }
+          : {
+              lookup_error: recheck.lookupError,
+            }),
+        ...(resolved
+          ? {
+              is_monitored: false,
+              is_resolved: true,
+            }
+          : {}),
+      };
+
+      const { error: updateError } = await supabase
+        .from("dodas")
+        .update(baseUpdate)
+        .eq("id", doda.id);
+
+      if (updateError) {
+        results.push({
+          id: doda.id,
+          numero_integracion: doda.numero_integracion,
+          previous_status: previousStatus,
+          new_status: newStatus,
+          lookup_status: recheck.lookupStatus,
+          check_count: doda.check_count ?? 0,
+          completed: false,
+          error: updateError.message,
+        });
+        console.error("[doda-cron] update failed", doda.id, updateError);
+        continue;
+      }
+
+      if (resolved) {
+        await notifyStaffDodaMonitoringComplete(supabase, {
+          dodaId: doda.id,
+          numeroIntegracion:
+            recheck.numeroIntegracion ?? doda.numero_integracion,
+          satStatus: newStatus!,
+        });
+      } else if (
+        recheck.lookupStatus === "verificado" &&
+        newStatus &&
+        !statusesEqual(previousStatus, newStatus)
       ) {
-        const { error: updateError } = await supabase
-          .from("dodas")
-          .update({
-            sat_status: recheck.satStatus,
-            sat_details: recheck.satDetails
-              ? JSON.stringify(recheck.satDetails)
-              : null,
-            numero_integracion:
-              recheck.numeroIntegracion ?? doda.numero_integracion,
-            lookup_status: "verificado",
-            lookup_error: null,
-            looked_up_at: checkedAt,
-            last_checked_at: checkedAt,
-            is_resolved: true,
-          })
-          .eq("id", doda.id);
-
-        if (updateError) {
-          result.errors += 1;
-          console.error("[doda-cron] update failed", doda.id, updateError);
-          continue;
-        }
-
         await notifyStaffDodaStatusChange(supabase, {
           dodaId: doda.id,
           numeroIntegracion:
             recheck.numeroIntegracion ?? doda.numero_integracion,
           previousStatus,
-          newStatus: recheck.satStatus,
+          newStatus,
         });
-
-        result.changed += 1;
-        result.checked += 1;
-        continue;
       }
 
-      const { error: touchError } = await supabase
+      results.push({
+        id: doda.id,
+        numero_integracion: recheck.numeroIntegracion ?? doda.numero_integracion,
+        previous_status: previousStatus,
+        new_status: newStatus,
+        lookup_status: recheck.lookupStatus,
+        check_count: nextCheckCount,
+        completed: resolved,
+        ...(recheck.lookupError ? { error: recheck.lookupError } : {}),
+      });
+    } catch (cronError) {
+      const message =
+        cronError instanceof Error ? cronError.message : "Error en consulta SAT";
+      console.error("[doda-cron] check failed", doda.id, cronError);
+
+      await supabase
         .from("dodas")
         .update({
-          last_checked_at: checkedAt,
-          ...(recheck.lookupStatus === "verificado" && recheck.satStatus
-            ? {
-                sat_status: recheck.satStatus,
-                sat_details: recheck.satDetails
-                  ? JSON.stringify(recheck.satDetails)
-                  : null,
-                numero_integracion:
-                  recheck.numeroIntegracion ?? doda.numero_integracion,
-                lookup_status: "verificado",
-                lookup_error: null,
-                looked_up_at: checkedAt,
-              }
-            : {
-                lookup_error: recheck.lookupError,
-              }),
+          last_checked_at: new Date().toISOString(),
+          check_count: nextCheckCount,
+          lookup_error: message,
         })
         .eq("id", doda.id);
 
-      if (touchError) {
-        result.errors += 1;
-        console.error("[doda-cron] touch failed", doda.id, touchError);
-        continue;
-      }
-
-      result.checked += 1;
-    } catch (cronError) {
-      result.errors += 1;
-      console.error("[doda-cron] check failed", doda.id, cronError);
+      results.push({
+        id: doda.id,
+        numero_integracion: doda.numero_integracion,
+        previous_status: previousStatus,
+        new_status: previousStatus,
+        lookup_status: doda.lookup_status,
+        check_count: nextCheckCount,
+        completed: false,
+        error: message,
+      });
     }
   }
 
-  return result;
+  return {
+    processed: results.length,
+    results,
+  };
+}
+
+/** @deprecated Use processMonitoredDodasBatch — kept for legacy cron route. */
+export async function checkMonitoredDodas(
+  supabase: SupabaseClient,
+): Promise<CheckMonitoredDodasResult> {
+  const batch = await processMonitoredDodasBatch(supabase);
+
+  return {
+    checked: batch.results.filter((item) => !item.error).length,
+    changed: batch.results.filter(
+      (item) =>
+        item.completed ||
+        (!!item.new_status &&
+          !statusesEqual(item.previous_status, item.new_status)),
+    ).length,
+    skipped: batch.results.filter((item) => item.error === "Sin URL del validador SAT")
+      .length,
+    errors: batch.results.filter(
+      (item) => item.error && item.error !== "Sin URL del validador SAT",
+    ).length,
+  };
 }
 
 export async function fetchMonitoredDodaById(

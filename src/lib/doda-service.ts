@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { processDodaLookup } from "@/lib/doda-lookup";
+import { processDodaLookup, processDodaLookupByIntegrationNumber } from "@/lib/doda-lookup";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
@@ -33,6 +33,18 @@ export type RunDodaLookupInput = {
 export type RunDodaLookupOutput = {
   lookup: ProcessDodaLookupResult;
   doda: DodaRecord;
+};
+
+export type RunDodaLookupByNumberInput = {
+  supabase: SupabaseClient;
+  integrationNumber: string;
+  clienteId?: string | null;
+  pedimentoId?: string | null;
+  whatsappPhone?: string | null;
+  source?: string | null;
+  notas?: string | null;
+  createdBy?: string | null;
+  isMonitored?: boolean;
 };
 
 function inferExtension(file: File): string {
@@ -187,6 +199,80 @@ export async function runDodaLookupAndSave(
     .update({
       qr_validator_url: lookup.validatorUrl,
       numero_integracion: lookup.numeroIntegracion,
+      sat_status: lookup.satStatus,
+      sat_details: lookup.satDetails ? JSON.stringify(lookup.satDetails) : null,
+      lookup_status: lookup.lookupStatus,
+      lookup_error: lookup.lookupError,
+      looked_up_at: lookup.lookedUpAt,
+      last_checked_at: lookup.lookedUpAt,
+      ...(isMonitored ? { is_monitored: true, is_resolved: false } : {}),
+    })
+    .eq("id", dodaId)
+    .select(DODA_RECORD_SELECT)
+    .single();
+
+  if (updateError || !updatedRow) {
+    throw new Error(updateError?.message ?? "Error al guardar el resultado");
+  }
+
+  return {
+    lookup,
+    doda: updatedRow as DodaRecord,
+  };
+}
+
+/**
+ * Creates a dodas row from an integration number, scrapes SAT, and saves results.
+ */
+export async function runDodaLookupByNumberAndSave(
+  input: RunDodaLookupByNumberInput,
+): Promise<RunDodaLookupOutput> {
+  const {
+    supabase,
+    integrationNumber,
+    clienteId = null,
+    pedimentoId = null,
+    whatsappPhone = null,
+    source = null,
+    notas = null,
+    createdBy = null,
+    isMonitored = false,
+  } = input;
+
+  const trimmed = integrationNumber.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error("El número de integración debe contener solo dígitos.");
+  }
+
+  const { data: createdRow, error: createError } = await supabase
+    .from("dodas")
+    .insert({
+      cliente_id: clienteId,
+      pedimento_id: pedimentoId,
+      whatsapp_phone: whatsappPhone,
+      source,
+      notas,
+      numero_integracion: trimmed,
+      lookup_status: "consultando",
+      is_monitored: isMonitored,
+      is_resolved: false,
+      created_by: createdBy,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !createdRow) {
+    throw new Error(createError?.message ?? "No se pudo crear el registro DODA");
+  }
+
+  const dodaId = (createdRow as { id: string }).id;
+  const lookup = await processDodaLookupByIntegrationNumber(trimmed);
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("dodas")
+    .update({
+      qr_validator_url: lookup.validatorUrl,
+      numero_integracion: lookup.numeroIntegracion ?? trimmed,
       sat_status: lookup.satStatus,
       sat_details: lookup.satDetails ? JSON.stringify(lookup.satDetails) : null,
       lookup_status: lookup.lookupStatus,

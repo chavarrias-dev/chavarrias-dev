@@ -40,6 +40,7 @@ const nextConfig: NextConfig = {
   // Ensure native sharp/libvips binaries are bundled into serverless functions.
   outputFileTracingIncludes: {
     "/api/doda/lookup": [...dodaApiTraceIncludes],
+    "/api/doda/lookup-by-number": [...dodaApiTraceIncludes],
     "/api/doda/schedule": [...dodaApiTraceIncludes],
     "/api/whatsapp/webhook": [...cronTraceIncludes],
     "/api/cron/check-dodas": [...cronTraceIncludes],

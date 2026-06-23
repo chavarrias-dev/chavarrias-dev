@@ -1,6 +1,7 @@
 import {
   boolean,
   date,
+  integer,
   numeric,
   pgEnum,
   pgTable,
@@ -115,6 +116,7 @@ export const dodas = pgTable("dodas", {
   lookupError: text("lookup_error"),
   lookedUpAt: timestamp("looked_up_at"),
   lastCheckedAt: timestamp("last_checked_at"),
+  checkCount: integer("check_count").notNull().default(0),
   isMonitored: boolean("is_monitored").notNull().default(false),
   isResolved: boolean("is_resolved").notNull().default(false),
   whatsappPhone: text("whatsapp_phone"),

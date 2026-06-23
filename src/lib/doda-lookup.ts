@@ -5,6 +5,7 @@ import {
   DodaQrDecodeError,
 } from "@/lib/decode-doda-qr";
 import type { DodaLookupStatus, SatDodaDetails } from "@/lib/doda-types";
+import { buildSatValidatorUrlFromIntegrationNumber } from "@/lib/doda-sat-details";
 import { scrapeSatDodaStatus } from "@/lib/scrape-sat-doda";
 
 export type ProcessDodaLookupInput = {
@@ -91,6 +92,42 @@ export async function processDodaLookup(
     lookupError: null,
     lookedUpAt,
     debugRawQrPayload,
+  };
+}
+
+/**
+ * Builds the SAT validator URL from an integration number and scrapes status.
+ */
+export async function processDodaLookupByIntegrationNumber(
+  integrationNumber: string,
+): Promise<ProcessDodaLookupResult> {
+  const trimmed = integrationNumber.trim();
+  const validatorUrl = buildSatValidatorUrlFromIntegrationNumber(trimmed);
+  const lookedUpAt = new Date().toISOString();
+
+  const scrapeResult = await scrapeSatDodaStatus(validatorUrl);
+  if (!scrapeResult.ok) {
+    return {
+      lookupStatus: "revision_manual",
+      validatorUrl,
+      numeroIntegracion: trimmed,
+      satStatus: null,
+      satDetails: null,
+      lookupError: scrapeResult.reason,
+      lookedUpAt,
+      debugRawQrPayload: null,
+    };
+  }
+
+  return {
+    lookupStatus: "verificado",
+    validatorUrl: scrapeResult.validatorUrl,
+    numeroIntegracion: scrapeResult.numeroIntegracion ?? trimmed,
+    satStatus: scrapeResult.satStatus,
+    satDetails: scrapeResult.details,
+    lookupError: null,
+    lookedUpAt,
+    debugRawQrPayload: null,
   };
 }
 

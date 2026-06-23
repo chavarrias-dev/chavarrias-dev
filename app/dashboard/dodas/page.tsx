@@ -82,7 +82,8 @@ export default async function DodasPage() {
           DODA
         </h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Consulta puntual o monitoreo continuo del estado en el validador QR del SAT.
+          Programa monitoreo continuo o realiza una consulta puntual en el
+          validador QR del SAT.
         </p>
       </div>
 

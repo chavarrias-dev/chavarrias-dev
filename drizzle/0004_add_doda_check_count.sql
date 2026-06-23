@@ -1,0 +1,1 @@
+ALTER TABLE "dodas" ADD COLUMN IF NOT EXISTS "check_count" integer DEFAULT 0 NOT NULL;
