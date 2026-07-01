@@ -43,6 +43,7 @@ const nextConfig: NextConfig = {
     "/api/doda/lookup-by-number": [...dodaPuppeteerTraceIncludes],
     "/api/doda/schedule": [...dodaApiTraceIncludes],
     "/api/doda/cron": [...dodaPuppeteerTraceIncludes],
+    "/api/doda/[id]/retry": [...dodaPuppeteerTraceIncludes],
     "/api/cron/check-dodas": [...dodaPuppeteerTraceIncludes],
     "/api/whatsapp/webhook": [...dodaApiTraceIncludes],
   },
