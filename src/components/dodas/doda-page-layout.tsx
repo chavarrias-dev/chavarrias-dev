@@ -1,7 +1,14 @@
 "use client";
 
 import type { ClientOption } from "@/components/clients/types";
-import { DodaMonitoringErrorsTable, DodaMonitoringStatusTables } from "@/components/dodas/doda-monitoring-dashboard";
+import {
+  DodaDashboardProvider,
+  useDodaDashboard,
+} from "@/components/dodas/doda-dashboard-context";
+import {
+  DodaMonitoringErrorsTable,
+  DodaMonitoringStatusTables,
+} from "@/components/dodas/doda-monitoring-dashboard";
 import { DodaToolsSection } from "@/components/dodas/doda-tools-section";
 import type { DodaDashboardRow } from "@/lib/doda-dashboard-categories";
 
@@ -10,7 +17,9 @@ type DodaPageLayoutProps = {
   dodas: DodaDashboardRow[];
 };
 
-export function DodaPageLayout({ clients, dodas }: DodaPageLayoutProps) {
+function DodaPageLayoutContent({ clients }: { clients: ClientOption[] }) {
+  const { dodas } = useDodaDashboard();
+
   return (
     <>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -23,5 +32,13 @@ export function DodaPageLayout({ clients, dodas }: DodaPageLayoutProps) {
 
       <DodaMonitoringErrorsTable dodas={dodas} />
     </>
+  );
+}
+
+export function DodaPageLayout({ clients, dodas }: DodaPageLayoutProps) {
+  return (
+    <DodaDashboardProvider initialDodas={dodas}>
+      <DodaPageLayoutContent clients={clients} />
+    </DodaDashboardProvider>
   );
 }

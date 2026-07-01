@@ -18,6 +18,8 @@ export type SatDodaLookupFailure = {
   ok: false;
   reason: string;
   validatorUrl?: string;
+  debugHtmlPath?: string;
+  debugScreenshotPath?: string;
 };
 
 export type SatDodaLookupOutcome = SatDodaLookupResult | SatDodaLookupFailure;
@@ -38,14 +40,17 @@ export type DodaRecord = {
   check_count: number;
   is_monitored: boolean;
   is_resolved: boolean;
+  notification_sent_at: string | null;
+  notification_error: string | null;
   whatsapp_phone: string | null;
   source: string | null;
   notas: string | null;
+  created_by: string | null;
   created_at: string | null;
 };
 
 export const DODA_RECORD_SELECT =
-  "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, looked_up_at, last_checked_at, check_count, is_monitored, is_resolved, whatsapp_phone, source, notas, created_at";
+  "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, looked_up_at, last_checked_at, check_count, is_monitored, is_resolved, notification_sent_at, notification_error, whatsapp_phone, source, notas, created_by, created_at";
 
 export type NotificationRecord = {
   id: string;

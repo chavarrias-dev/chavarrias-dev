@@ -4,6 +4,10 @@ import type { Browser, Page } from "puppeteer-core";
 import type { SatDodaDetails, SatDodaLookupOutcome } from "@/lib/doda-types";
 import { extractIntegrationNumberFromUrl } from "@/lib/doda-sat-details";
 import { launchPuppeteerBrowser } from "@/lib/launch-puppeteer";
+import {
+  formatSatScrapeFailureReason,
+  saveSatScrapeDebugArtifacts,
+} from "@/lib/sat-scrape-debug";
 
 const NAVIGATION_TIMEOUT_MS = 60_000;
 const CONTENT_TIMEOUT_MS = 45_000;
@@ -23,7 +27,30 @@ function extractSatStatusFromDatosGenerales(text: string): string | null {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  return lines.length > 0 ? (lines[lines.length - 1] ?? null) : null;
+  const skipPatterns = [
+    /^fecha\b/i,
+    /^hora\b/i,
+    /^ad\b/i,
+    /^aduana\b/i,
+    /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/,
+    /^\d{1,2}:\d{2}/,
+  ];
+
+  const candidates = lines.filter(
+    (line) => !skipPatterns.some((pattern) => pattern.test(line)),
+  );
+
+  const statusLike = candidates.find(
+    (line) =>
+      line.length >= 6 &&
+      /[A-ZÁÉÍÓÚÑ]/.test(line) &&
+      /^[A-ZÁÉÍÓÚÑ0-9\s\-_/().,]+$/.test(line),
+  );
+  if (statusLike) {
+    return statusLike;
+  }
+
+  return candidates.length > 0 ? (candidates[candidates.length - 1] ?? null) : null;
 }
 
 /**
@@ -49,39 +76,84 @@ async function extractSatValidatorData(
           .join("\n");
       }
 
+      function normalizeTitle(value: string | null | undefined): string {
+        return (value ?? "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function cellTextWithBreaks(cell: Element | null | undefined): string | null {
+        if (!cell) {
+          return null;
+        }
+
+        const html = cell.innerHTML ?? "";
+        const fromHtml = html
+          .replace(/<br\s*\/?>/gi, "\n")
+          .replace(/<\/p>/gi, "\n")
+          .replace(/<[^>]+>/g, "")
+          .replace(/\u00a0/g, " ")
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join("\n");
+
+        const text = normalizeText(fromHtml || cell.textContent);
+        return text || null;
+      }
+
       function findSectionContent(title: string): Element | null {
+        const target = normalizeTitle(title);
         const dividers = Array.from(
-          document.querySelectorAll('li[data-role="list-divider"], li.ui-li-divider'),
+          document.querySelectorAll(
+            'li[data-role="list-divider"], li.ui-li-divider, .ui-li-divider',
+          ),
         );
-        const divider = dividers.find(
-          (element) => normalizeText(element.textContent) === title,
-        );
+        const divider = dividers.find((element) => {
+          const label = normalizeTitle(element.textContent);
+          return label === target || label.includes(target) || target.includes(label);
+        });
+
         if (!divider) {
           return null;
         }
 
-        const contentLi = divider.nextElementSibling;
-        if (!contentLi || !contentLi.classList.contains("ui-li-static")) {
-          return null;
+        let sibling = divider.nextElementSibling;
+        while (sibling) {
+          if (
+            sibling.matches("li.ui-li-static, li.ui-li") ||
+            sibling.querySelector("table.ui-panelgrid")
+          ) {
+            return sibling;
+          }
+          if (sibling.matches('li[data-role="list-divider"], li.ui-li-divider')) {
+            break;
+          }
+          sibling = sibling.nextElementSibling;
         }
 
-        return contentLi;
+        return null;
       }
 
       function getPrimaryGridcellText(section: Element): string | null {
-        const cell = section.querySelector(
-          "table.ui-panelgrid.prueba td[role='gridcell']",
-        );
-        const text = normalizeText(cell?.textContent ?? null);
-        return text || null;
+        const cell =
+          section.querySelector("table.ui-panelgrid.prueba td[role='gridcell']") ??
+          section.querySelector("td[role='gridcell']") ??
+          section.querySelector(".ui-panelgrid td");
+        return cellTextWithBreaks(cell);
       }
 
       function parseLabelValueRows(section: Element): Record<string, string> {
         const parsed: Record<string, string> = {};
 
-        const rows = section.querySelectorAll("table.ui-panelgrid.prueba tr.ui-widget-content");
+        const rows = section.querySelectorAll(
+          "table.ui-panelgrid.prueba tr.ui-widget-content, table.ui-panelgrid tr",
+        );
         for (const row of rows) {
-          const cells = row.querySelectorAll("td[role='gridcell']");
+          const cells = row.querySelectorAll("td[role='gridcell'], td");
           if (cells.length < 2) {
             continue;
           }
@@ -100,6 +172,48 @@ async function extractSatValidatorData(
         }
 
         return parsed;
+      }
+
+      function extractStatusFromText(text: string | null): string | null {
+        if (!text) {
+          return null;
+        }
+
+        const starred = text.match(/\*\*\*(.+?)\*\*\*/);
+        if (starred?.[1]) {
+          return starred[1].trim();
+        }
+
+        const lines = text
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        const skipPatterns = [
+          /^fecha\b/i,
+          /^hora\b/i,
+          /^ad\b/i,
+          /^aduana\b/i,
+          /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/,
+        ];
+
+        const candidates = lines.filter(
+          (line) => !skipPatterns.some((pattern) => pattern.test(line)),
+        );
+
+        const statusLike = candidates.find(
+          (line) =>
+            line.length >= 6 &&
+            /[A-ZÁÉÍÓÚÑ]/.test(line) &&
+            /^[A-ZÁÉÍÓÚÑ0-9\s\-_/().,]+$/.test(line),
+        );
+        if (statusLike) {
+          return statusLike;
+        }
+
+        return candidates.length > 0
+          ? (candidates[candidates.length - 1] ?? null)
+          : null;
       }
 
       const details: Record<string, string> = {};
@@ -132,15 +246,22 @@ async function extractSatValidatorData(
         }
       }
 
-      let satStatus: string | null = null;
-      if (datosGeneralesConsultados) {
-        const starred = datosGeneralesConsultados.match(/\*\*\*(.+?)\*\*\*/);
-        if (starred?.[1]) {
-          satStatus = starred[1].trim();
-        } else {
-          const lines = datosGeneralesConsultados.split("\n").filter(Boolean);
-          satStatus = lines.length > 0 ? (lines[lines.length - 1] ?? null) : null;
-        }
+      let satStatus = extractStatusFromText(datosGeneralesConsultados);
+
+      if (!satStatus) {
+        const boldCandidates = Array.from(
+          document.querySelectorAll("b, strong, span[style*='font-weight']"),
+        )
+          .map((element) => normalizeText(element.textContent))
+          .filter(Boolean);
+
+        satStatus =
+          boldCandidates.find(
+            (line) =>
+              line.length >= 6 &&
+              /[A-ZÁÉÍÓÚÑ]/.test(line) &&
+              !/integraci/i.test(line),
+          ) ?? null;
       }
 
       return {
@@ -160,7 +281,9 @@ async function waitForValidatorContent(page: Page): Promise<void> {
   await page.waitForFunction(
     (sectionIntegracion) => {
       const dividers = Array.from(
-        document.querySelectorAll('li[data-role="list-divider"], li.ui-li-divider'),
+        document.querySelectorAll(
+          'li[data-role="list-divider"], li.ui-li-divider, .ui-li-divider',
+        ),
       );
       return dividers.some((element) =>
         (element.textContent ?? "").includes(sectionIntegracion),
@@ -171,6 +294,30 @@ async function waitForValidatorContent(page: Page): Promise<void> {
   );
 }
 
+async function buildFailureOutcome(
+  page: Page,
+  validatorUrl: string,
+  reason: string,
+): Promise<SatDodaLookupOutcome> {
+  try {
+    const artifacts = await saveSatScrapeDebugArtifacts(page, validatorUrl, reason);
+    return {
+      ok: false,
+      reason: formatSatScrapeFailureReason(reason, artifacts),
+      validatorUrl,
+      debugHtmlPath: artifacts.htmlPath,
+      debugScreenshotPath: artifacts.screenshotPath,
+    };
+  } catch (debugError) {
+    console.error("[scrape-sat-doda] failed to save debug artifacts", debugError);
+    return {
+      ok: false,
+      reason,
+      validatorUrl,
+    };
+  }
+}
+
 /**
  * Opens the SAT public QR validator and extracts DODA status/details.
  */
@@ -178,11 +325,12 @@ export async function scrapeSatDodaStatus(
   validatorUrl: string,
 ): Promise<SatDodaLookupOutcome> {
   let browser: Browser | null = null;
+  let page: Page | null = null;
 
   try {
     browser = await launchPuppeteerBrowser();
 
-    const page = await browser.newPage();
+    page = await browser.newPage();
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     );
@@ -198,12 +346,11 @@ export async function scrapeSatDodaStatus(
     const extracted = await extractSatValidatorData(page);
 
     if (!extracted.numeroIntegracion && !extracted.datosGeneralesConsultados) {
-      return {
-        ok: false,
-        reason:
-          "El SAT cargó la página pero no se encontraron secciones de datos esperadas.",
+      return buildFailureOutcome(
+        page,
         validatorUrl,
-      };
+        "El SAT cargó la página pero no se encontraron secciones de datos esperadas.",
+      );
     }
 
     const satStatus =
@@ -213,12 +360,11 @@ export async function scrapeSatDodaStatus(
         : null);
 
     if (!satStatus) {
-      return {
-        ok: false,
-        reason:
-          "No se pudo identificar el estado del DODA en la respuesta del SAT.",
+      return buildFailureOutcome(
+        page,
         validatorUrl,
-      };
+        "No se pudo identificar el estado del DODA en la respuesta del SAT.",
+      );
     }
 
     return {
@@ -234,13 +380,11 @@ export async function scrapeSatDodaStatus(
     const message =
       error instanceof Error ? error.message : "Error desconocido al consultar SAT";
 
-    if (/timeout/i.test(message)) {
-      return {
-        ok: false,
-        reason:
-          "Tiempo de espera agotado al cargar el validador del SAT. Requiere revisión manual.",
-        validatorUrl,
-      };
+    if (page) {
+      const reason = /timeout/i.test(message)
+        ? "Tiempo de espera agotado al cargar el validador del SAT. Requiere revisión manual."
+        : message;
+      return buildFailureOutcome(page, validatorUrl, reason);
     }
 
     return {

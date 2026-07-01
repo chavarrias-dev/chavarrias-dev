@@ -48,6 +48,8 @@ export async function notifyStaffDodaStatusChange(
 export type MonitoredDodaRow = Pick<
   DodaRecord,
   | "id"
+  | "cliente_id"
+  | "created_by"
   | "numero_integracion"
   | "qr_validator_url"
   | "sat_status"

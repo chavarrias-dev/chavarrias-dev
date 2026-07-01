@@ -3,8 +3,7 @@ import { Suspense } from "react";
 import type { ClientOption } from "@/components/clients/types";
 import { DodaHighlightOnQuery } from "@/components/dodas/doda-highlight-on-query";
 import { DodaPageLayout } from "@/components/dodas/doda-page-layout";
-import type { DodaDashboardRow } from "@/lib/doda-dashboard-categories";
-import { DODA_RECORD_SELECT, type DodaLookupStatus, type DodaRecord } from "@/lib/doda-types";
+import { fetchDodaDashboardRows } from "@/lib/doda-dashboard-data";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -23,28 +22,12 @@ export default async function DodasPage() {
     redirect("/dashboard");
   }
 
-  const [{ data: clientsData }, { data: dodasData }] = await Promise.all([
+  const [{ data: clientsData }, dodas] = await Promise.all([
     supabase.from("clients").select("id, full_name").order("full_name"),
-    supabase
-      .from("dodas")
-      .select(DODA_RECORD_SELECT)
-      .or("is_monitored.eq.true,is_resolved.eq.true")
-      .order("last_checked_at", { ascending: true, nullsFirst: false })
-      .limit(500),
+    fetchDodaDashboardRows(supabase),
   ]);
 
   const clients = (clientsData ?? []) as ClientOption[];
-  const clientsById = new Map(clients.map((client) => [client.id, client.full_name]));
-  const dodas: DodaDashboardRow[] = ((dodasData ?? []) as DodaRecord[]).map(
-    (row) => ({
-      ...row,
-      lookup_status: row.lookup_status as DodaLookupStatus,
-      check_count: row.check_count ?? 0,
-      client_name: row.cliente_id
-        ? (clientsById.get(row.cliente_id) ?? null)
-        : null,
-    }),
-  );
 
   return (
     <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">

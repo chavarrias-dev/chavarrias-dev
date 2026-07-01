@@ -12,6 +12,7 @@ import {
   notifyStaffDodaStatusChange,
   type MonitoredDodaRow,
 } from "@/lib/notifications";
+import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
 
 const DELAY_BETWEEN_CHECKS_MS = 750;
 
@@ -56,7 +57,7 @@ async function fetchMonitoredDodaBatch(
   const { data: rows, error } = await supabase
     .from("dodas")
     .select(
-      "id, numero_integracion, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, last_checked_at, check_count",
+      "id, cliente_id, created_by, numero_integracion, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, last_checked_at, check_count",
     )
     .eq("is_monitored", true)
     .eq("is_resolved", false)
@@ -166,6 +167,55 @@ export async function processMonitoredDodasBatch(
             recheck.numeroIntegracion ?? doda.numero_integracion,
           satStatus: newStatus!,
         });
+
+        const integrationNumber =
+          recheck.numeroIntegracion ?? doda.numero_integracion ?? doda.id.slice(0, 8);
+
+        let notificationSentAt: string | null = null;
+        let notificationError: string | null = null;
+
+        try {
+          const external = await sendDodaResolvedExternalNotifications(
+            supabase,
+            {
+              dodaId: doda.id,
+              clienteId: doda.cliente_id,
+              createdBy: doda.created_by,
+              integrationNumber,
+              previousStatus,
+              newStatus: newStatus!,
+              changedAt: checkedAt,
+            },
+          );
+          notificationSentAt = external.notification_sent_at;
+          notificationError = external.notification_error;
+        } catch (externalError) {
+          notificationError =
+            externalError instanceof Error
+              ? externalError.message
+              : "Error al enviar notificaciones externas";
+          console.error(
+            "[doda-cron] external notifications failed",
+            doda.id,
+            externalError,
+          );
+        }
+
+        const { error: notificationTrackError } = await supabase
+          .from("dodas")
+          .update({
+            notification_sent_at: notificationSentAt,
+            notification_error: notificationError,
+          })
+          .eq("id", doda.id);
+
+        if (notificationTrackError) {
+          console.error(
+            "[doda-cron] failed to persist notification tracking",
+            doda.id,
+            notificationTrackError,
+          );
+        }
       } else if (
         recheck.lookupStatus === "verificado" &&
         newStatus &&

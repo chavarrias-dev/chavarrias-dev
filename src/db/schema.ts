@@ -119,6 +119,8 @@ export const dodas = pgTable("dodas", {
   checkCount: integer("check_count").notNull().default(0),
   isMonitored: boolean("is_monitored").notNull().default(false),
   isResolved: boolean("is_resolved").notNull().default(false),
+  notificationSentAt: timestamp("notification_sent_at"),
+  notificationError: text("notification_error"),
   whatsappPhone: text("whatsapp_phone"),
   source: text("source"),
   createdBy: uuid("created_by").references(() => profiles.id),

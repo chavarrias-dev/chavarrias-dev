@@ -37,6 +37,7 @@ const nextConfig: NextConfig = {
     "@napi-rs/canvas",
     "pdfjs-dist",
     "jsqr",
+    "resend",
   ],
   outputFileTracingIncludes: {
     "/api/doda/lookup": [...dodaApiTraceIncludes],

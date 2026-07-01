@@ -19,6 +19,7 @@ import {
 } from "@/components/dodas/doda-queue-panel";
 import { DodaResultsTable } from "@/components/dodas/doda-results-table";
 import { ScheduledDodaList } from "@/components/dodas/scheduled-doda-list";
+import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import type { DodaRecord } from "@/lib/doda-types";
 
 const MAX_ITEMS = 3;
@@ -47,6 +48,7 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 
 export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
   const router = useRouter();
+  const { refreshDashboard } = useDodaDashboard();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputMode, setInputMode] = useState<DodaInputMode>("number");
   const [phase, setPhase] = useState<UploadPhase>("idle");
@@ -201,6 +203,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
           item.id === dodaId ? { ...item, is_monitored: false } : item,
         ),
       );
+      await refreshDashboard();
       router.refresh();
     } catch (error) {
       setMessage(
@@ -269,6 +272,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
             ? `${payload.dodas.length} DODA(s) programados. ${payload.failures.length} archivo(s) fallaron.`
             : `${payload.dodas.length} DODA(s) en monitoreo continuo.`,
         );
+        await refreshDashboard();
         router.refresh();
         return;
       }
@@ -300,6 +304,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
           ? `${successCount} DODA(s) en monitoreo continuo.`
           : "No se pudo programar ningún DODA.",
       );
+      await refreshDashboard();
       router.refresh();
     } catch (error) {
       setPhase("error");
