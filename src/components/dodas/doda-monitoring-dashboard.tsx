@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { formatDodaDateTime } from "@/components/dodas/doda-display-utils";
+import { formatTimeAgo } from "@/lib/messages";
 import {
   categorizeDodasForDashboard,
   groupDodasByClient,
@@ -18,12 +19,15 @@ type DodaMonitoringDashboardProps = {
 const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+const MONITORING_REFRESH_MS = 30_000;
+
 function MonitoringBadge() {
   return (
     <span
-      className={`${BADGE_BASE} border border-sky-200 bg-sky-50 text-sky-800`}
+      className={`${BADGE_BASE} border border-orange-200 bg-orange-50 text-orange-800`}
     >
-      En consulta
+      En consulta 🟠
     </span>
   );
 }
@@ -31,9 +35,9 @@ function MonitoringBadge() {
 function ConfirmedBadge() {
   return (
     <span
-      className={`${BADGE_BASE} border border-emerald-200 bg-emerald-50 text-emerald-800`}
+      className={`${BADGE_BASE} border border-green-200 bg-green-50 text-green-800`}
     >
-      Desaduanamiento libre
+      Desaduanamiento libre 🟢
     </span>
   );
 }
@@ -43,9 +47,45 @@ function ErrorBadge() {
     <span
       className={`${BADGE_BASE} border border-red-200 bg-red-50 text-red-800`}
     >
-      Error en consulta
+      Error en consulta 🔴
     </span>
   );
+}
+
+function formatCountdown(remainingMs: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+/** Live "next check" countdown, ticking from last_checked_at + 5 minutes. */
+function MonitoringCountdown({
+  lastCheckedAt,
+}: {
+  lastCheckedAt: string | null;
+}) {
+  const [label, setLabel] = useState("Próxima revisión en 5:00 min");
+
+  useEffect(() => {
+    let baseTime = lastCheckedAt ? new Date(lastCheckedAt).getTime() : Date.now();
+
+    function tick() {
+      const remainingMs = FIVE_MINUTES_MS - (Date.now() - baseTime);
+      if (remainingMs <= 0) {
+        setLabel("Revisando…");
+        baseTime = Date.now();
+        return;
+      }
+      setLabel(`Próxima revisión en ${formatCountdown(remainingMs)} min`);
+    }
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [lastCheckedAt]);
+
+  return <span className="block text-[11px] text-orange-700">{label}</span>;
 }
 
 type GroupedTableProps = {
@@ -60,12 +100,12 @@ type GroupedTableProps = {
 
 function rowClassForVariant(variant: GroupedTableProps["variant"]): string {
   switch (variant) {
+    case "monitoring":
+      return "border-l-4 border-orange-400 bg-orange-50/30 hover:bg-orange-50/60";
     case "confirmed":
-      return "bg-emerald-50/80 hover:bg-emerald-50";
+      return "border-l-4 border-green-400 bg-green-50/30 hover:bg-green-50/60";
     case "error":
-      return "bg-red-50/80 hover:bg-red-50";
-    default:
-      return "bg-white hover:bg-slate-50/60";
+      return "border-l-4 border-red-400 bg-red-50/30 hover:bg-red-50/60";
   }
 }
 
@@ -125,27 +165,31 @@ function ClientGroupSection({
               {variant === "monitoring" ? (
                 <>
                   <td className="px-4 py-3 text-slate-600">
-                    {formatDodaDateTime(
-                      doda.last_checked_at ?? doda.looked_up_at,
-                    )}
+                    Última revisión:{" "}
+                    {doda.last_checked_at
+                      ? formatTimeAgo(doda.last_checked_at)
+                      : "—"}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {doda.check_count ?? 0}
+                    Revisión #{doda.check_count ?? 0}
                   </td>
                   <td className="px-4 py-3">
                     <MonitoringBadge />
+                    <MonitoringCountdown
+                      lastCheckedAt={doda.last_checked_at ?? doda.looked_up_at}
+                    />
                   </td>
                 </>
               ) : null}
 
               {variant === "confirmed" ? (
                 <>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-green-700">
                     {formatDodaDateTime(
                       doda.looked_up_at ?? doda.last_checked_at ?? doda.created_at,
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-green-700">
                     {group.clientLabel}
                   </td>
                   <td className="px-4 py-3">
@@ -291,9 +335,17 @@ function useDashboardGroups(dodas: DodaDashboardRow[]) {
   return { monitoringGroups, confirmedGroups, errorGroups };
 }
 
-/** "En monitoreo" table. */
+/** "En monitoreo" table. Auto-refreshes so resolved/failed DODAs move to their table. */
 export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
+  const router = useRouter();
   const { monitoringGroups } = useDashboardGroups(dodas);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh();
+    }, MONITORING_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [router]);
 
   return (
     <GroupedDodaTable
