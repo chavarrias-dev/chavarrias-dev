@@ -19,6 +19,8 @@ type DodaDashboardContextValue = {
   setQueryResults: (items: DodaRecord[]) => void;
   appendQueryResult: (item: DodaRecord) => void;
   clearQueryResults: () => void;
+  removeDoda: (id: string) => void;
+  updateDoda: (id: string, patch: Partial<DodaRecord>) => void;
 };
 
 const DodaDashboardContext = createContext<DodaDashboardContextValue | null>(
@@ -86,6 +88,16 @@ export function DodaDashboardProvider({
     setQueryResultsState([]);
   }, []);
 
+  const removeDoda = useCallback((id: string) => {
+    setDodas((current) => current.filter((doda) => doda.id !== id));
+  }, []);
+
+  const updateDoda = useCallback((id: string, patch: Partial<DodaRecord>) => {
+    setDodas((current) =>
+      current.map((doda) => (doda.id === id ? { ...doda, ...patch } : doda)),
+    );
+  }, []);
+
   const refreshDashboard = useCallback(async () => {
     const response = await fetch("/api/dodas/dashboard", {
       cache: "no-store",
@@ -111,6 +123,8 @@ export function DodaDashboardProvider({
       setQueryResults,
       appendQueryResult,
       clearQueryResults,
+      removeDoda,
+      updateDoda,
     }),
     [
       dodas,
@@ -119,6 +133,8 @@ export function DodaDashboardProvider({
       setQueryResults,
       appendQueryResult,
       clearQueryResults,
+      removeDoda,
+      updateDoda,
     ],
   );
 

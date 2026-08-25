@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, RotateCw, X } from "lucide-react";
+import { DodaCancelDialog } from "@/components/dodas/doda-cancel-dialog";
 import { formatDodaDateTime } from "@/components/dodas/doda-display-utils";
+import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
+import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { formatTimeAgo } from "@/lib/messages";
+import type { DodaRecord } from "@/lib/doda-types";
 import {
   categorizeDodasForDashboard,
   groupDodasByClient,
@@ -97,6 +101,10 @@ type GroupedTableProps = {
   variant: "monitoring" | "confirmed" | "error";
   onRetry?: (dodaId: string) => Promise<void>;
   retryingId?: string | null;
+  onCancelRequest?: (doda: DodaDashboardRow) => void;
+  cancellingId?: string | null;
+  onCheckNowRequest?: (doda: DodaDashboardRow) => void;
+  checkingId?: string | null;
 };
 
 function rowClassForVariant(variant: GroupedTableProps["variant"]): string {
@@ -113,24 +121,34 @@ function rowClassForVariant(variant: GroupedTableProps["variant"]): string {
 function ClientGroupSection({
   group,
   variant,
+  columnCount,
   collapsed,
   onToggle,
   onRetry,
   retryingId,
+  onCancelRequest,
+  cancellingId,
+  onCheckNowRequest,
+  checkingId,
 }: {
   group: ClientDodaGroup;
   variant: GroupedTableProps["variant"];
+  columnCount: number;
   collapsed: boolean;
   onToggle: () => void;
   onRetry?: (dodaId: string) => Promise<void>;
   retryingId?: string | null;
+  onCancelRequest?: (doda: DodaDashboardRow) => void;
+  cancellingId?: string | null;
+  onCheckNowRequest?: (doda: DodaDashboardRow) => void;
+  checkingId?: string | null;
 }) {
   const rowClass = rowClassForVariant(variant);
 
   return (
     <>
       <tr className="border-b border-slate-200 bg-slate-50/90">
-        <td colSpan={4} className="px-4 py-2.5">
+        <td colSpan={columnCount} className="px-4 py-2.5">
           <button
             type="button"
             onClick={onToggle}
@@ -179,6 +197,44 @@ function ClientGroupSection({
                     <MonitoringCountdown
                       lastCheckedAt={doda.last_checked_at ?? doda.looked_up_at}
                     />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {onCheckNowRequest ? (
+                        <button
+                          type="button"
+                          onClick={() => onCheckNowRequest(doda)}
+                          disabled={
+                            cancellingId === doda.id || checkingId === doda.id
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg border border-[#227DE8]/40 px-2.5 py-1 text-xs font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {checkingId === doda.id ? (
+                            <Loader2 className="size-3 animate-spin" aria-hidden />
+                          ) : (
+                            <RotateCw className="size-3" aria-hidden />
+                          )}
+                          {checkingId === doda.id ? "Revisando…" : "Revisar ahora"}
+                        </button>
+                      ) : null}
+                      {onCancelRequest ? (
+                        <button
+                          type="button"
+                          onClick={() => onCancelRequest(doda)}
+                          disabled={
+                            cancellingId === doda.id || checkingId === doda.id
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {cancellingId === doda.id ? (
+                            <Loader2 className="size-3 animate-spin" aria-hidden />
+                          ) : (
+                            <X className="size-3" aria-hidden />
+                          )}
+                          Cancelar
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </>
               ) : null}
@@ -243,6 +299,10 @@ function GroupedDodaTable({
   variant,
   onRetry,
   retryingId,
+  onCancelRequest,
+  cancellingId,
+  onCheckNowRequest,
+  checkingId,
 }: GroupedTableProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
@@ -262,7 +322,13 @@ function GroupedDodaTable({
 
   const headColumns =
     variant === "monitoring"
-      ? ["Número de integración", "Última consulta", "Veces revisado", "Estado"]
+      ? [
+          "Número de integración",
+          "Última consulta",
+          "Veces revisado",
+          "Estado",
+          "Acciones",
+        ]
       : variant === "confirmed"
         ? [
             "Número de integración",
@@ -304,10 +370,15 @@ function GroupedDodaTable({
                   key={group.clientLabel}
                   group={group}
                   variant={variant}
+                  columnCount={headColumns.length}
                   collapsed={collapsedGroups.has(group.clientLabel)}
                   onToggle={() => toggleGroup(group.clientLabel)}
                   onRetry={onRetry}
                   retryingId={retryingId}
+                  onCancelRequest={onCancelRequest}
+                  cancellingId={cancellingId}
+                  onCheckNowRequest={onCheckNowRequest}
+                  checkingId={checkingId}
                 />
               ))}
             </tbody>
@@ -336,10 +407,24 @@ function useDashboardGroups(dodas: DodaDashboardRow[]) {
   return { monitoringGroups, confirmedGroups, errorGroups };
 }
 
+const TOAST_DURATION_MS = 3000;
+
 /** "En monitoreo" table. Auto-refreshes so resolved/failed DODAs move to their table. */
 export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
   const router = useRouter();
+  const { removeDoda, updateDoda } = useDodaDashboard();
   const { monitoringGroups } = useDashboardGroups(dodas);
+  const [cancelTarget, setCancelTarget] = useState<DodaDashboardRow | null>(
+    null,
+  );
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    key: number;
+    tone: DodaToastTone;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -348,14 +433,118 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
     return () => clearInterval(interval);
   }, [router]);
 
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const timeout = setTimeout(() => setToast(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [toast]);
+
+  function showToast(tone: DodaToastTone, message: string) {
+    setToast({ key: Date.now(), tone, message });
+  }
+
+  async function handleConfirmCancel() {
+    if (!cancelTarget) {
+      return;
+    }
+
+    const dodaId = cancelTarget.id;
+    setCancellingId(dodaId);
+    setCancelError(null);
+
+    try {
+      const response = await fetch(`/api/doda/${dodaId}/cancel`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "No se pudo cancelar el monitoreo");
+      }
+
+      removeDoda(dodaId);
+      setCancelTarget(null);
+    } catch (error) {
+      setCancelError(
+        error instanceof Error ? error.message : "No se pudo cancelar el monitoreo",
+      );
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  async function handleCheckNow(doda: DodaDashboardRow) {
+    setCheckingId(doda.id);
+
+    try {
+      const response = await fetch(`/api/doda/${doda.id}/check-now`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        doda?: DodaRecord;
+        resolved?: boolean;
+      };
+
+      if (!response.ok || !payload.ok || !payload.doda) {
+        throw new Error(payload.error ?? "No se pudo consultar el DODA");
+      }
+
+      updateDoda(doda.id, payload.doda);
+
+      if (payload.resolved) {
+        showToast("success", "¡Desaduanado!");
+      } else {
+        showToast("neutral", "Sin cambios, continúa en monitoreo");
+      }
+    } catch (error) {
+      showToast(
+        "error",
+        error instanceof Error ? error.message : "Error al consultar",
+      );
+    } finally {
+      setCheckingId(null);
+    }
+  }
+
   return (
-    <GroupedDodaTable
-      title="En monitoreo"
-      description="DODAs en cola de revisión automática, pendientes de desaduanamiento libre."
-      groups={monitoringGroups}
-      emptyMessage="No hay DODAs en monitoreo activo."
-      variant="monitoring"
-    />
+    <div className="space-y-3">
+      {cancelError ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {cancelError}
+        </p>
+      ) : null}
+      <GroupedDodaTable
+        title="En monitoreo"
+        description="DODAs en cola de revisión automática, pendientes de desaduanamiento libre."
+        groups={monitoringGroups}
+        emptyMessage="No hay DODAs en monitoreo activo."
+        variant="monitoring"
+        onCancelRequest={setCancelTarget}
+        cancellingId={cancellingId}
+        onCheckNowRequest={handleCheckNow}
+        checkingId={checkingId}
+      />
+      {toast ? (
+        <DodaToast key={toast.key} tone={toast.tone} message={toast.message} />
+      ) : null}
+      {cancelTarget ? (
+        <DodaCancelDialog
+          numeroIntegracion={
+            cancelTarget.numero_integracion ?? cancelTarget.id.slice(0, 8)
+          }
+          isSubmitting={cancellingId === cancelTarget.id}
+          onConfirm={handleConfirmCancel}
+          onCancel={() => setCancelTarget(null)}
+        />
+      ) : null}
+    </div>
   );
 }
 

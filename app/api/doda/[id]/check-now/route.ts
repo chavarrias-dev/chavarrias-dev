@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity-log";
 import { performDodaRecheck } from "@/lib/doda-service";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -34,6 +35,16 @@ export async function POST(_req: Request, context: RouteContext) {
       { status: outcome.status },
     );
   }
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "consultó DODA ahora",
+    entityType: "doda",
+    entityId: outcome.doda.id,
+    entityName:
+      outcome.doda.numero_integracion ?? `DODA ${outcome.doda.id.slice(0, 8)}`,
+  });
 
   return NextResponse.json({
     ok: true,

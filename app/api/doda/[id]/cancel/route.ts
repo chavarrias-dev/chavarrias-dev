@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { performDodaRecheck } from "@/lib/doda-service";
+import { logActivity } from "@/lib/activity-log";
+import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
-
-export const runtime = "nodejs";
-export const maxDuration = 60;
 
 export async function POST(_req: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -26,19 +24,28 @@ export async function POST(_req: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 403 });
   }
 
-  const outcome = await performDodaRecheck(supabase, id);
+  const { data: updated, error } = await supabase
+    .from("dodas")
+    .update({ is_monitored: false, is_resolved: false })
+    .eq("id", id)
+    .select(DODA_RECORD_SELECT)
+    .single();
 
-  if (!outcome.ok) {
+  if (error || !updated) {
     return NextResponse.json(
-      { ok: false, error: outcome.error },
-      { status: outcome.status },
+      { ok: false, error: error?.message ?? "No se pudo cancelar el monitoreo" },
+      { status: 500 },
     );
   }
 
-  return NextResponse.json({
-    ok: true,
-    doda: outcome.doda,
-    previous_status: outcome.previousStatus,
-    resolved: outcome.resolved,
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "canceló monitoreo DODA",
+    entityType: "doda",
+    entityId: updated.id,
+    entityName: updated.numero_integracion ?? `DODA ${updated.id.slice(0, 8)}`,
   });
+
+  return NextResponse.json({ ok: true, doda: updated });
 }

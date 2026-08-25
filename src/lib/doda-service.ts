@@ -2,12 +2,19 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { processDodaLookup } from "@/lib/doda-lookup";
-import { processDodaLookupByIntegrationNumber } from "@/lib/doda-sat-recheck";
+import {
+  processDodaLookupByIntegrationNumber,
+  processDodaSatRecheck,
+} from "@/lib/doda-sat-recheck";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { parseSatDetails } from "@/lib/doda-sat-details";
-import { DODA_RESOLVED_SAT_STATUS } from "@/lib/doda-monitoring-constants";
+import {
+  DODA_RESOLVED_SAT_STATUS,
+  isDodaResolvedSatStatus,
+} from "@/lib/doda-monitoring-constants";
+import { notifyStaffDodaMonitoringComplete } from "@/lib/notifications";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
 export { findClientIdByPhone } from "@/lib/phone-match";
@@ -209,6 +216,120 @@ export async function runDodaLookupAndSave(
     lookup,
     doda: updatedRow as DodaRecord,
   };
+}
+
+export type PerformDodaRecheckOutcome =
+  | { ok: true; doda: DodaRecord; previousStatus: string | null; resolved: boolean }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Re-scrapes the SAT validator for one dodas row and persists the result.
+ * Shared by the "Reintentar" (errors table) and "Revisar ahora" (monitoring
+ * table) actions — both trigger the exact same recheck, just from different
+ * UI entry points.
+ */
+export async function performDodaRecheck(
+  supabase: SupabaseClient,
+  dodaId: string,
+): Promise<PerformDodaRecheckOutcome> {
+  const { data: doda, error: fetchError } = await supabase
+    .from("dodas")
+    .select(DODA_RECORD_SELECT)
+    .eq("id", dodaId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, status: 500, error: fetchError.message };
+  }
+
+  if (!doda) {
+    return { ok: false, status: 404, error: "DODA no encontrado" };
+  }
+
+  if (!doda.qr_validator_url) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Este DODA no tiene URL del validador SAT.",
+    };
+  }
+
+  try {
+    const previousStatus = doda.sat_status;
+    const recheck = await processDodaSatRecheck(doda.qr_validator_url);
+    const checkedAt = recheck.lookedUpAt;
+    const nextCheckCount = (doda.check_count ?? 0) + 1;
+    const resolved =
+      recheck.lookupStatus === "verificado" &&
+      isDodaResolvedSatStatus(recheck.satStatus);
+
+    const { data: updated, error: updateError } = await supabase
+      .from("dodas")
+      .update({
+        last_checked_at: checkedAt,
+        looked_up_at: checkedAt,
+        check_count: nextCheckCount,
+        ...(recheck.lookupStatus === "verificado" && recheck.satStatus
+          ? {
+              sat_status: recheck.satStatus,
+              sat_details: recheck.satDetails
+                ? JSON.stringify(recheck.satDetails)
+                : null,
+              tipo_pedimento: recheck.pedimentoInfo?.tipoPedimento ?? null,
+              pedimento: recheck.pedimentoInfo?.pedimento ?? null,
+              remesas_presentadas:
+                recheck.pedimentoInfo?.remesasPresentadas ?? null,
+              clave_pedimento: recheck.pedimentoInfo?.clavePedimento ?? null,
+              datos_vehiculo: recheck.pedimentoInfo?.datosVehiculo ?? null,
+              cantidad_mercancia:
+                recheck.pedimentoInfo?.cantidadMercancia ?? null,
+              numero_integracion:
+                recheck.numeroIntegracion ?? doda.numero_integracion,
+              lookup_status: "verificado",
+              lookup_error: null,
+            }
+          : {
+              lookup_status: "revision_manual",
+              lookup_error: recheck.lookupError,
+            }),
+        ...(resolved
+          ? {
+              is_monitored: false,
+              is_resolved: true,
+            }
+          : {}),
+      })
+      .eq("id", dodaId)
+      .select(DODA_RECORD_SELECT)
+      .single();
+
+    if (updateError || !updated) {
+      return {
+        ok: false,
+        status: 500,
+        error: updateError?.message ?? "No se pudo actualizar el DODA",
+      };
+    }
+
+    if (resolved && recheck.satStatus) {
+      await notifyStaffDodaMonitoringComplete(supabase, {
+        dodaId,
+        numeroIntegracion: recheck.numeroIntegracion ?? doda.numero_integracion,
+        satStatus: recheck.satStatus,
+      });
+    }
+
+    return {
+      ok: true,
+      doda: updated as DodaRecord,
+      previousStatus,
+      resolved,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Error al consultar SAT";
+    return { ok: false, status: 500, error: message };
+  }
 }
 
 /**
