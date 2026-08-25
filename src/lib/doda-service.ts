@@ -6,6 +6,8 @@ import { processDodaLookupByIntegrationNumber } from "@/lib/doda-sat-recheck";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
+import { parseSatDetails } from "@/lib/doda-sat-details";
+import { DODA_RESOLVED_SAT_STATUS } from "@/lib/doda-monitoring-constants";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
 export { findClientIdByPhone } from "@/lib/phone-match";
@@ -210,7 +212,55 @@ export async function runDodaLookupAndSave(
 }
 
 /**
+ * Looks up an existing DODA already confirmed as "DESADUANAMIENTO LIBRE" for
+ * this integration number, if one exists — used to avoid creating duplicates.
+ */
+async function findResolvedDodaByIntegrationNumber(
+  supabase: SupabaseClient,
+  integrationNumber: string,
+): Promise<DodaRecord | null> {
+  const { data, error } = await supabase
+    .from("dodas")
+    .select(DODA_RECORD_SELECT)
+    .eq("numero_integracion", integrationNumber)
+    .eq("sat_status", DODA_RESOLVED_SAT_STATUS)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as DodaRecord;
+}
+
+/** Reconstructs a ProcessDodaLookupResult from an already-resolved dodas row. */
+function lookupResultFromResolvedDoda(doda: DodaRecord): ProcessDodaLookupResult {
+  return {
+    lookupStatus: "verificado",
+    validatorUrl: doda.qr_validator_url,
+    numeroIntegracion: doda.numero_integracion,
+    satStatus: doda.sat_status,
+    satDetails: parseSatDetails(doda.sat_details),
+    pedimentoInfo: {
+      tipoPedimento: doda.tipo_pedimento,
+      pedimento: doda.pedimento,
+      remesasPresentadas: doda.remesas_presentadas,
+      clavePedimento: doda.clave_pedimento,
+      datosVehiculo: doda.datos_vehiculo,
+      cantidadMercancia: doda.cantidad_mercancia,
+    },
+    lookupError: null,
+    lookedUpAt: doda.looked_up_at ?? doda.created_at ?? new Date().toISOString(),
+    debugRawQrPayload: null,
+  };
+}
+
+/**
  * Creates a dodas row from an integration number, scrapes SAT, and saves results.
+ * If this number was already confirmed as "DESADUANAMIENTO LIBRE", returns the
+ * existing record instead of creating a duplicate or re-scraping the SAT.
  */
 export async function runDodaLookupByNumberAndSave(
   input: RunDodaLookupByNumberInput,
@@ -230,6 +280,17 @@ export async function runDodaLookupByNumberAndSave(
   const trimmed = integrationNumber.trim();
   if (!/^\d+$/.test(trimmed)) {
     throw new Error("El número de integración debe contener solo dígitos.");
+  }
+
+  const existingResolved = await findResolvedDodaByIntegrationNumber(
+    supabase,
+    trimmed,
+  );
+  if (existingResolved) {
+    return {
+      lookup: lookupResultFromResolvedDoda(existingResolved),
+      doda: existingResolved,
+    };
   }
 
   const { data: createdRow, error: createError } = await supabase

@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { DodaDashboardRow } from "@/lib/doda-dashboard-categories";
 import type { DodaRecord } from "@/lib/doda-types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type DodaDashboardContextValue = {
   dodas: DodaDashboardRow[];
@@ -17,7 +18,6 @@ type DodaDashboardContextValue = {
   queryResults: DodaRecord[];
   setQueryResults: (items: DodaRecord[]) => void;
   appendQueryResult: (item: DodaRecord) => void;
-  updateQueryResult: (id: string, patch: Partial<DodaRecord>) => void;
   clearQueryResults: () => void;
 };
 
@@ -39,6 +39,41 @@ export function DodaDashboardProvider({
     setDodas(initialDodas);
   }, [initialDodas]);
 
+  // Reflect cron/manual status changes as soon as Postgres commits them, so a
+  // resolved/failed DODA moves out of "En monitoreo" without a manual reload.
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+
+    const channel = supabase
+      .channel("dodas:dashboard")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "dodas" },
+        (payload) => {
+          const updated = payload.new as DodaRecord;
+          setDodas((current) =>
+            current.map((doda) =>
+              doda.id === updated.id ? { ...doda, ...updated } : doda,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "dodas" },
+        (payload) => {
+          const deletedId = (payload.old as { id?: string }).id;
+          if (!deletedId) return;
+          setDodas((current) => current.filter((doda) => doda.id !== deletedId));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
   const setQueryResults = useCallback((items: DodaRecord[]) => {
     setQueryResultsState(items);
   }, []);
@@ -46,15 +81,6 @@ export function DodaDashboardProvider({
   const appendQueryResult = useCallback((item: DodaRecord) => {
     setQueryResultsState((current) => [...current, item]);
   }, []);
-
-  const updateQueryResult = useCallback(
-    (id: string, patch: Partial<DodaRecord>) => {
-      setQueryResultsState((current) =>
-        current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-      );
-    },
-    [],
-  );
 
   const clearQueryResults = useCallback(() => {
     setQueryResultsState([]);
@@ -84,7 +110,6 @@ export function DodaDashboardProvider({
       queryResults,
       setQueryResults,
       appendQueryResult,
-      updateQueryResult,
       clearQueryResults,
     }),
     [
@@ -93,7 +118,6 @@ export function DodaDashboardProvider({
       queryResults,
       setQueryResults,
       appendQueryResult,
-      updateQueryResult,
       clearQueryResults,
     ],
   );

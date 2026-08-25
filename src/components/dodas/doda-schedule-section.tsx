@@ -17,7 +17,6 @@ import {
   DodaQueuePanel,
   type DodaQueueItem,
 } from "@/components/dodas/doda-queue-panel";
-import { ScheduledDodaList } from "@/components/dodas/scheduled-doda-list";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import type { DodaRecord } from "@/lib/doda-types";
 
@@ -47,13 +46,8 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 
 export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
   const router = useRouter();
-  const {
-    refreshDashboard,
-    setQueryResults,
-    appendQueryResult,
-    updateQueryResult,
-    clearQueryResults,
-  } = useDodaDashboard();
+  const { refreshDashboard, setQueryResults, appendQueryResult, clearQueryResults } =
+    useDodaDashboard();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputMode, setInputMode] = useState<DodaInputMode>("number");
   const [phase, setPhase] = useState<UploadPhase>("idle");
@@ -64,12 +58,10 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
     null,
   );
   const [integrationDraft, setIntegrationDraft] = useState("");
-  const [scheduledResults, setScheduledResults] = useState<DodaRecord[]>([]);
   const [queueItems, setQueueItems] = useState<DodaQueueItem[]>([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number | null>(
     null,
   );
-  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const isSubmitting = phase === "submitting";
 
@@ -141,7 +133,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
       status: "pending",
     }));
     setQueueItems(initialQueue);
-    setScheduledResults([]);
     clearQueryResults();
 
     let successCount = 0;
@@ -160,7 +151,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
       try {
         const doda = await scheduleSingleNumber(number, clienteId, notas);
         successCount += 1;
-        setScheduledResults((current) => [...current, doda]);
         appendQueryResult(doda);
         setQueueItems((current) =>
           current.map((item, itemIndex) =>
@@ -184,37 +174,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
     return successCount;
   }
 
-  async function handleRemoveScheduled(dodaId: string) {
-    setRemovingId(dodaId);
-    try {
-      const response = await fetch(`/api/doda/${dodaId}/unmonitor`, {
-        method: "PATCH",
-      });
-      const payload = await parseApiResponse<{ ok?: boolean; error?: string }>(
-        response,
-      );
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error ?? "No se pudo quitar el monitoreo");
-      }
-
-      setScheduledResults((current) =>
-        current.map((item) =>
-          item.id === dodaId ? { ...item, is_monitored: false } : item,
-        ),
-      );
-      updateQueryResult(dodaId, { is_monitored: false });
-      await refreshDashboard();
-      router.refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "No se pudo quitar el monitoreo",
-      );
-      setPhase("error");
-    } finally {
-      setRemovingId(null);
-    }
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -225,7 +184,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
 
     setPhase("submitting");
     setMessage(null);
-    setScheduledResults([]);
     clearQueryResults();
     setQueueItems([]);
     setCurrentQueueIndex(null);
@@ -260,7 +218,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
           throw new Error(payload.error ?? "No se pudo programar el monitoreo");
         }
 
-        setScheduledResults(payload.dodas);
         setQueryResults(payload.dodas);
         setSelectedFiles([]);
         if (fileInputRef.current) {
@@ -313,8 +270,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
       );
     }
   }
-
-  const activeScheduled = scheduledResults.filter((item) => item.is_monitored);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[#227DE8]/25 bg-white shadow-sm">
@@ -488,16 +443,6 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
           </button>
         </div>
       </form>
-
-      {activeScheduled.length > 0 ? (
-        <div className="border-t border-slate-100 px-5 py-5 sm:px-6 sm:py-6">
-          <ScheduledDodaList
-            items={activeScheduled}
-            onRemove={handleRemoveScheduled}
-            removingId={removingId}
-          />
-        </div>
-      ) : null}
     </section>
   );
 }

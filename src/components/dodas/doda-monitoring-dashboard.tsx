@@ -20,7 +20,8 @@ const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
-const MONITORING_REFRESH_MS = 30_000;
+/** Realtime (see DodaDashboardProvider) handles instant updates; this is just a safety net. */
+const MONITORING_REFRESH_FALLBACK_MS = 2 * 60 * 1000;
 
 function MonitoringBadge() {
   return (
@@ -343,7 +344,7 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
   useEffect(() => {
     const interval = setInterval(() => {
       router.refresh();
-    }, MONITORING_REFRESH_MS);
+    }, MONITORING_REFRESH_FALLBACK_MS);
     return () => clearInterval(interval);
   }, [router]);
 
