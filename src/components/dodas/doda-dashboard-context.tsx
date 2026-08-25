@@ -9,10 +9,16 @@ import {
   useState,
 } from "react";
 import type { DodaDashboardRow } from "@/lib/doda-dashboard-categories";
+import type { DodaRecord } from "@/lib/doda-types";
 
 type DodaDashboardContextValue = {
   dodas: DodaDashboardRow[];
   refreshDashboard: () => Promise<void>;
+  queryResults: DodaRecord[];
+  setQueryResults: (items: DodaRecord[]) => void;
+  appendQueryResult: (item: DodaRecord) => void;
+  updateQueryResult: (id: string, patch: Partial<DodaRecord>) => void;
+  clearQueryResults: () => void;
 };
 
 const DodaDashboardContext = createContext<DodaDashboardContextValue | null>(
@@ -27,10 +33,32 @@ export function DodaDashboardProvider({
   children: React.ReactNode;
 }) {
   const [dodas, setDodas] = useState(initialDodas);
+  const [queryResults, setQueryResultsState] = useState<DodaRecord[]>([]);
 
   useEffect(() => {
     setDodas(initialDodas);
   }, [initialDodas]);
+
+  const setQueryResults = useCallback((items: DodaRecord[]) => {
+    setQueryResultsState(items);
+  }, []);
+
+  const appendQueryResult = useCallback((item: DodaRecord) => {
+    setQueryResultsState((current) => [...current, item]);
+  }, []);
+
+  const updateQueryResult = useCallback(
+    (id: string, patch: Partial<DodaRecord>) => {
+      setQueryResultsState((current) =>
+        current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      );
+    },
+    [],
+  );
+
+  const clearQueryResults = useCallback(() => {
+    setQueryResultsState([]);
+  }, []);
 
   const refreshDashboard = useCallback(async () => {
     const response = await fetch("/api/dodas/dashboard", {
@@ -50,8 +78,24 @@ export function DodaDashboardProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ dodas, refreshDashboard }),
-    [dodas, refreshDashboard],
+    () => ({
+      dodas,
+      refreshDashboard,
+      queryResults,
+      setQueryResults,
+      appendQueryResult,
+      updateQueryResult,
+      clearQueryResults,
+    }),
+    [
+      dodas,
+      refreshDashboard,
+      queryResults,
+      setQueryResults,
+      appendQueryResult,
+      updateQueryResult,
+      clearQueryResults,
+    ],
   );
 
   return (

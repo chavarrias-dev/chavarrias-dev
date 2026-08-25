@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { DodaLookupStatus, SatDodaDetails } from "@/lib/doda-types";
+import type {
+  DodaLookupStatus,
+  PedimentoInfo,
+  SatDodaDetails,
+} from "@/lib/doda-types";
 import { scrapeSatDodaStatus } from "@/lib/scrape-sat-doda";
 
 export type ProcessDodaLookupInput = {
@@ -13,6 +17,7 @@ export type ProcessDodaLookupSuccess = {
   numeroIntegracion: string | null;
   satStatus: string | null;
   satDetails: SatDodaDetails | null;
+  pedimentoInfo: PedimentoInfo | null;
   lookupError: string | null;
   lookedUpAt: string;
   /** Temporary debug field: raw QR string before URL validation. */
@@ -66,6 +71,7 @@ export async function processDodaLookup(
       numeroIntegracion: null,
       satStatus: null,
       satDetails: null,
+      pedimentoInfo: null,
       lookupError: reason,
       lookedUpAt,
       debugRawQrPayload,
@@ -80,6 +86,7 @@ export async function processDodaLookup(
       numeroIntegracion,
       satStatus: null,
       satDetails: null,
+      pedimentoInfo: null,
       lookupError: scrapeResult.reason,
       lookedUpAt,
       debugRawQrPayload,
@@ -92,6 +99,7 @@ export async function processDodaLookup(
     numeroIntegracion:
       scrapeResult.numeroIntegracion ?? numeroIntegracion,
     satStatus: scrapeResult.satStatus,
+    pedimentoInfo: scrapeResult.pedimentoInfo,
     satDetails: scrapeResult.details,
     lookupError: null,
     lookedUpAt,

@@ -17,7 +17,7 @@ import {
   DodaQueuePanel,
   type DodaQueueItem,
 } from "@/components/dodas/doda-queue-panel";
-import { DodaResultsTable } from "@/components/dodas/doda-results-table";
+import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import type { DodaRecord } from "@/lib/doda-types";
 
 type DodaLookupUploaderProps = {
@@ -48,12 +48,13 @@ export function DodaLookupUploader({
   variant = "primary",
 }: DodaLookupUploaderProps) {
   const router = useRouter();
+  const { setQueryResults, appendQueryResult, clearQueryResults } =
+    useDodaDashboard();
   const isSecondary = variant === "secondary";
   const [inputMode, setInputMode] = useState<DodaInputMode>("number");
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [fileResult, setFileResult] = useState<DodaRecord | null>(null);
-  const [numberResults, setNumberResults] = useState<DodaRecord[]>([]);
   const [integrationNumbers, setIntegrationNumbers] = useState<string[]>([]);
   const [integrationError, setIntegrationError] = useState<string | null>(
     null,
@@ -108,7 +109,7 @@ export function DodaLookupUploader({
       status: "pending",
     }));
     setQueueItems(initialQueue);
-    setNumberResults([]);
+    clearQueryResults();
 
     for (let index = 0; index < numbers.length; index += 1) {
       const number = numbers[index]!;
@@ -123,7 +124,7 @@ export function DodaLookupUploader({
 
       try {
         const doda = await lookupSingleNumber(number, clienteId, notas);
-        setNumberResults((current) => [...current, doda]);
+        appendQueryResult(doda);
         setQueueItems((current) =>
           current.map((item, itemIndex) =>
             itemIndex === index ? { ...item, status: "done" } : item,
@@ -151,7 +152,7 @@ export function DodaLookupUploader({
     setPhase("checking");
     setMessage(null);
     setFileResult(null);
-    setNumberResults([]);
+    clearQueryResults();
     setDebugRawQrPayload(null);
     setQueueItems([]);
     setCurrentQueueIndex(null);
@@ -182,6 +183,7 @@ export function DodaLookupUploader({
         }
 
         setFileResult(payload.doda);
+        setQueryResults([payload.doda]);
         setDebugRawQrPayload(payload.debugRawQrPayload ?? null);
         setPhase("done");
         form.reset();
@@ -367,23 +369,14 @@ export function DodaLookupUploader({
         </form>
       </section>
 
-      {inputMode === "number" && numberResults.length > 0 ? (
-        <DodaResultsTable items={numberResults} />
-      ) : null}
-
-      {inputMode === "file" && fileResult ? (
-        <div className="space-y-4">
-          <DodaResultsTable items={[fileResult]} />
-          {debugRawQrPayload ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                QR decodificado (debug)
-              </p>
-              <p className="mt-2 break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800">
-                {debugRawQrPayload}
-              </p>
-            </div>
-          ) : null}
+      {inputMode === "file" && fileResult && debugRawQrPayload ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            QR decodificado (debug)
+          </p>
+          <p className="mt-2 break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800">
+            {debugRawQrPayload}
+          </p>
         </div>
       ) : null}
     </div>

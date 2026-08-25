@@ -110,6 +110,12 @@ export const dodas = pgTable("dodas", {
   qrValidatorUrl: text("qr_validator_url"),
   satStatus: text("sat_status"),
   satDetails: text("sat_details"),
+  tipoPedimento: text("tipo_pedimento"),
+  pedimento: text("pedimento"),
+  remesasPresentadas: text("remesas_presentadas"),
+  clavePedimento: text("clave_pedimento"),
+  datosVehiculo: text("datos_vehiculo"),
+  cantidadMercancia: text("cantidad_mercancia"),
   lookupStatus: dodaLookupStatusEnum("lookup_status")
     .notNull()
     .default("pendiente"),
@@ -150,5 +156,17 @@ export const messages = pgTable("messages", {
     .references(() => profiles.id),
   content: text("content").notNull(),
   read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  waMessageId: text("wa_message_id").unique(),
+  fromNumber: text("from_number").notNull(),
+  toNumber: text("to_number").notNull(),
+  message: text("message").notNull(),
+  direction: text("direction").notNull(),
+  status: text("status"),
+  clientId: uuid("client_id").references(() => clients.id),
   createdAt: timestamp("created_at").defaultNow(),
 });

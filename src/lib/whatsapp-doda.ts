@@ -9,7 +9,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   downloadWhatsAppMedia,
-  sendWhatsAppTextMessage,
+  sendWhatsAppMessage,
   type WhatsAppIncomingMedia,
 } from "@/lib/whatsapp";
 
@@ -25,7 +25,7 @@ export async function processWhatsAppDodaMedia(
     });
 
     if (!isSupportedDodaFile(file)) {
-      await sendWhatsAppTextMessage(
+      await sendWhatsAppMessage(
         media.from,
         [
           "⚠️ *Formato no soportado*",
@@ -48,7 +48,7 @@ export async function processWhatsAppDodaMedia(
       storagePathPrefix: `dodas/whatsapp/${media.from}`,
     });
 
-    await sendWhatsAppTextMessage(
+    await sendWhatsAppMessage(
       media.from,
       formatDodaWhatsAppReply(lookup, Boolean(clienteId)),
     );
@@ -61,7 +61,7 @@ export async function processWhatsAppDodaMedia(
     console.error("[whatsapp-doda]", media.messageId, message);
 
     try {
-      await sendWhatsAppTextMessage(
+      await sendWhatsAppMessage(
         media.from,
         [
           "⚠️ *No pudimos procesar tu archivo*",

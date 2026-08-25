@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { DodaLookupStatus, SatDodaDetails } from "@/lib/doda-types";
+import type {
+  DodaLookupStatus,
+  PedimentoInfo,
+  SatDodaDetails,
+} from "@/lib/doda-types";
 import { buildSatValidatorUrlFromIntegrationNumber } from "@/lib/doda-sat-details";
 import { scrapeSatDodaStatus } from "@/lib/scrape-sat-doda";
 
@@ -10,6 +14,7 @@ export type ProcessDodaLookupSuccess = {
   numeroIntegracion: string | null;
   satStatus: string | null;
   satDetails: SatDodaDetails | null;
+  pedimentoInfo: PedimentoInfo | null;
   lookupError: string | null;
   lookedUpAt: string;
   debugRawQrPayload: string | null;
@@ -36,6 +41,7 @@ export async function processDodaLookupByIntegrationNumber(
       numeroIntegracion: trimmed,
       satStatus: null,
       satDetails: null,
+      pedimentoInfo: null,
       lookupError: scrapeResult.reason,
       lookedUpAt,
       debugRawQrPayload: null,
@@ -48,6 +54,7 @@ export async function processDodaLookupByIntegrationNumber(
     numeroIntegracion: scrapeResult.numeroIntegracion ?? trimmed,
     satStatus: scrapeResult.satStatus,
     satDetails: scrapeResult.details,
+    pedimentoInfo: scrapeResult.pedimentoInfo,
     lookupError: null,
     lookedUpAt,
     debugRawQrPayload: null,
@@ -70,6 +77,7 @@ export async function processDodaSatRecheck(
       numeroIntegracion: null,
       satStatus: null,
       satDetails: null,
+      pedimentoInfo: null,
       lookupError: scrapeResult.reason,
       lookedUpAt,
       debugRawQrPayload: null,
@@ -82,6 +90,7 @@ export async function processDodaSatRecheck(
     numeroIntegracion: scrapeResult.numeroIntegracion,
     satStatus: scrapeResult.satStatus,
     satDetails: scrapeResult.details,
+    pedimentoInfo: scrapeResult.pedimentoInfo,
     lookupError: null,
     lookedUpAt,
     debugRawQrPayload: null,

@@ -291,34 +291,37 @@ function useDashboardGroups(dodas: DodaDashboardRow[]) {
   return { monitoringGroups, confirmedGroups, errorGroups };
 }
 
-/** Right column: En monitoreo + Desaduanamiento confirmado stacked. */
-export function DodaMonitoringStatusTables({
-  dodas,
-}: DodaMonitoringDashboardProps) {
-  const { monitoringGroups, confirmedGroups } = useDashboardGroups(dodas);
+/** "En monitoreo" table. */
+export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
+  const { monitoringGroups } = useDashboardGroups(dodas);
 
   return (
-    <div className="space-y-6">
-      <GroupedDodaTable
-        title="En monitoreo"
-        description="DODAs en cola de revisión automática, pendientes de desaduanamiento libre."
-        groups={monitoringGroups}
-        emptyMessage="No hay DODAs en monitoreo activo."
-        variant="monitoring"
-      />
-
-      <GroupedDodaTable
-        title="Desaduanamiento confirmado"
-        description="DODAs que ya alcanzaron desaduanamiento libre en el SAT."
-        groups={confirmedGroups}
-        emptyMessage="Aún no hay DODAs con desaduanamiento confirmado."
-        variant="confirmed"
-      />
-    </div>
+    <GroupedDodaTable
+      title="En monitoreo"
+      description="DODAs en cola de revisión automática, pendientes de desaduanamiento libre."
+      groups={monitoringGroups}
+      emptyMessage="No hay DODAs en monitoreo activo."
+      variant="monitoring"
+    />
   );
 }
 
-/** Full-width errors table below the main grid. */
+/** "Desaduanamiento confirmado" table. */
+export function DodaConfirmedTable({ dodas }: DodaMonitoringDashboardProps) {
+  const { confirmedGroups } = useDashboardGroups(dodas);
+
+  return (
+    <GroupedDodaTable
+      title="Desaduanamiento confirmado"
+      description="DODAs que ya alcanzaron desaduanamiento libre en el SAT."
+      groups={confirmedGroups}
+      emptyMessage="Aún no hay DODAs con desaduanamiento confirmado."
+      variant="confirmed"
+    />
+  );
+}
+
+/** "Errores" table. */
 export function DodaMonitoringErrorsTable({
   dodas,
 }: DodaMonitoringDashboardProps) {
@@ -359,7 +362,7 @@ export function DodaMonitoringErrorsTable({
   }
 
   return (
-    <div className="mt-6 space-y-3">
+    <div className="space-y-3">
       {retryError ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {retryError}

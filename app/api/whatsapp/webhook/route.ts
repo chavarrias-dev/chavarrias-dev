@@ -1,8 +1,12 @@
 import { after } from "next/server";
 import { NextResponse } from "next/server";
 import {
+  applyWhatsAppStatusUpdate,
   extractWhatsAppIncomingMedia,
-  sendWhatsAppTextMessage,
+  extractWhatsAppIncomingMessages,
+  extractWhatsAppStatusUpdates,
+  saveIncomingWhatsAppMessage,
+  sendWhatsAppMessage,
   verifyWhatsAppWebhook,
 } from "@/lib/whatsapp";
 import { processWhatsAppDodaMedia } from "@/lib/whatsapp-doda";
@@ -33,8 +37,18 @@ export async function POST(req: Request) {
   }
 
   const mediaMessages = extractWhatsAppIncomingMedia(body);
+  const incomingMessages = extractWhatsAppIncomingMessages(body);
+  const statusUpdates = extractWhatsAppStatusUpdates(body);
 
   after(async () => {
+    for (const incoming of incomingMessages) {
+      await saveIncomingWhatsAppMessage(incoming);
+    }
+
+    for (const update of statusUpdates) {
+      await applyWhatsAppStatusUpdate(update);
+    }
+
     for (const media of mediaMessages) {
       await processWhatsAppDodaMedia(media);
     }
@@ -50,7 +64,7 @@ export async function POST(req: Request) {
           if (!plainTextSenders.has(from)) {
             plainTextSenders.add(from);
             try {
-              await sendWhatsAppTextMessage(
+              await sendWhatsAppMessage(
                 from,
                 [
                   "Hola 👋",

@@ -13,6 +13,7 @@ import {
   Home,
   LogOut,
   Menu,
+  MessageCircle,
   Package,
   QrCode,
   UserPlus,
@@ -208,6 +209,12 @@ export function DashboardShell({
       href: "/dashboard/dodas",
       label: "DODA",
       icon: QrCode,
+      show: isStaff,
+    },
+    {
+      href: "/dashboard/whatsapp",
+      label: "WhatsApp",
+      icon: MessageCircle,
       show: isStaff,
     },
     {

@@ -124,6 +124,14 @@ export async function processMonitoredDodasBatch(
               sat_details: recheck.satDetails
                 ? JSON.stringify(recheck.satDetails)
                 : null,
+              tipo_pedimento: recheck.pedimentoInfo?.tipoPedimento ?? null,
+              pedimento: recheck.pedimentoInfo?.pedimento ?? null,
+              remesas_presentadas:
+                recheck.pedimentoInfo?.remesasPresentadas ?? null,
+              clave_pedimento: recheck.pedimentoInfo?.clavePedimento ?? null,
+              datos_vehiculo: recheck.pedimentoInfo?.datosVehiculo ?? null,
+              cantidad_mercancia:
+                recheck.pedimentoInfo?.cantidadMercancia ?? null,
               numero_integracion:
                 recheck.numeroIntegracion ?? doda.numero_integracion,
               lookup_status: "verificado" as const,

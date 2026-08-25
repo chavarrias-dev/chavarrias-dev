@@ -6,8 +6,9 @@ import { processDodaLookupByIntegrationNumber } from "@/lib/doda-sat-recheck";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
-import { phonesMatch } from "@/lib/phone-match";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+
+export { findClientIdByPhone } from "@/lib/phone-match";
 
 const ACCEPTED_MIME_TYPES = new Set([
   "application/pdf",
@@ -69,26 +70,6 @@ export function isSupportedDodaFile(file: File): boolean {
     mime.startsWith("image/") ||
     /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
   return isPdf || isImage || ACCEPTED_MIME_TYPES.has(mime);
-}
-
-export async function findClientIdByPhone(
-  supabase: SupabaseClient,
-  whatsappPhone: string,
-): Promise<string | null> {
-  const { data: clients, error } = await supabase
-    .from("clients")
-    .select("id, phone")
-    .not("phone", "is", null);
-
-  if (error || !clients) {
-    return null;
-  }
-
-  const match = (
-    clients as Array<{ id: string; phone: string | null }>
-  ).find((client) => client.phone && phonesMatch(client.phone, whatsappPhone));
-
-  return match?.id ?? null;
 }
 
 export function formatDodaWhatsAppReply(
@@ -202,6 +183,12 @@ export async function runDodaLookupAndSave(
       numero_integracion: lookup.numeroIntegracion,
       sat_status: lookup.satStatus,
       sat_details: lookup.satDetails ? JSON.stringify(lookup.satDetails) : null,
+      tipo_pedimento: lookup.pedimentoInfo?.tipoPedimento ?? null,
+      pedimento: lookup.pedimentoInfo?.pedimento ?? null,
+      remesas_presentadas: lookup.pedimentoInfo?.remesasPresentadas ?? null,
+      clave_pedimento: lookup.pedimentoInfo?.clavePedimento ?? null,
+      datos_vehiculo: lookup.pedimentoInfo?.datosVehiculo ?? null,
+      cantidad_mercancia: lookup.pedimentoInfo?.cantidadMercancia ?? null,
       lookup_status: lookup.lookupStatus,
       lookup_error: lookup.lookupError,
       looked_up_at: lookup.lookedUpAt,
@@ -276,6 +263,12 @@ export async function runDodaLookupByNumberAndSave(
       numero_integracion: lookup.numeroIntegracion ?? trimmed,
       sat_status: lookup.satStatus,
       sat_details: lookup.satDetails ? JSON.stringify(lookup.satDetails) : null,
+      tipo_pedimento: lookup.pedimentoInfo?.tipoPedimento ?? null,
+      pedimento: lookup.pedimentoInfo?.pedimento ?? null,
+      remesas_presentadas: lookup.pedimentoInfo?.remesasPresentadas ?? null,
+      clave_pedimento: lookup.pedimentoInfo?.clavePedimento ?? null,
+      datos_vehiculo: lookup.pedimentoInfo?.datosVehiculo ?? null,
+      cantidad_mercancia: lookup.pedimentoInfo?.cantidadMercancia ?? null,
       lookup_status: lookup.lookupStatus,
       lookup_error: lookup.lookupError,
       looked_up_at: lookup.lookedUpAt,

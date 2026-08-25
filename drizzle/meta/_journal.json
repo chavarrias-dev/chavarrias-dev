@@ -43,6 +43,13 @@
       "when": 1781900000000,
       "tag": "0005_add_doda_notification_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782000000000,
+      "tag": "0006_add_doda_pedimento_fields",
+      "breakpoints": true
     }
   ]
 }

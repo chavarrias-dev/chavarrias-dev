@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { Browser, Page } from "puppeteer-core";
-import type { SatDodaDetails, SatDodaLookupOutcome } from "@/lib/doda-types";
+import type {
+  PedimentoInfo,
+  SatDodaDetails,
+  SatDodaLookupOutcome,
+} from "@/lib/doda-types";
 import { extractIntegrationNumberFromUrl } from "@/lib/doda-sat-details";
 import { launchPuppeteerBrowser } from "@/lib/launch-puppeteer";
 import {
@@ -15,6 +19,7 @@ const CONTENT_TIMEOUT_MS = 45_000;
 const SECTION_INTEGRACION = "Número de Integración";
 const SECTION_DATOS_GENERALES = "Datos Generales Consultados";
 const SECTION_PEDIMENTOS = "Información de Pedimento(s)";
+
 
 function extractSatStatusFromDatosGenerales(text: string): string | null {
   const starred = text.match(/\*\*\*(.+?)\*\*\*/);
@@ -64,6 +69,7 @@ async function extractSatValidatorData(
   datosGeneralesConsultados: string | null;
   satStatus: string | null;
   details: SatDodaDetails;
+  pedimentoInfo: PedimentoInfo;
 }> {
   return page.evaluate(
     (sectionIntegracion, sectionDatosGenerales, sectionPedimentos) => {
@@ -264,11 +270,46 @@ async function extractSatValidatorData(
           ) ?? null;
       }
 
+      function normalizeLabelKey(value: string): string {
+        return value
+          .normalize("NFD")
+          .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function findDetailValue(
+        source: Record<string, string>,
+        label: string,
+      ): string | null {
+        const target = normalizeLabelKey(label);
+        for (const [key, value] of Object.entries(source)) {
+          if (normalizeLabelKey(key) === target) {
+            return value || null;
+          }
+        }
+        return null;
+      }
+
+      const pedimentoInfo = {
+        tipoPedimento: findDetailValue(details, "Tipo de Pedimento"),
+        pedimento: findDetailValue(details, "Pedimento"),
+        remesasPresentadas: findDetailValue(details, "Remesas Presentadas"),
+        clavePedimento: findDetailValue(details, "Clave de Pedimento"),
+        datosVehiculo: findDetailValue(
+          details,
+          "Datos de Identificación del Vehículo",
+        ),
+        cantidadMercancia: findDetailValue(details, "Cantidad de Mercancía"),
+      };
+
       return {
         numeroIntegracion,
         datosGeneralesConsultados,
         satStatus,
         details,
+        pedimentoInfo,
       };
     },
     SECTION_INTEGRACION,
@@ -375,6 +416,7 @@ export async function scrapeSatDodaStatus(
         extractIntegrationNumberFromUrl(validatorUrl),
       satStatus,
       details: extracted.details,
+      pedimentoInfo: extracted.pedimentoInfo,
     };
   } catch (error) {
     const message =

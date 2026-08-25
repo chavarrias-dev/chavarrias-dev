@@ -30,12 +30,18 @@ export function DodaResultsTable({
 
   return (
     <DodaTableSection title={title} description={description}>
-      <table className={`${DODA_TABLE_CLASS} min-w-[960px]`}>
+      <table className={`${DODA_TABLE_CLASS} min-w-[1440px]`}>
         <thead>
           <tr className={DODA_TABLE_HEAD_ROW_CLASS}>
             <th className={DODA_TABLE_HEAD_CELL_CLASS}>Número de integración</th>
             <th className={DODA_TABLE_HEAD_CELL_CLASS}>Estado SAT</th>
             <th className={DODA_TABLE_HEAD_CELL_CLASS}>Estatus</th>
+            <th className={DODA_TABLE_HEAD_CELL_CLASS}>Tipo de pedimento</th>
+            <th className={DODA_TABLE_HEAD_CELL_CLASS}>Pedimento</th>
+            <th className={DODA_TABLE_HEAD_CELL_CLASS}>Remesas presentadas</th>
+            <th className={DODA_TABLE_HEAD_CELL_CLASS}>Clave de pedimento</th>
+            <th className={DODA_TABLE_HEAD_CELL_CLASS}>Datos del vehículo</th>
+            <th className={DODA_TABLE_HEAD_CELL_CLASS}>Cantidad de mercancía</th>
             <th className={DODA_TABLE_HEAD_CELL_CLASS}>Consultado el</th>
             <th className={DODA_TABLE_HEAD_CELL_CLASS}>Monitoreo</th>
             <th className={DODA_TABLE_HEAD_CELL_CLASS}>URL validador</th>
@@ -54,6 +60,24 @@ export function DodaResultsTable({
               </td>
               <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-700`}>
                 {doda.sat_status ?? doda.lookup_error ?? "—"}
+              </td>
+              <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                {doda.tipo_pedimento ?? "—"}
+              </td>
+              <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                {doda.pedimento ?? "—"}
+              </td>
+              <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                {doda.remesas_presentadas ?? "—"}
+              </td>
+              <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                {doda.clave_pedimento ?? "—"}
+              </td>
+              <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                {doda.datos_vehiculo ?? "—"}
+              </td>
+              <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                {doda.cantidad_mercancia ?? "—"}
               </td>
               <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
                 {formatDodaDateTime(doda.looked_up_at ?? doda.created_at)}
