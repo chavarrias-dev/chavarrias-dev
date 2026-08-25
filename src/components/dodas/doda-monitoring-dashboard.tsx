@@ -23,7 +23,7 @@ type DodaMonitoringDashboardProps = {
 const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
-const THREE_MINUTES_MS = 3 * 60 * 1000;
+const THREE_MINUTES_SECONDS = 3 * 60;
 /** Realtime (see DodaDashboardProvider) handles instant updates; this is just a safety net. */
 const MONITORING_REFRESH_FALLBACK_MS = 2 * 60 * 1000;
 
@@ -57,40 +57,35 @@ function ErrorBadge() {
   );
 }
 
-function formatCountdown(remainingMs: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-/** Live "next check" countdown, ticking from last_checked_at + 3 minutes. */
-function MonitoringCountdown({
-  lastCheckedAt,
-}: {
-  lastCheckedAt: string | null;
-}) {
-  const [label, setLabel] = useState("Próxima revisión en 3:00 min");
+/**
+ * Simple repeating 3-minute countdown, purely local to the browser tab —
+ * deliberately NOT derived from last_checked_at. That column is a Postgres
+ * `timestamp without time zone`, so it comes back over the wire as
+ * "2026-08-25 22:06:48.943" with no "Z"/offset; `new Date(...)` on a
+ * space-separated, zone-less string parses it as *local* time, not UTC,
+ * silently shifting it by the server's UTC offset (e.g. 300 minutes on a
+ * UTC-5 host). That produced the "300 minutes" display bug. This component
+ * just ticks down on its own instead of doing any date arithmetic.
+ */
+function MonitoringCountdown() {
+  const [seconds, setSeconds] = useState(THREE_MINUTES_SECONDS);
 
   useEffect(() => {
-    let baseTime = lastCheckedAt ? new Date(lastCheckedAt).getTime() : Date.now();
-
-    function tick() {
-      const remainingMs = THREE_MINUTES_MS - (Date.now() - baseTime);
-      if (remainingMs <= 0) {
-        setLabel("Revisando…");
-        baseTime = Date.now();
-        return;
-      }
-      setLabel(`Próxima revisión en ${formatCountdown(remainingMs)} min`);
-    }
-
-    tick();
-    const interval = setInterval(tick, 1000);
+    const interval = setInterval(() => {
+      setSeconds((prev) => (prev <= 1 ? THREE_MINUTES_SECONDS : prev - 1));
+    }, 1000);
     return () => clearInterval(interval);
-  }, [lastCheckedAt]);
+  }, []);
 
-  return <span className="block text-[11px] text-orange-700">{label}</span>;
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const display = `${minutes}:${secs.toString().padStart(2, "0")}`;
+
+  return (
+    <span className="block text-[11px] text-orange-700">
+      Próxima revisión en {display}
+    </span>
+  );
 }
 
 type GroupedTableProps = {
@@ -195,7 +190,7 @@ function ClientGroupSection({
                   <td className="px-4 py-3">
                     <MonitoringBadge />
                     <MonitoringCountdown
-                      lastCheckedAt={doda.last_checked_at ?? doda.looked_up_at}
+                      key={doda.last_checked_at ?? doda.looked_up_at ?? doda.id}
                     />
                   </td>
                   <td className="px-4 py-3">
