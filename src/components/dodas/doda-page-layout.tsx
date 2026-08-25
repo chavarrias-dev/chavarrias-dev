@@ -23,14 +23,18 @@ function DodaPageLayoutContent({ clients }: { clients: ClientOption[] }) {
   const { dodas, queryResults } = useDodaDashboard();
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-      <div className="space-y-6">
-        <DodaToolsSection clients={clients} />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-6">
+          <DodaToolsSection clients={clients} />
+        </div>
+
+        <div className="space-y-6">
+          <DodaMonitoringTable dodas={dodas} />
+        </div>
       </div>
 
-      <div className="space-y-6 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
-        <DodaMonitoringTable dodas={dodas} />
-
+      <div className="space-y-6">
         {queryResults.length > 0 ? (
           <DodaResultsTable items={queryResults} />
         ) : null}
