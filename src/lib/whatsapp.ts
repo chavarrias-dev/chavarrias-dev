@@ -54,21 +54,40 @@ export function verifyWhatsAppWebhook(params: URLSearchParams): string | null {
   const token = params.get("hub.verify_token");
   const challenge = params.get("hub.challenge");
 
-  if (mode !== "subscribe" || !challenge) {
-    return null;
-  }
-
-  let expectedToken: string;
+  let expectedToken: string | null = null;
   try {
     expectedToken = getWhatsAppVerifyToken();
   } catch {
+    expectedToken = null;
+  }
+
+  console.log("[whatsapp-webhook] verify attempt", {
+    mode,
+    receivedToken: token,
+    expectedToken,
+    challengePresent: Boolean(challenge),
+  });
+
+  if (mode !== "subscribe" || !challenge) {
+    console.warn(
+      "[whatsapp-webhook] verify failed: mode or challenge missing/invalid",
+    );
+    return null;
+  }
+
+  if (!expectedToken) {
+    console.error(
+      "[whatsapp-webhook] verify failed: WHATSAPP_WEBHOOK_VERIFY_TOKEN is not configured",
+    );
     return null;
   }
 
   if (token !== expectedToken) {
+    console.warn("[whatsapp-webhook] verify failed: token mismatch");
     return null;
   }
 
+  console.log("[whatsapp-webhook] verify succeeded");
   return challenge;
 }
 

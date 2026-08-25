@@ -19,12 +19,12 @@ type WhatsAppWebhookBody = Parameters<typeof extractWhatsAppIncomingMedia>[0];
 export async function GET(req: Request) {
   const challenge = verifyWhatsAppWebhook(new URL(req.url).searchParams);
   if (!challenge) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return new Response("Forbidden", { status: 403 });
   }
 
   return new Response(challenge, {
     status: 200,
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { "Content-Type": "text/plain" },
   });
 }
 
