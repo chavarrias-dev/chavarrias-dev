@@ -282,7 +282,8 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
           Monitorea uno o varios números de integración de forma continua. El
-          sistema consultará el SAT cada hora y te avisará si cambia el estatus.
+          sistema consultará el SAT cada 3 minutos y te avisará si cambia el
+          estatus.
         </p>
         <div className="mt-4">
           <DodaInputModeToggle

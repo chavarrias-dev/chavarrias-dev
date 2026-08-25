@@ -23,7 +23,7 @@ type DodaMonitoringDashboardProps = {
 const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
-const FIVE_MINUTES_MS = 5 * 60 * 1000;
+const THREE_MINUTES_MS = 3 * 60 * 1000;
 /** Realtime (see DodaDashboardProvider) handles instant updates; this is just a safety net. */
 const MONITORING_REFRESH_FALLBACK_MS = 2 * 60 * 1000;
 
@@ -64,19 +64,19 @@ function formatCountdown(remainingMs: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-/** Live "next check" countdown, ticking from last_checked_at + 5 minutes. */
+/** Live "next check" countdown, ticking from last_checked_at + 3 minutes. */
 function MonitoringCountdown({
   lastCheckedAt,
 }: {
   lastCheckedAt: string | null;
 }) {
-  const [label, setLabel] = useState("Próxima revisión en 5:00 min");
+  const [label, setLabel] = useState("Próxima revisión en 3:00 min");
 
   useEffect(() => {
     let baseTime = lastCheckedAt ? new Date(lastCheckedAt).getTime() : Date.now();
 
     function tick() {
-      const remainingMs = FIVE_MINUTES_MS - (Date.now() - baseTime);
+      const remainingMs = THREE_MINUTES_MS - (Date.now() - baseTime);
       if (remainingMs <= 0) {
         setLabel("Revisando…");
         baseTime = Date.now();
