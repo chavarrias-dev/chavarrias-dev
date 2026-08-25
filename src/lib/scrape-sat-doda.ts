@@ -15,10 +15,50 @@ import {
 
 const NAVIGATION_TIMEOUT_MS = 60_000;
 const CONTENT_TIMEOUT_MS = 45_000;
+const BODY_TEXT_PREVIEW_LENGTH = 500;
+const BODY_TEXT_LOG_CAP = 6000;
 
 const SECTION_INTEGRACION = "Número de Integración";
 const SECTION_DATOS_GENERALES = "Datos Generales Consultados";
 const SECTION_PEDIMENTOS = "Información de Pedimento(s)";
+
+/**
+ * Logs page title/URL/HTTP status/body-text preview so we can see in Vercel
+ * runtime logs exactly what the SAT returned, without relying on the
+ * filesystem-based debug artifacts (which don't survive a serverless
+ * invocation and can't be inspected after the fact).
+ */
+async function logPageDiagnostics(
+  page: Page,
+  label: string,
+  response?: import("puppeteer-core").HTTPResponse | null,
+): Promise<string> {
+  try {
+    const url = page.url();
+    const title = await page.title().catch(() => null);
+    const bodyText = await page
+      .evaluate(() => document.body?.innerText ?? "")
+      .catch(() => "");
+
+    console.log(`[scrape-sat-doda] ${label}`, {
+      url,
+      responseStatus: response ? response.status() : null,
+      responseOk: response ? response.ok() : null,
+      responseUrl: response ? response.url() : null,
+      title,
+      bodyTextLength: bodyText.length,
+      bodyTextPreview: bodyText.slice(0, BODY_TEXT_PREVIEW_LENGTH),
+    });
+
+    return bodyText;
+  } catch (logError) {
+    console.error(
+      `[scrape-sat-doda] failed to log diagnostics (${label})`,
+      logError,
+    );
+    return "";
+  }
+}
 
 
 function extractSatStatusFromDatosGenerales(text: string): string | null {
@@ -68,8 +108,13 @@ async function extractSatValidatorData(
   numeroIntegracion: string | null;
   datosGeneralesConsultados: string | null;
   satStatus: string | null;
+  satStatusSource: string | null;
   details: SatDodaDetails;
   pedimentoInfo: PedimentoInfo;
+  pageTitle: string | null;
+  bodyText: string;
+  foundDesaduanamientoLibreInBody: boolean;
+  foundDodaKeywordInBody: boolean;
 }> {
   return page.evaluate(
     (sectionIntegracion, sectionDatosGenerales, sectionPedimentos) => {
@@ -145,11 +190,31 @@ async function extractSatValidatorData(
       }
 
       function getPrimaryGridcellText(section: Element): string | null {
-        const cell =
-          section.querySelector("table.ui-panelgrid.prueba td[role='gridcell']") ??
-          section.querySelector("td[role='gridcell']") ??
-          section.querySelector(".ui-panelgrid td");
-        return cellTextWithBreaks(cell);
+        // SAT sometimes reports status via a nested PrimeFaces message
+        // component (e.g. "DODA no presentado al Mecanismo de Selección
+        // Automatizado") instead of plain gridcell text — check that first.
+        const messageDetail = section.querySelector(
+          ".ui-messages-info-detail, .ui-messages-error-detail, .ui-messages-warn-detail",
+        );
+        const messageText = cellTextWithBreaks(messageDetail);
+        if (messageText) {
+          return messageText;
+        }
+
+        // The first gridcell in these sections is often an empty spacer row,
+        // so scan for the first one that actually has content instead of
+        // grabbing whichever matches first.
+        const cells = section.querySelectorAll(
+          "table.ui-panelgrid.prueba td[role='gridcell'], td[role='gridcell'], .ui-panelgrid td",
+        );
+        for (const cell of cells) {
+          const text = cellTextWithBreaks(cell);
+          if (text) {
+            return text;
+          }
+        }
+
+        return null;
       }
 
       function parseLabelValueRows(section: Element): Record<string, string> {
@@ -253,6 +318,9 @@ async function extractSatValidatorData(
       }
 
       let satStatus = extractStatusFromText(datosGeneralesConsultados);
+      let satStatusSource: string | null = satStatus
+        ? "datos_generales_section"
+        : null;
 
       if (!satStatus) {
         const boldCandidates = Array.from(
@@ -268,6 +336,59 @@ async function extractSatValidatorData(
               /[A-ZÁÉÍÓÚÑ]/.test(line) &&
               !/integraci/i.test(line),
           ) ?? null;
+
+        if (satStatus) {
+          satStatusSource = "bold_text";
+        }
+      }
+
+      // Fallback: scan every gridcell on the page (not just the "Datos
+      // Generales" section) for a ***STATUS*** marker — covers cases where
+      // the section-divider lookup breaks but SAT still emits the marker.
+      if (!satStatus) {
+        const allGridcells = Array.from(
+          document.querySelectorAll("td[role='gridcell'], td"),
+        );
+        for (const cell of allGridcells) {
+          const text = normalizeText(cell.textContent);
+          const starred = text.match(/\*\*\*(.+?)\*\*\*/);
+          if (starred?.[1]) {
+            satStatus = starred[1].trim();
+            satStatusSource = "any_gridcell_marker";
+            break;
+          }
+        }
+      }
+
+      // Fallback: PrimeFaces message boxes (info/warn/error banners) that
+      // SAT sometimes uses instead of the gridcell layout.
+      if (!satStatus) {
+        const messageEls = Array.from(
+          document.querySelectorAll(
+            ".ui-messages-info-detail, .ui-messages-error-detail, .ui-messages-warn-detail, .ui-messages-info-summary",
+          ),
+        );
+        for (const el of messageEls) {
+          const text = normalizeText(el.textContent);
+          if (/desaduanamiento\s+libre/i.test(text)) {
+            satStatus = "DESADUANAMIENTO LIBRE";
+            satStatusSource = "primefaces_message_box";
+            break;
+          }
+        }
+      }
+
+      const bodyText = document.body?.innerText ?? "";
+      const foundDesaduanamientoLibreInBody =
+        /desaduanamiento\s+libre/i.test(bodyText);
+      const foundDodaKeywordInBody = /\bdoda\b/i.test(bodyText);
+
+      // Last resort: if "DESADUANAMIENTO LIBRE" appears anywhere in the
+      // rendered page text, treat the DODA as resolved even though none of
+      // the structured selectors above matched.
+      if (!satStatus && foundDesaduanamientoLibreInBody) {
+        satStatus = "DESADUANAMIENTO LIBRE";
+        satStatusSource = "body_text_scan";
       }
 
       function normalizeLabelKey(value: string): string {
@@ -308,8 +429,13 @@ async function extractSatValidatorData(
         numeroIntegracion,
         datosGeneralesConsultados,
         satStatus,
+        satStatusSource,
         details,
         pedimentoInfo,
+        pageTitle: document.title || null,
+        bodyText,
+        foundDesaduanamientoLibreInBody,
+        foundDodaKeywordInBody,
       };
     },
     SECTION_INTEGRACION,
@@ -377,16 +503,45 @@ export async function scrapeSatDodaStatus(
     );
     await page.setViewport({ width: 1280, height: 900 });
 
-    await page.goto(validatorUrl, {
+    console.log("[scrape-sat-doda] navigating", { validatorUrl });
+
+    const response = await page.goto(validatorUrl, {
       waitUntil: "networkidle2",
       timeout: NAVIGATION_TIMEOUT_MS,
     });
 
-    await waitForValidatorContent(page);
+    await logPageDiagnostics(page, "after navigation", response);
+
+    try {
+      await waitForValidatorContent(page);
+    } catch (waitError) {
+      await logPageDiagnostics(page, "timed out waiting for validator content");
+      throw waitError;
+    }
 
     const extracted = await extractSatValidatorData(page);
 
+    console.log("[scrape-sat-doda] extraction result", {
+      validatorUrl,
+      pageTitle: extracted.pageTitle,
+      numeroIntegracion: extracted.numeroIntegracion,
+      satStatus: extracted.satStatus,
+      satStatusSource: extracted.satStatusSource,
+      foundDesaduanamientoLibreInBody: extracted.foundDesaduanamientoLibreInBody,
+      foundDodaKeywordInBody: extracted.foundDodaKeywordInBody,
+      bodyTextLength: extracted.bodyText.length,
+    });
+
     if (!extracted.numeroIntegracion && !extracted.datosGeneralesConsultados) {
+      console.error(
+        "[scrape-sat-doda] no expected sections found — full page text below",
+        {
+          validatorUrl,
+          pageTitle: extracted.pageTitle,
+          foundDodaKeywordInBody: extracted.foundDodaKeywordInBody,
+          bodyText: extracted.bodyText.slice(0, BODY_TEXT_LOG_CAP),
+        },
+      );
       return buildFailureOutcome(
         page,
         validatorUrl,
@@ -401,6 +556,19 @@ export async function scrapeSatDodaStatus(
         : null);
 
     if (!satStatus) {
+      console.error(
+        "[scrape-sat-doda] status not found — full page text below",
+        {
+          validatorUrl,
+          pageTitle: extracted.pageTitle,
+          numeroIntegracion: extracted.numeroIntegracion,
+          datosGeneralesConsultados: extracted.datosGeneralesConsultados,
+          foundDesaduanamientoLibreInBody:
+            extracted.foundDesaduanamientoLibreInBody,
+          foundDodaKeywordInBody: extracted.foundDodaKeywordInBody,
+          bodyText: extracted.bodyText.slice(0, BODY_TEXT_LOG_CAP),
+        },
+      );
       return buildFailureOutcome(
         page,
         validatorUrl,
@@ -422,7 +590,13 @@ export async function scrapeSatDodaStatus(
     const message =
       error instanceof Error ? error.message : "Error desconocido al consultar SAT";
 
+    console.error("[scrape-sat-doda] scrape failed", {
+      validatorUrl,
+      message,
+    });
+
     if (page) {
+      await logPageDiagnostics(page, "on error before failure");
       const reason = /timeout/i.test(message)
         ? "Tiempo de espera agotado al cargar el validador del SAT. Requiere revisión manual."
         : message;

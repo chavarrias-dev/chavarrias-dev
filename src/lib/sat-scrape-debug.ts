@@ -1,10 +1,19 @@
 import "server-only";
 
 import { mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { Page } from "puppeteer-core";
 
-const DEBUG_DIR = path.join(process.cwd(), "tmp", "doda-debug");
+/**
+ * Vercel's filesystem is read-only outside `os.tmpdir()` — and even there,
+ * files vanish with the function instance and can't be inspected afterward.
+ * Kept mainly for local dev; production debugging relies on the console.log
+ * diagnostics in scrape-sat-doda.ts instead.
+ */
+const DEBUG_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), "doda-debug")
+  : path.join(process.cwd(), "tmp", "doda-debug");
 
 export type SatScrapeDebugArtifacts = {
   basename: string;
