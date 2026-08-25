@@ -6,5 +6,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Do NOT include /api/* here — API routes (e.g. the WhatsApp webhook) handle their own auth.
   matcher: ["/login", "/dashboard/:path*", "/auth/:path*"],
 };

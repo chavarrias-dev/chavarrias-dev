@@ -19,6 +19,16 @@ function applyResponseCookies(
 }
 
 export async function updateSession(request: NextRequest) {
+  // API routes (e.g. the WhatsApp webhook) manage their own auth and must
+  // never be gated on a user session — Meta's requests carry no cookies.
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    });
+  }
+
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
