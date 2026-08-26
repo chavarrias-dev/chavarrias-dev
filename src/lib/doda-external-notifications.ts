@@ -2,6 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import {
+  DODA_DISPLAY_TIMEZONE,
+  normalizeDodaTimestamp,
+} from "@/components/dodas/doda-display-utils";
 import { dodaNotificationHref } from "@/lib/doda-types";
 import { normalizePhoneDigits } from "@/lib/phone-match";
 import { sendWhatsAppTextMessage } from "@/lib/whatsapp";
@@ -44,7 +48,8 @@ function getAppBaseUrl(): string {
 }
 
 function formatChangedAt(value: string): string {
-  return new Date(value).toLocaleString("es-MX", {
+  return new Date(normalizeDodaTimestamp(value)).toLocaleString("es-MX", {
+    timeZone: DODA_DISPLAY_TIMEZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",

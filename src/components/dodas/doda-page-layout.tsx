@@ -5,8 +5,9 @@ import {
   DodaDashboardProvider,
   useDodaDashboard,
 } from "@/components/dodas/doda-dashboard-context";
+import { DodaConfirmedTable } from "@/components/dodas/doda-confirmed-table";
+import { DodaLatestResultsSection } from "@/components/dodas/doda-latest-results-section";
 import {
-  DodaConfirmedTable,
   DodaMonitoringErrorsTable,
   DodaMonitoringTable,
 } from "@/components/dodas/doda-monitoring-dashboard";
@@ -31,6 +32,7 @@ function DodaPageLayoutContent({ clients }: { clients: ClientOption[] }) {
 
         <div className="space-y-6">
           <DodaMonitoringTable dodas={dodas} />
+          <DodaLatestResultsSection dodas={dodas} />
         </div>
       </div>
 

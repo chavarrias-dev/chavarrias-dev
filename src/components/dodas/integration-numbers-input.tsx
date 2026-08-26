@@ -2,6 +2,7 @@
 
 import { useCallback, useId, useState } from "react";
 import { X } from "lucide-react";
+import { DODA_DISPLAY_TIMEZONE } from "@/components/dodas/doda-display-utils";
 import { validateIntegrationNumbersInput } from "@/lib/doda-sat-details";
 
 type IntegrationNumbersInputProps = {
@@ -249,6 +250,7 @@ export function getNextHourlyCheckTime(from = new Date()): Date {
 
 export function formatNextHourlyCheckTime(from = new Date()): string {
   return getNextHourlyCheckTime(from).toLocaleString("es-MX", {
+    timeZone: DODA_DISPLAY_TIMEZONE,
     weekday: "short",
     day: "2-digit",
     month: "short",

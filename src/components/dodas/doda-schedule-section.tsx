@@ -20,7 +20,7 @@ import {
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import type { DodaRecord } from "@/lib/doda-types";
 
-const MAX_ITEMS = 3;
+const MAX_ITEMS = 15;
 
 type DodaScheduleSectionProps = {
   clients: ClientOption[];

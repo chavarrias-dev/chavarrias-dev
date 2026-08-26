@@ -2,22 +2,12 @@
 
 import type { DodaRecord } from "@/lib/doda-types";
 import { DodaLookupStatusBadge } from "@/components/dodas/doda-lookup-status-badge";
+import { formatDodaDateTime } from "@/components/dodas/doda-display-utils";
 
 type DodaResultCardProps = {
   doda: DodaRecord;
   compact?: boolean;
 };
-
-function formatDateTime(value: string | null): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export function DodaResultCard({ doda, compact = false }: DodaResultCardProps) {
   const isSuccess = doda.lookup_status === "verificado";
@@ -74,7 +64,7 @@ export function DodaResultCard({ doda, compact = false }: DodaResultCardProps) {
             Consultado el
           </dt>
           <dd className="mt-1 text-sm font-medium text-slate-900">
-            {formatDateTime(doda.looked_up_at)}
+            {formatDodaDateTime(doda.looked_up_at)}
           </dd>
         </div>
         {doda.qr_validator_url ? (

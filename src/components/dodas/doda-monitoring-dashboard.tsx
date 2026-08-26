@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, RotateCw, X } from "lucide-react";
 import { DodaCancelDialog } from "@/components/dodas/doda-cancel-dialog";
-import { formatDodaDateTime } from "@/components/dodas/doda-display-utils";
+import { normalizeDodaTimestamp } from "@/components/dodas/doda-display-utils";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { formatTimeAgo } from "@/lib/messages";
@@ -33,16 +33,6 @@ function MonitoringBadge() {
       className={`${BADGE_BASE} border border-orange-200 bg-orange-50 text-orange-800`}
     >
       En consulta 🟠
-    </span>
-  );
-}
-
-function ConfirmedBadge() {
-  return (
-    <span
-      className={`${BADGE_BASE} border border-green-200 bg-green-50 text-green-800`}
-    >
-      Desaduanamiento libre 🟢
     </span>
   );
 }
@@ -93,7 +83,7 @@ type GroupedTableProps = {
   description: string;
   groups: ClientDodaGroup[];
   emptyMessage: string;
-  variant: "monitoring" | "confirmed" | "error";
+  variant: "monitoring" | "error";
   onRetry?: (dodaId: string) => Promise<void>;
   retryingId?: string | null;
   onCancelRequest?: (doda: DodaDashboardRow) => void;
@@ -106,8 +96,6 @@ function rowClassForVariant(variant: GroupedTableProps["variant"]): string {
   switch (variant) {
     case "monitoring":
       return "border-l-4 border-orange-400 bg-orange-50/30 hover:bg-orange-50/60";
-    case "confirmed":
-      return "border-l-4 border-green-400 bg-green-50/30 hover:bg-green-50/60";
     case "error":
       return "border-l-4 border-red-400 bg-red-50/30 hover:bg-red-50/60";
   }
@@ -181,7 +169,7 @@ function ClientGroupSection({
                   <td className="px-4 py-3 text-slate-600">
                     Última revisión:{" "}
                     {doda.last_checked_at
-                      ? formatTimeAgo(doda.last_checked_at)
+                      ? formatTimeAgo(normalizeDodaTimestamp(doda.last_checked_at))
                       : "—"}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
@@ -230,22 +218,6 @@ function ClientGroupSection({
                         </button>
                       ) : null}
                     </div>
-                  </td>
-                </>
-              ) : null}
-
-              {variant === "confirmed" ? (
-                <>
-                  <td className="px-4 py-3 text-green-700">
-                    {formatDodaDateTime(
-                      doda.looked_up_at ?? doda.last_checked_at ?? doda.created_at,
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-green-700">
-                    {group.clientLabel}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ConfirmedBadge />
                   </td>
                 </>
               ) : null}
@@ -324,14 +296,7 @@ function GroupedDodaTable({
           "Estado",
           "Acciones",
         ]
-      : variant === "confirmed"
-        ? [
-            "Número de integración",
-            "Fecha confirmación",
-            "Cliente",
-            "Estado",
-          ]
-        : ["Número de integración", "Error", "Estado", "Acciones"];
+      : ["Número de integración", "Error", "Estado", "Acciones"];
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
@@ -390,16 +355,12 @@ function useDashboardGroups(dodas: DodaDashboardRow[]) {
     () => groupDodasByClient(buckets.monitoring),
     [buckets.monitoring],
   );
-  const confirmedGroups = useMemo(
-    () => groupDodasByClient(buckets.confirmed),
-    [buckets.confirmed],
-  );
   const errorGroups = useMemo(
     () => groupDodasByClient(buckets.errors),
     [buckets.errors],
   );
 
-  return { monitoringGroups, confirmedGroups, errorGroups };
+  return { monitoringGroups, errorGroups };
 }
 
 const TOAST_DURATION_MS = 3000;
@@ -540,21 +501,6 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
         />
       ) : null}
     </div>
-  );
-}
-
-/** "Desaduanamiento confirmado" table. */
-export function DodaConfirmedTable({ dodas }: DodaMonitoringDashboardProps) {
-  const { confirmedGroups } = useDashboardGroups(dodas);
-
-  return (
-    <GroupedDodaTable
-      title="Desaduanamiento confirmado"
-      description="DODAs que ya alcanzaron desaduanamiento libre en el SAT."
-      groups={confirmedGroups}
-      emptyMessage="Aún no hay DODAs con desaduanamiento confirmado."
-      variant="confirmed"
-    />
   );
 }
 
