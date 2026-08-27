@@ -13,6 +13,7 @@ import {
   type MonitoredDodaRow,
 } from "@/lib/notifications";
 import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
+import { sendPushNotification } from "@/lib/web-push";
 
 const DELAY_BETWEEN_CHECKS_MS = 750;
 
@@ -178,6 +179,20 @@ export async function processMonitoredDodasBatch(
 
         const integrationNumber =
           recheck.numeroIntegracion ?? doda.numero_integracion ?? doda.id.slice(0, 8);
+
+        if (doda.created_by) {
+          try {
+            await sendPushNotification(
+              doda.created_by,
+              "🟢 DODA Liberado",
+              `El número ${integrationNumber} ha sido desaduanado`,
+              "/dashboard/dodas",
+              "notif_doda_alert",
+            );
+          } catch (pushError) {
+            console.error("[doda-cron] push notification failed", doda.id, pushError);
+          }
+        }
 
         let notificationSentAt: string | null = null;
         let notificationError: string | null = null;

@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Package,
   QrCode,
+  Settings,
   UserPlus,
   Users,
   Wrench,
@@ -309,6 +310,17 @@ export function DashboardShell({
           currentUserId={currentUserId}
           onNavigate={() => setMobileOpen(false)}
         />
+        <SidebarNavLink
+          item={{
+            href: "/dashboard/settings",
+            label: "Configuración",
+            icon: Settings,
+            show: true,
+          }}
+          collapsed={collapsed && !mobileOpen}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+        />
       </nav>
 
       <div className="shrink-0 space-y-2 border-t border-slate-100 p-2">
@@ -336,7 +348,7 @@ export function DashboardShell({
           }`}
         >
           <Link
-            href="/dashboard/profile"
+            href="/dashboard/settings"
             data-tour="user-profile"
             title={collapsed ? "Mi perfil" : undefined}
             onClick={() => setMobileOpen(false)}

@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -23,6 +24,10 @@ export const profiles = pgTable("profiles", {
   createdAt: timestamp("created_at").defaultNow(),
   fullName: text("full_name"),
   avatarUrl: text("avatar_url"),
+  notifPushEnabled: boolean("notif_push_enabled").notNull().default(true),
+  notifDodaAlert: boolean("notif_doda_alert").notNull().default(true),
+  notifDocsAlert: boolean("notif_docs_alert").notNull().default(true),
+  notifMessagesAlert: boolean("notif_messages_alert").notNull().default(true),
 });
 
 export const clients = pgTable("clients", {
@@ -156,6 +161,15 @@ export const messages = pgTable("messages", {
     .references(() => profiles.id),
   content: text("content").notNull(),
   read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => profiles.id),
+  subscription: jsonb("subscription").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

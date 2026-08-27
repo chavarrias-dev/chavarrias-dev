@@ -16,6 +16,7 @@ import {
 } from "@/lib/doda-monitoring-constants";
 import { notifyStaffDodaMonitoringComplete } from "@/lib/notifications";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+import { sendPushNotification } from "@/lib/web-push";
 
 export { findClientIdByPhone } from "@/lib/phone-match";
 
@@ -317,6 +318,22 @@ export async function performDodaRecheck(
         numeroIntegracion: recheck.numeroIntegracion ?? doda.numero_integracion,
         satStatus: recheck.satStatus,
       });
+
+      if (doda.created_by) {
+        const integrationNumber =
+          recheck.numeroIntegracion ?? doda.numero_integracion ?? dodaId.slice(0, 8);
+        try {
+          await sendPushNotification(
+            doda.created_by,
+            "🟢 DODA Liberado",
+            `El número ${integrationNumber} ha sido desaduanado`,
+            "/dashboard/dodas",
+            "notif_doda_alert",
+          );
+        } catch (pushError) {
+          console.error("[doda-service] push notification failed", dodaId, pushError);
+        }
+      }
     }
 
     return {
