@@ -81,6 +81,9 @@ export function DodaLatestResultsSection({
                   Fecha confirmación
                 </th>
                 <th className={DODA_TABLE_HEAD_CELL_CLASS}>Cliente</th>
+                <th className={DODA_TABLE_HEAD_CELL_CLASS}>
+                  Datos del Vehículo
+                </th>
                 <th className={DODA_TABLE_HEAD_CELL_CLASS} />
               </tr>
             </thead>
@@ -106,6 +109,9 @@ export function DodaLatestResultsSection({
                   </td>
                   <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
                     {doda.client_name ?? UNASSIGNED_CLIENT_LABEL}
+                  </td>
+                  <td className={`${DODA_TABLE_BODY_CELL_CLASS} text-slate-600`}>
+                    {doda.datos_vehiculo ?? "—"}
                   </td>
                   <td className={DODA_TABLE_BODY_CELL_CLASS}>
                     <button

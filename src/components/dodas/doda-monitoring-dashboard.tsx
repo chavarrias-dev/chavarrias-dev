@@ -90,6 +90,8 @@ type GroupedTableProps = {
   cancellingId?: string | null;
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
+  disableRowActions?: boolean;
+  headerAction?: React.ReactNode;
 };
 
 function rowClassForVariant(variant: GroupedTableProps["variant"]): string {
@@ -113,6 +115,7 @@ function ClientGroupSection({
   cancellingId,
   onCheckNowRequest,
   checkingId,
+  disableRowActions,
 }: {
   group: ClientDodaGroup;
   variant: GroupedTableProps["variant"];
@@ -125,6 +128,7 @@ function ClientGroupSection({
   cancellingId?: string | null;
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
+  disableRowActions?: boolean;
 }) {
   const rowClass = rowClassForVariant(variant);
 
@@ -188,7 +192,9 @@ function ClientGroupSection({
                           type="button"
                           onClick={() => onCheckNowRequest(doda)}
                           disabled={
-                            cancellingId === doda.id || checkingId === doda.id
+                            cancellingId === doda.id ||
+                            checkingId === doda.id ||
+                            disableRowActions
                           }
                           className="inline-flex items-center gap-1 rounded-lg border border-[#227DE8]/40 px-2.5 py-1 text-xs font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -270,6 +276,8 @@ function GroupedDodaTable({
   cancellingId,
   onCheckNowRequest,
   checkingId,
+  disableRowActions,
+  headerAction,
 }: GroupedTableProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
@@ -300,11 +308,14 @@ function GroupedDodaTable({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-        <h2 className="text-base font-medium tracking-tight text-slate-900">
-          {title}
-        </h2>
-        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+        <div>
+          <h2 className="text-base font-medium tracking-tight text-slate-900">
+            {title}
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+        </div>
+        {headerAction}
       </div>
 
       {groups.length === 0 ? (
@@ -339,6 +350,7 @@ function GroupedDodaTable({
                   cancellingId={cancellingId}
                   onCheckNowRequest={onCheckNowRequest}
                   checkingId={checkingId}
+                  disableRowActions={disableRowActions}
                 />
               ))}
             </tbody>
@@ -376,6 +388,11 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [checkingAll, setCheckingAll] = useState(false);
+  const [checkAllProgress, setCheckAllProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [toast, setToast] = useState<{
     key: number;
     tone: DodaToastTone;
@@ -469,6 +486,48 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
     }
   }
 
+  async function handleCheckAll() {
+    const activeDodas = monitoringGroups.flatMap((group) => group.items);
+    if (activeDodas.length === 0 || checkingAll) {
+      return;
+    }
+
+    setCheckingAll(true);
+    let successCount = 0;
+
+    try {
+      for (let index = 0; index < activeDodas.length; index += 1) {
+        const doda = activeDodas[index];
+        setCheckAllProgress({ current: index + 1, total: activeDodas.length });
+        setCheckingId(doda.id);
+
+        try {
+          const response = await fetch(`/api/doda/${doda.id}/check-now`, {
+            method: "POST",
+          });
+          const payload = (await response.json()) as {
+            ok?: boolean;
+            error?: string;
+            doda?: DodaRecord;
+          };
+
+          if (response.ok && payload.ok && payload.doda) {
+            updateDoda(doda.id, payload.doda);
+            successCount += 1;
+          }
+        } catch {
+          // Continue checking the remaining DODAs even if one fails.
+        }
+      }
+
+      showToast("success", `Se revisaron ${successCount} DODAs`);
+    } finally {
+      setCheckingId(null);
+      setCheckAllProgress(null);
+      setCheckingAll(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
       {cancelError ? (
@@ -486,6 +545,28 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
         cancellingId={cancellingId}
         onCheckNowRequest={handleCheckNow}
         checkingId={checkingId}
+        disableRowActions={checkingAll}
+        headerAction={
+          monitoringGroups.length > 0 ? (
+            <button
+              type="button"
+              onClick={handleCheckAll}
+              disabled={checkingAll}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#227DE8] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#1a6ed4] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {checkingAll ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <RotateCw className="size-3.5" aria-hidden />
+              )}
+              {checkingAll
+                ? checkAllProgress
+                  ? `Revisando ${checkAllProgress.current} de ${checkAllProgress.total}…`
+                  : "Revisando…"
+                : "Revisar todos"}
+            </button>
+          ) : null
+        }
       />
       {toast ? (
         <DodaToast key={toast.key} tone={toast.tone} message={toast.message} />
