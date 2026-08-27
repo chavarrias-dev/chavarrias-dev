@@ -28,11 +28,11 @@ function DodaPageLayoutContent({ clients }: { clients: ClientOption[] }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
         <div className="space-y-6">
           <DodaToolsSection clients={clients} />
+          <DodaLatestResultsSection dodas={dodas} />
         </div>
 
         <div className="space-y-6">
           <DodaMonitoringTable dodas={dodas} />
-          <DodaLatestResultsSection dodas={dodas} />
         </div>
       </div>
 
