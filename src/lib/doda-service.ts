@@ -7,7 +7,7 @@ import {
   processDodaSatRecheck,
 } from "@/lib/doda-sat-recheck";
 import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
-import type { DodaRecord } from "@/lib/doda-types";
+import type { DodaLookupStatus, DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { parseSatDetails } from "@/lib/doda-sat-details";
 import {
@@ -220,7 +220,21 @@ export async function runDodaLookupAndSave(
 }
 
 export type PerformDodaRecheckOutcome =
-  | { ok: true; doda: DodaRecord; previousStatus: string | null; resolved: boolean }
+  | {
+      ok: true;
+      doda: DodaRecord;
+      previousStatus: string | null;
+      resolved: boolean;
+      /**
+       * "verificado" when SAT answered and we parsed a status; "revision_manual"
+       * when the scrape failed (SAT down, timeout, invalid number, unexpected
+       * markup). The DB row is still updated (last_checked_at, check_count) in
+       * both cases, so callers must inspect this to distinguish "no change" from
+       * "the check itself failed".
+       */
+      lookupStatus: DodaLookupStatus;
+      lookupError: string | null;
+    }
   | { ok: false; status: number; error: string };
 
 /**
@@ -336,15 +350,27 @@ export async function performDodaRecheck(
       }
     }
 
+    console.log("[doda-service] recheck persisted", {
+      dodaId,
+      lookupStatus: recheck.lookupStatus,
+      satStatus: recheck.satStatus,
+      resolved,
+      checkCount: nextCheckCount,
+      lookupError: recheck.lookupError,
+    });
+
     return {
       ok: true,
       doda: updated as DodaRecord,
       previousStatus,
       resolved,
+      lookupStatus: recheck.lookupStatus,
+      lookupError: recheck.lookupError,
     };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error al consultar SAT";
+    console.error("[doda-service] performDodaRecheck threw", { dodaId, error });
     return { ok: false, status: 500, error: message };
   }
 }

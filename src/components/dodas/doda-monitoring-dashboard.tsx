@@ -179,6 +179,14 @@ function ClientGroupSection({
                   <td className="px-4 py-3 text-slate-600">
                     Revisión #{doda.check_count ?? 0}
                   </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    <span
+                      className="block max-w-[160px] truncate"
+                      title={doda.datos_vehiculo ?? undefined}
+                    >
+                      {doda.datos_vehiculo ?? "—"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <MonitoringBadge />
                     <MonitoringCountdown
@@ -301,6 +309,7 @@ function GroupedDodaTable({
           "Número de integración",
           "Última consulta",
           "Veces revisado",
+          "Vehículo",
           "Estado",
           "Acciones",
         ]
@@ -376,6 +385,21 @@ function useDashboardGroups(dodas: DodaDashboardRow[]) {
 }
 
 const TOAST_DURATION_MS = 3000;
+
+/**
+ * Scrape failures are stored with an internal " Debug: /tmp/….html | /tmp/….png"
+ * suffix (see formatSatScrapeFailureReason). Strip it before showing the reason
+ * to a user.
+ */
+function cleanDodaErrorMessage(
+  message: string | null | undefined,
+): string | null {
+  if (!message) {
+    return null;
+  }
+  const cleaned = message.split(/\s*Debug:/)[0]?.trim();
+  return cleaned && cleaned.length > 0 ? cleaned : message;
+}
 
 /** "En monitoreo" table. Auto-refreshes so resolved/failed DODAs move to their table. */
 export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
@@ -458,12 +482,22 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
       const response = await fetch(`/api/doda/${doda.id}/check-now`, {
         method: "POST",
       });
-      const payload = (await response.json()) as {
+
+      let payload: {
         ok?: boolean;
         error?: string;
         doda?: DodaRecord;
         resolved?: boolean;
-      };
+        check_failed?: boolean;
+        lookup_error?: string | null;
+      } = {};
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error(
+          `El servidor respondió con un error (${response.status}). Intenta de nuevo.`,
+        );
+      }
 
       if (!response.ok || !payload.ok || !payload.doda) {
         throw new Error(payload.error ?? "No se pudo consultar el DODA");
@@ -473,6 +507,12 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
 
       if (payload.resolved) {
         showToast("success", "¡Desaduanado!");
+      } else if (payload.check_failed) {
+        showToast(
+          "error",
+          cleanDodaErrorMessage(payload.lookup_error) ??
+            "El SAT no respondió correctamente. El DODA pasó a revisión manual.",
+        );
       } else {
         showToast("neutral", "Sin cambios, continúa en monitoreo");
       }
@@ -494,6 +534,7 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
 
     setCheckingAll(true);
     let successCount = 0;
+    let failedCount = 0;
 
     try {
       for (let index = 0; index < activeDodas.length; index += 1) {
@@ -509,18 +550,31 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
             ok?: boolean;
             error?: string;
             doda?: DodaRecord;
+            check_failed?: boolean;
           };
 
           if (response.ok && payload.ok && payload.doda) {
             updateDoda(doda.id, payload.doda);
-            successCount += 1;
+            if (payload.check_failed) {
+              failedCount += 1;
+            } else {
+              successCount += 1;
+            }
+          } else {
+            failedCount += 1;
           }
         } catch {
           // Continue checking the remaining DODAs even if one fails.
+          failedCount += 1;
         }
       }
 
-      showToast("success", `Se revisaron ${successCount} DODAs`);
+      showToast(
+        failedCount > 0 ? "neutral" : "success",
+        failedCount > 0
+          ? `Se revisaron ${successCount} DODAs, ${failedCount} con error`
+          : `Se revisaron ${successCount} DODAs`,
+      );
     } finally {
       setCheckingId(null);
       setCheckAllProgress(null);
