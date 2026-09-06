@@ -25,6 +25,7 @@ import {
 import { LogoutButton } from "@/components/auth/logout-button";
 import { RoleBadge } from "@/components/dashboard/role-badge";
 import { SidebarMessagesLink } from "@/components/dashboard/sidebar-messages-link";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 const STORAGE_KEY = "dashboard-sidebar-collapsed";
 
@@ -285,7 +286,7 @@ export function DashboardShell({
         <button
           type="button"
           onClick={() => setMobileOpen(false)}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 md:hidden"
           aria-label="Cerrar menú"
         >
           <X className="size-5" />
@@ -328,7 +329,7 @@ export function DashboardShell({
           type="button"
           onClick={toggleCollapsed}
           title={collapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
-          className={`hidden w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-100 lg:flex ${
+          className={`hidden w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-100 md:flex ${
             collapsed ? "justify-center px-2" : ""
           }`}
         >
@@ -362,7 +363,7 @@ export function DashboardShell({
             >
               {initials}
             </div>
-            {!collapsed ? (
+            {!collapsed || mobileOpen ? (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900">
                   {userName}
@@ -373,15 +374,15 @@ export function DashboardShell({
                 </div>
               </div>
             ) : null}
-            {collapsed ? (
+            {collapsed && !mobileOpen ? (
               <span className="pointer-events-none absolute left-full z-50 ml-3 hidden whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block">
                 Mi perfil
               </span>
             ) : null}
           </Link>
 
-          <div className={collapsed ? "w-full" : ""}>
-            {collapsed ? (
+          <div className={collapsed && !mobileOpen ? "w-full" : ""}>
+            {collapsed && !mobileOpen ? (
               <form action={logoutAction} className="w-full">
                 <button
                   type="submit"
@@ -405,49 +406,72 @@ export function DashboardShell({
 
   return (
     <div className="font-poppins flex h-screen overflow-hidden bg-white">
+      {/* Mobile Backdrop */}
       {mobileOpen ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden"
-          aria-label="Cerrar menú"
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs transition-opacity md:hidden"
+          aria-hidden="true"
           onClick={() => setMobileOpen(false)}
         />
       ) : null}
 
+      {/* Mobile Drawer Sidebar */}
       <aside
-        data-tour="sidebar"
-        className={`${sidebarWidth} sticky top-0 z-50 flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-300 ${
-          mobileOpen
-            ? "fixed inset-y-0 left-0 w-60"
-            : "hidden lg:flex"
+        data-tour="sidebar-mobile"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {sidebarContent}
       </aside>
 
+      {/* Desktop Sidebar (>= 768px) */}
+      <aside
+        data-tour="sidebar"
+        className={`${sidebarWidth} sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-300 md:flex`}
+      >
+        {sidebarContent}
+      </aside>
+
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-3 lg:px-6">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-600 transition-all duration-200 hover:bg-slate-50 lg:hidden"
-            aria-label="Abrir menú"
-          >
-            <Menu className="size-5" />
-          </button>
+        {/* Topbar */}
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-2.5 sm:px-6 sm:py-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-600 transition-all duration-200 hover:bg-slate-50 md:hidden active:scale-95"
+              aria-label="Abrir menú"
+              title="Abrir menú"
+            >
+              <Menu className="size-5" />
+            </button>
+            <div className="flex items-center gap-2 md:hidden">
+              <Image
+                src="/chavarrias_logo.svg"
+                alt="Chavarrias"
+                width={120}
+                height={28}
+                className="h-6 w-auto object-contain"
+                priority
+              />
+            </div>
+          </div>
           <div className="ml-auto flex items-center gap-2">{alerts}</div>
-        </div>
+        </header>
 
         <div className="flex-1 overflow-y-auto">
           <div key={pathname} className="animate-page-in">
             {children}
           </div>
-          <footer className="border-t border-slate-100 px-6 py-3 text-center text-xs text-slate-400 lg:px-10">
+          <footer className="border-t border-slate-100 px-4 py-3 text-center text-xs text-slate-400 sm:px-6 lg:px-10">
             © 2026 Chavarrias Servicios Aduanales SA de CV. Todos los derechos
             reservados.
           </footer>
         </div>
       </div>
+
+      <InstallPrompt />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessageCircle, Search, Send } from "lucide-react";
+import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
 import { sendWhatsAppMessageAction } from "../../../app/dashboard/whatsapp/actions";
 import { formatMessageTime } from "@/lib/messages";
 import {
@@ -175,11 +175,17 @@ export function WhatsAppPanel({ initialMessages, clients }: WhatsAppPanelProps) 
   };
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] min-h-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <aside className="flex w-full max-w-sm flex-col border-r border-slate-200 bg-slate-50/60 md:w-80">
-        <div className="border-b border-slate-200 bg-white px-4 py-4">
-          <h1 className="text-lg font-medium text-slate-900">WhatsApp</h1>
-          <div className="relative mt-3">
+    <div className="flex h-[calc(100dvh-7rem)] min-h-[480px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:h-[calc(100vh-8.5rem)] md:min-h-[560px]">
+      <aside
+        className={`flex w-full flex-col border-r border-slate-200 bg-slate-50/60 md:w-80 lg:w-96 shrink-0 ${
+          selectedConversation ? "hidden md:flex" : "flex"
+        }`}
+      >
+        <div className="border-b border-slate-200 bg-white px-4 py-3 sm:py-4">
+          <h1 className="text-base font-semibold text-slate-900 sm:text-lg">
+            WhatsApp
+          </h1>
+          <div className="relative mt-2.5 sm:mt-3">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
               aria-hidden
@@ -218,15 +224,31 @@ export function WhatsAppPanel({ initialMessages, clients }: WhatsAppPanelProps) 
         </div>
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
+      <section
+        className={`min-w-0 flex-1 flex-col bg-[#f8fafc] ${
+          selectedConversation ? "flex" : "hidden md:flex"
+        }`}
+      >
         {selectedConversation ? (
           <>
-            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-              <div>
-                <h2 className="text-base font-medium text-slate-900">
+            <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKey(null);
+                  router.replace("/dashboard/whatsapp", { scroll: false });
+                }}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 md:hidden active:scale-95"
+                aria-label="Volver a la lista de conversaciones"
+                title="Volver"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-semibold text-slate-900 sm:text-base">
                   {selectedConversation.displayName}
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="truncate text-xs text-slate-500">
                   {selectedConversation.phoneNumber}
                 </p>
               </div>
