@@ -177,11 +177,15 @@ export function MessagesPanel({
     void markConversationAsRead(selectedPartnerId);
   }, [selectedPartnerId, currentUserId]);
 
+  const selectedPartnerIdRef = useRef(selectedPartnerId);
+  selectedPartnerIdRef.current = selectedPartnerId;
+
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
+    const channelName = `messages_${currentUserId}_${Math.random().toString(36).substring(2, 9)}`;
 
     const channel = supabase
-      .channel(`messages:${currentUserId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -204,7 +208,7 @@ export function MessagesPanel({
           if (
             incoming.sender_id !== currentUserId &&
             incoming.receiver_id === currentUserId &&
-            incoming.sender_id === selectedPartnerId
+            incoming.sender_id === selectedPartnerIdRef.current
           ) {
             setMessages((prev) =>
               prev.map((message) =>
@@ -238,7 +242,7 @@ export function MessagesPanel({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [currentUserId, selectedPartnerId]);
+  }, [currentUserId]);
 
   const selectConversation = (partnerId: string) => {
     setSelectedPartnerId(partnerId);

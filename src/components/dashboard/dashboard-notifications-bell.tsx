@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import type { NotificationRecord } from "@/lib/doda-types";
@@ -57,15 +57,25 @@ export function DashboardNotificationsBell({
     }
   }, []);
 
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  const loadNotificationsRef = useRef(loadNotifications);
+  loadNotificationsRef.current = loadNotifications;
+
+  const loadUnreadCountRef = useRef(loadUnreadCount);
+  loadUnreadCountRef.current = loadUnreadCount;
+
   useEffect(() => {
-    void loadUnreadCount();
+    void loadUnreadCountRef.current();
     const interval = window.setInterval(() => {
-      void loadUnreadCount();
+      void loadUnreadCountRef.current();
     }, POLL_INTERVAL_MS);
 
     const supabase = createSupabaseBrowserClient();
+    const channelName = `notifications_${currentUserId}_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel(`notifications:${currentUserId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -75,9 +85,9 @@ export function DashboardNotificationsBell({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          void loadUnreadCount();
-          if (open) {
-            void loadNotifications();
+          void loadUnreadCountRef.current();
+          if (openRef.current) {
+            void loadNotificationsRef.current();
           }
         },
       )
@@ -87,7 +97,7 @@ export function DashboardNotificationsBell({
       window.clearInterval(interval);
       void supabase.removeChannel(channel);
     };
-  }, [currentUserId, loadUnreadCount, loadNotifications, open]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (open) {

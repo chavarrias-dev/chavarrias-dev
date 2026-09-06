@@ -119,9 +119,10 @@ export function WhatsAppPanel({ initialMessages, clients }: WhatsAppPanelProps) 
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
+    const channelName = `whatsapp_messages_${Math.random().toString(36).substring(2, 9)}`;
 
     const channel = supabase
-      .channel("whatsapp_messages:dashboard")
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },

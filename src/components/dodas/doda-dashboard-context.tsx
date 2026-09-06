@@ -45,9 +45,10 @@ export function DodaDashboardProvider({
   // resolved/failed DODA moves out of "En monitoreo" without a manual reload.
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
+    const channelName = `dodas_dashboard_${Math.random().toString(36).substring(2, 9)}`;
 
     const channel = supabase
-      .channel("dodas:dashboard")
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "dodas" },

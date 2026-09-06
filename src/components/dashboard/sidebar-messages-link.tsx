@@ -38,8 +38,9 @@ export function SidebarMessagesLink({
 
     void loadUnreadCount();
 
+    const channelName = `messages_unread_${currentUserId}_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel(`messages-unread:${currentUserId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -47,7 +48,7 @@ export function SidebarMessagesLink({
           schema: "public",
           table: "messages",
         },
-        (payload) => {
+        () => {
           void loadUnreadCount();
         },
       )
