@@ -161,7 +161,10 @@ export function StorageChart() {
       ) : null}
 
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
-        <div className="h-[150px] w-full max-w-[200px] shrink-0">
+        <div
+          className="shrink-0 max-w-[200px]"
+          style={{ width: "100%", minWidth: 150, height: 150 }}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

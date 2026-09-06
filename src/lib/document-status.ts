@@ -100,43 +100,66 @@ type DocumentRow = {
   status: string | null;
 };
 
+let inFlightRecalculate: Promise<void> | null = null;
+let lastRecalculateTime = 0;
+const RECALCULATE_COOLDOWN_MS = 10000;
+
 export async function recalculateDocumentStatuses(
   supabase: SupabaseClient,
 ): Promise<void> {
-  const { data, error } = await supabase
-    .from("client_documents")
-    .select(
-      "id, archivo_url, fecha_vencimiento, sin_vencimiento, valido_manualmente, status",
-    );
-
-  if (error || !data) {
+  const now = Date.now();
+  if (now - lastRecalculateTime < RECALCULATE_COOLDOWN_MS) {
     return;
   }
+  if (inFlightRecalculate) {
+    return inFlightRecalculate;
+  }
 
-  const today = new Date();
-  const updates = (data as DocumentRow[])
-    .map((row) => {
-      const nextStatus = calculateDocumentStatusFromRow(
-        {
-          archivoUrl: row.archivo_url,
-          fechaVencimiento: row.fecha_vencimiento,
-          sinVencimiento: row.sin_vencimiento ?? false,
-          validoManualmente: row.valido_manualmente ?? true,
-        },
-        today,
-      );
-      if (row.status === nextStatus) {
-        return null;
+  inFlightRecalculate = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from("client_documents")
+        .select(
+          "id, archivo_url, fecha_vencimiento, sin_vencimiento, valido_manualmente, status",
+        );
+
+      if (error || !data) {
+        return;
       }
-      return { id: row.id, status: nextStatus };
-    })
-    .filter(Boolean) as { id: string; status: DocumentStatus }[];
 
-  await Promise.all(
-    updates.map(({ id, status }) =>
-      supabase.from("client_documents").update({ status }).eq("id", id),
-    ),
-  );
+      const today = new Date();
+      const updates = (data as DocumentRow[])
+        .map((row) => {
+          const nextStatus = calculateDocumentStatusFromRow(
+            {
+              archivoUrl: row.archivo_url,
+              fechaVencimiento: row.fecha_vencimiento,
+              sinVencimiento: row.sin_vencimiento ?? false,
+              validoManualmente: row.valido_manualmente ?? true,
+            },
+            today,
+          );
+          if (row.status === nextStatus) {
+            return null;
+          }
+          return { id: row.id, status: nextStatus };
+        })
+        .filter(Boolean) as { id: string; status: DocumentStatus }[];
+
+      if (updates.length > 0) {
+        await Promise.all(
+          updates.map(({ id, status }) =>
+            supabase.from("client_documents").update({ status }).eq("id", id),
+          ),
+        );
+      }
+      lastRecalculateTime = Date.now();
+    } finally {
+      inFlightRecalculate = null;
+    }
+  })();
+
+  return inFlightRecalculate;
 }
 
 export type DocumentAlert = {

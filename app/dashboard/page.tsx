@@ -49,28 +49,32 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, email, role, full_name, avatar_url, created_at")
-    .eq("id", user.id)
-    .maybeSingle<Profile>();
+  const [profileResult, clientSelfResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, email, role, full_name, avatar_url, created_at")
+      .eq("id", user.id)
+      .maybeSingle<Profile>(),
+    user.email
+      ? supabase
+          .from("clients")
+          .select("id")
+          .eq("email", user.email.trim())
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
+  const profile = profileResult.data;
   const welcomeName = profile?.full_name?.trim() || user.email || "Usuario";
   const userRole = profile?.role ?? "user";
   const resolvedRole = profile?.role ?? null;
   const isStaff =
     resolvedRole === "admin" || resolvedRole === "empleado";
 
-  let clienteOwnProfileId: string | null = null;
-  if (resolvedRole === "cliente" && user.email) {
-    const { data: clientSelf } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("email", user.email.trim())
-      .maybeSingle();
-    clienteOwnProfileId =
-      (clientSelf as { id: string } | null)?.id ?? null;
-  }
+  const clienteOwnProfileId =
+    resolvedRole === "cliente"
+      ? ((clientSelfResult.data as { id: string } | null)?.id ?? null)
+      : null;
 
   let recentClients: {
     id: string;
@@ -78,22 +82,6 @@ export default async function DashboardPage() {
     email: string;
     companyName: string | null;
   }[] = [];
-  if (isStaff) {
-    try {
-      recentClients = await db
-        .select({
-          id: clients.id,
-          fullName: clients.fullName,
-          email: clients.email,
-          companyName: clients.companyName,
-        })
-        .from(clients)
-        .orderBy(desc(clients.createdAt))
-        .limit(4);
-    } catch {
-      recentClients = [];
-    }
-  }
 
   let recentFacturas: {
     id: string;
@@ -102,63 +90,6 @@ export default async function DashboardPage() {
     monto: string;
     fecha: string;
   }[] = [];
-  try {
-    if (isStaff) {
-      const rows = await db
-        .select({
-          id: facturas.id,
-          numeroFactura: facturas.numeroFactura,
-          fecha: facturas.fecha,
-          monto: facturas.monto,
-          clientName: clients.fullName,
-        })
-        .from(facturas)
-        .innerJoin(clients, eq(facturas.clienteId, clients.id))
-        .orderBy(desc(facturas.createdAt))
-        .limit(4);
-
-      recentFacturas = rows.map((r) => ({
-        id: r.id,
-        numeroFactura: r.numeroFactura,
-        clientName: r.clientName,
-        monto: String(r.monto),
-        fecha: r.fecha,
-      }));
-    } else if (user.email) {
-      const clientMatch = await db
-        .select({ id: clients.id })
-        .from(clients)
-        .where(eq(clients.email, user.email.trim()))
-        .limit(1);
-
-      const cid = clientMatch[0]?.id;
-      if (cid) {
-        const rows = await db
-          .select({
-            id: facturas.id,
-            numeroFactura: facturas.numeroFactura,
-            fecha: facturas.fecha,
-            monto: facturas.monto,
-            clientName: clients.fullName,
-          })
-          .from(facturas)
-          .innerJoin(clients, eq(facturas.clienteId, clients.id))
-          .where(eq(facturas.clienteId, cid))
-          .orderBy(desc(facturas.createdAt))
-          .limit(4);
-
-        recentFacturas = rows.map((r) => ({
-          id: r.id,
-          numeroFactura: r.numeroFactura,
-          clientName: r.clientName,
-          monto: String(r.monto),
-          fecha: r.fecha,
-        }));
-      }
-    }
-  } catch {
-    recentFacturas = [];
-  }
 
   let recentPedimentos: {
     id: string;
@@ -167,63 +98,6 @@ export default async function DashboardPage() {
     aduana: string;
     fecha: string;
   }[] = [];
-  try {
-    if (isStaff) {
-      const rows = await db
-        .select({
-          id: pedimentos.id,
-          numeroPedimento: pedimentos.numeroPedimento,
-          fecha: pedimentos.fecha,
-          aduana: pedimentos.aduana,
-          clientName: clients.fullName,
-        })
-        .from(pedimentos)
-        .leftJoin(clients, eq(pedimentos.clienteId, clients.id))
-        .orderBy(desc(pedimentos.createdAt))
-        .limit(4);
-
-      recentPedimentos = rows.map((r) => ({
-        id: r.id,
-        numeroPedimento: r.numeroPedimento,
-        clientName: r.clientName,
-        aduana: r.aduana,
-        fecha: r.fecha,
-      }));
-    } else if (user.email) {
-      const clientMatch = await db
-        .select({ id: clients.id })
-        .from(clients)
-        .where(eq(clients.email, user.email.trim()))
-        .limit(1);
-
-      const cid = clientMatch[0]?.id;
-      if (cid) {
-        const rows = await db
-          .select({
-            id: pedimentos.id,
-            numeroPedimento: pedimentos.numeroPedimento,
-            fecha: pedimentos.fecha,
-            aduana: pedimentos.aduana,
-            clientName: clients.fullName,
-          })
-          .from(pedimentos)
-          .innerJoin(clients, eq(pedimentos.clienteId, clients.id))
-          .where(eq(pedimentos.clienteId, cid))
-          .orderBy(desc(pedimentos.createdAt))
-          .limit(4);
-
-        recentPedimentos = rows.map((r) => ({
-          id: r.id,
-          numeroPedimento: r.numeroPedimento,
-          clientName: r.clientName,
-          aduana: r.aduana,
-          fecha: r.fecha,
-        }));
-      }
-    }
-  } catch {
-    recentPedimentos = [];
-  }
 
   let adminInboxMessages: InboxMessagePreview[] = [];
   let adminUnreadMessageCount = 0;
@@ -233,92 +107,250 @@ export default async function DashboardPage() {
       ReturnType<typeof fetchClientsWithDocumentIssues>
     >["clients"],
   };
-
-  if (resolvedRole === "admin") {
-    const [{ count: unreadCount }, { data: inboxRows }] = await Promise.all([
-      supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .eq("receiver_id", user.id)
-        .eq("read", false),
-      supabase
-        .from("messages")
-        .select("id, sender_id, content, read, created_at")
-        .eq("receiver_id", user.id)
-        .order("read", { ascending: true })
-        .order("created_at", { ascending: false })
-        .limit(4),
-    ]);
-
-    adminUnreadMessageCount = unreadCount ?? 0;
-
-    const senderIds = [
-      ...new Set(
-        ((inboxRows ?? []) as { sender_id: string }[]).map(
-          (row) => row.sender_id,
-        ),
-      ),
-    ];
-
-    let sendersById = new Map<string, MessageProfile>();
-    if (senderIds.length > 0) {
-      const { data: senderProfiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, role")
-        .in("id", senderIds);
-
-      sendersById = new Map(
-        ((senderProfiles ?? []) as MessageProfile[]).map((profile) => [
-          profile.id,
-          profile,
-        ]),
-      );
-    }
-
-    adminInboxMessages = (
-      (inboxRows ?? []) as {
-        id: string;
-        sender_id: string;
-        content: string;
-        read: boolean;
-        created_at: string;
-      }[]
-    ).map((row) => {
-      const sender = sendersById.get(row.sender_id);
-      return {
-        id: row.id,
-        senderId: row.sender_id,
-        senderName: sender ? displayName(sender) : "Usuario",
-        content: row.content,
-        read: row.read,
-        createdAt: row.created_at,
-      };
-    });
-
-    try {
-      documentIssues = await fetchClientsWithDocumentIssues(supabase);
-    } catch {
-      documentIssues = { totalClientsWithIssues: 0, clients: [] };
-    }
-  }
-
   let clientePendingDocuments: string[] = [];
   let documentAlerts: Awaited<ReturnType<typeof fetchDocumentAlerts>> = [];
-  try {
-    if (isStaff) {
-      documentAlerts = await fetchDocumentAlerts(supabase);
-    } else if (resolvedRole === "cliente" && clienteOwnProfileId) {
-      documentAlerts = await fetchDocumentAlerts(supabase, {
-        clientId: clienteOwnProfileId,
-      });
-      clientePendingDocuments = await fetchPendingDocumentTypesForClient(
-        supabase,
-        clienteOwnProfileId,
-      );
-    }
-  } catch {
-    documentAlerts = [];
-    clientePendingDocuments = [];
+
+  if (isStaff) {
+    const clientsPromise = db
+      .select({
+        id: clients.id,
+        fullName: clients.fullName,
+        email: clients.email,
+        companyName: clients.companyName,
+      })
+      .from(clients)
+      .orderBy(desc(clients.createdAt))
+      .limit(4)
+      .catch(() => []);
+
+    const facturasPromise = db
+      .select({
+        id: facturas.id,
+        numeroFactura: facturas.numeroFactura,
+        fecha: facturas.fecha,
+        monto: facturas.monto,
+        clientName: clients.fullName,
+      })
+      .from(facturas)
+      .innerJoin(clients, eq(facturas.clienteId, clients.id))
+      .orderBy(desc(facturas.createdAt))
+      .limit(4)
+      .then((rows) =>
+        rows.map((r) => ({
+          id: r.id,
+          numeroFactura: r.numeroFactura,
+          clientName: r.clientName,
+          monto: String(r.monto),
+          fecha: r.fecha,
+        }))
+      )
+      .catch(() => []);
+
+    const pedimentosPromise = db
+      .select({
+        id: pedimentos.id,
+        numeroPedimento: pedimentos.numeroPedimento,
+        fecha: pedimentos.fecha,
+        aduana: pedimentos.aduana,
+        clientName: clients.fullName,
+      })
+      .from(pedimentos)
+      .leftJoin(clients, eq(pedimentos.clienteId, clients.id))
+      .orderBy(desc(pedimentos.createdAt))
+      .limit(4)
+      .then((rows) =>
+        rows.map((r) => ({
+          id: r.id,
+          numeroPedimento: r.numeroPedimento,
+          clientName: r.clientName,
+          aduana: r.aduana,
+          fecha: r.fecha,
+        }))
+      )
+      .catch(() => []);
+
+    const alertsPromise = fetchDocumentAlerts(supabase).catch(() => []);
+
+    const adminMessagesPromise =
+      resolvedRole === "admin"
+        ? (async () => {
+            const [{ count: unreadCount }, { data: inboxRows }] =
+              await Promise.all([
+                supabase
+                  .from("messages")
+                  .select("*", { count: "exact", head: true })
+                  .eq("receiver_id", user.id)
+                  .eq("read", false),
+                supabase
+                  .from("messages")
+                  .select("id, sender_id, content, read, created_at")
+                  .eq("receiver_id", user.id)
+                  .order("read", { ascending: true })
+                  .order("created_at", { ascending: false })
+                  .limit(4),
+              ]);
+
+            const senderIds = [
+              ...new Set(
+                ((inboxRows ?? []) as { sender_id: string }[]).map(
+                  (row) => row.sender_id,
+                ),
+              ),
+            ];
+
+            let sendersById = new Map<string, MessageProfile>();
+            if (senderIds.length > 0) {
+              const { data: senderProfiles } = await supabase
+                .from("profiles")
+                .select("id, full_name, email, role")
+                .in("id", senderIds);
+
+              sendersById = new Map(
+                ((senderProfiles ?? []) as MessageProfile[]).map((p) => [
+                  p.id,
+                  p,
+                ]),
+              );
+            }
+
+            const messages = (
+              (inboxRows ?? []) as {
+                id: string;
+                sender_id: string;
+                content: string;
+                read: boolean;
+                created_at: string;
+              }[]
+            ).map((row) => {
+              const sender = sendersById.get(row.sender_id);
+              return {
+                id: row.id,
+                senderId: row.sender_id,
+                senderName: sender ? displayName(sender) : "Usuario",
+                content: row.content,
+                read: row.read,
+                createdAt: row.created_at,
+              };
+            });
+
+            return {
+              unreadCount: unreadCount ?? 0,
+              messages,
+            };
+          })().catch(() => ({ unreadCount: 0, messages: [] }))
+        : Promise.resolve({ unreadCount: 0, messages: [] });
+
+    const documentIssuesPromise =
+      resolvedRole === "admin"
+        ? fetchClientsWithDocumentIssues(supabase).catch(() => ({
+            totalClientsWithIssues: 0,
+            clients: [],
+          }))
+        : Promise.resolve({ totalClientsWithIssues: 0, clients: [] });
+
+    const [
+      clientsRes,
+      facturasRes,
+      pedimentosRes,
+      alertsRes,
+      adminMessagesRes,
+      documentIssuesRes,
+    ] = await Promise.all([
+      clientsPromise,
+      facturasPromise,
+      pedimentosPromise,
+      alertsPromise,
+      adminMessagesPromise,
+      documentIssuesPromise,
+    ]);
+
+    recentClients = clientsRes;
+    recentFacturas = facturasRes;
+    recentPedimentos = pedimentosRes;
+    documentAlerts = alertsRes;
+    adminUnreadMessageCount = adminMessagesRes.unreadCount;
+    adminInboxMessages = adminMessagesRes.messages;
+    documentIssues = documentIssuesRes;
+  } else {
+    const facturasPromise = clienteOwnProfileId
+      ? db
+          .select({
+            id: facturas.id,
+            numeroFactura: facturas.numeroFactura,
+            fecha: facturas.fecha,
+            monto: facturas.monto,
+            clientName: clients.fullName,
+          })
+          .from(facturas)
+          .innerJoin(clients, eq(facturas.clienteId, clients.id))
+          .where(eq(facturas.clienteId, clienteOwnProfileId))
+          .orderBy(desc(facturas.createdAt))
+          .limit(4)
+          .then((rows) =>
+            rows.map((r) => ({
+              id: r.id,
+              numeroFactura: r.numeroFactura,
+              clientName: r.clientName,
+              monto: String(r.monto),
+              fecha: r.fecha,
+            }))
+          )
+          .catch(() => [])
+      : Promise.resolve([]);
+
+    const pedimentosPromise = clienteOwnProfileId
+      ? db
+          .select({
+            id: pedimentos.id,
+            numeroPedimento: pedimentos.numeroPedimento,
+            fecha: pedimentos.fecha,
+            aduana: pedimentos.aduana,
+            clientName: clients.fullName,
+          })
+          .from(pedimentos)
+          .innerJoin(clients, eq(pedimentos.clienteId, clients.id))
+          .where(eq(pedimentos.clienteId, clienteOwnProfileId))
+          .orderBy(desc(pedimentos.createdAt))
+          .limit(4)
+          .then((rows) =>
+            rows.map((r) => ({
+              id: r.id,
+              numeroPedimento: r.numeroPedimento,
+              clientName: r.clientName,
+              aduana: r.aduana,
+              fecha: r.fecha,
+            }))
+          )
+          .catch(() => [])
+      : Promise.resolve([]);
+
+    const alertsPromise =
+      resolvedRole === "cliente" && clienteOwnProfileId
+        ? fetchDocumentAlerts(supabase, { clientId: clienteOwnProfileId }).catch(
+            () => [],
+          )
+        : Promise.resolve([]);
+
+    const pendingDocsPromise =
+      resolvedRole === "cliente" && clienteOwnProfileId
+        ? fetchPendingDocumentTypesForClient(
+            supabase,
+            clienteOwnProfileId,
+          ).catch(() => [])
+        : Promise.resolve([]);
+
+    const [facturasRes, pedimentosRes, alertsRes, pendingDocsRes] =
+      await Promise.all([
+        facturasPromise,
+        pedimentosPromise,
+        alertsPromise,
+        pendingDocsPromise,
+      ]);
+
+    recentFacturas = facturasRes;
+    recentPedimentos = pedimentosRes;
+    documentAlerts = alertsRes;
+    clientePendingDocuments = pendingDocsRes;
   }
 
   return (
@@ -395,11 +427,11 @@ export default async function DashboardPage() {
             messages={adminInboxMessages}
             unreadCount={adminUnreadMessageCount}
           />
-          <div className="card-hover-lift animate-card-in card-stagger-3 flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="card-hover-lift animate-card-in card-stagger-3 flex h-full min-h-[220px] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-2 text-sm font-medium tracking-tight text-slate-900">
               Almacenamiento
             </h3>
-            <div className="min-h-0 flex-1">
+            <div className="min-h-[150px] flex-1">
               <StorageChart />
             </div>
           </div>
