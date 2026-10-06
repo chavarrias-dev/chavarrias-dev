@@ -8,14 +8,15 @@ import { DodaScheduleSection } from "@/components/dodas/doda-schedule-section";
 
 type DodaToolsSectionProps = {
   clients: ClientOption[];
+  isAdmin: boolean;
 };
 
-export function DodaToolsSection({ clients }: DodaToolsSectionProps) {
+export function DodaToolsSection({ clients, isAdmin }: DodaToolsSectionProps) {
   const [consultOpen, setConsultOpen] = useState(false);
 
   return (
     <>
-      <DodaScheduleSection clients={clients} />
+      <DodaScheduleSection clients={clients} isAdmin={isAdmin} />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <button

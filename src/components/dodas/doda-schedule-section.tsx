@@ -18,6 +18,7 @@ import {
   type DodaQueueItem,
 } from "@/components/dodas/doda-queue-panel";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
+import { DodaWhatsappTestButton } from "@/components/dodas/doda-whatsapp-test-button";
 import type { DodaRecord } from "@/lib/doda-types";
 
 const MAX_ITEMS = 15;
@@ -58,6 +59,7 @@ function buildBatchNotifyPayload(
 
 type DodaScheduleSectionProps = {
   clients: ClientOption[];
+  isAdmin: boolean;
 };
 
 type UploadPhase = "idle" | "submitting" | "done" | "error";
@@ -78,7 +80,10 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
   }
 }
 
-export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
+export function DodaScheduleSection({
+  clients,
+  isAdmin,
+}: DodaScheduleSectionProps) {
   const router = useRouter();
   const { refreshDashboard, setQueryResults, appendQueryResult, clearQueryResults } =
     useDodaDashboard();
@@ -400,9 +405,18 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
           </div>
 
           <fieldset className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4">
-            <legend className="px-1 text-sm font-medium text-slate-800">
-              Notificación WhatsApp (opcional)
-            </legend>
+            <legend className="sr-only">Notificación WhatsApp (opcional)</legend>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-800">
+                Notificación WhatsApp (opcional)
+              </p>
+              <DodaWhatsappTestButton
+                isAdmin={isAdmin}
+                defaultNotifyMode={notifyMode}
+                defaultPhone={notifyPhone}
+                defaultGroupId={notifyGroupId}
+              />
+            </div>
             <div className="mt-2 space-y-2">
               <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 has-[:checked]:border-[#227DE8] has-[:checked]:bg-[#227DE8]/5">
                 <input

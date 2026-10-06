@@ -28,6 +28,7 @@ export default async function DodasPage() {
   ]);
 
   const clients = (clientsData ?? []) as ClientOption[];
+  const isAdmin = role === "admin";
 
   return (
     <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
@@ -45,7 +46,7 @@ export default async function DodasPage() {
         </p>
       </div>
 
-      <DodaPageLayout clients={clients} dodas={dodas} />
+      <DodaPageLayout clients={clients} dodas={dodas} isAdmin={isAdmin} />
     </main>
   );
 }
