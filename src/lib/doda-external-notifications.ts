@@ -7,6 +7,7 @@ import {
   normalizeDodaTimestamp,
 } from "@/components/dodas/doda-display-utils";
 import {
+  normalizeWhatsAppGroupRecipient,
   normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
 import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
@@ -209,7 +210,7 @@ async function sendResolvedEmail(
 
 /**
  * Sends email + WhatsApp when a monitored DODA is resolved.
- * WhatsApp only when `notify_whatsapp` is set on the DODA row (no fallback).
+ * WhatsApp only when `notify_type` + destination are set on the DODA row.
  */
 export async function sendDodaResolvedExternalNotifications(
   supabase: SupabaseClient,
@@ -239,28 +240,37 @@ export async function sendDodaResolvedExternalNotifications(
     }
   }
 
-  const notifyRaw = doda?.notify_whatsapp?.trim() ?? "";
-  if (notifyRaw) {
-    const to = normalizeWhatsAppIndividualRecipient(notifyRaw);
-    if (to) {
-      attemptCount += 1;
-      try {
-        await sendWhatsAppTextMessage(
-          to,
-          buildDodaLiberatedWhatsAppMessage({
-            integrationNumber: input.integrationNumber,
-            pedimento: doda?.pedimento ?? null,
-            tipoPedimento: doda?.tipo_pedimento ?? null,
-            changedAt: input.changedAt,
-          }),
-        );
-        successCount += 1;
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Error al enviar WhatsApp";
-        errors.push(`WhatsApp (${notifyRaw}): ${message}`);
-        console.error("[doda-notify] whatsapp failed", notifyRaw, error);
-      }
+  let whatsAppTo: string | null = null;
+  let whatsAppLabel = "";
+
+  if (doda?.notify_type === "individual") {
+    const raw = doda.notify_whatsapp_number?.trim() ?? "";
+    whatsAppTo = raw ? normalizeWhatsAppIndividualRecipient(raw) : null;
+    whatsAppLabel = raw;
+  } else if (doda?.notify_type === "group") {
+    const raw = doda.notify_whatsapp_group_id?.trim() ?? "";
+    whatsAppTo = raw ? normalizeWhatsAppGroupRecipient(raw) : null;
+    whatsAppLabel = raw ? `Grupo ${raw}` : "";
+  }
+
+  if (whatsAppTo) {
+    attemptCount += 1;
+    try {
+      await sendWhatsAppTextMessage(
+        whatsAppTo,
+        buildDodaLiberatedWhatsAppMessage({
+          integrationNumber: input.integrationNumber,
+          pedimento: doda?.pedimento ?? null,
+          tipoPedimento: doda?.tipo_pedimento ?? null,
+          changedAt: input.changedAt,
+        }),
+      );
+      successCount += 1;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Error al enviar WhatsApp";
+      errors.push(`WhatsApp (${whatsAppLabel}): ${message}`);
+      console.error("[doda-notify] whatsapp failed", whatsAppLabel, error);
     }
   }
 

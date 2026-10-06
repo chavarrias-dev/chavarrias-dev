@@ -78,16 +78,51 @@ export function formatPhoneDisplay(phone: string): string {
   return phone.trim();
 }
 
-/** Parses optional schedule-form value; invalid numbers are dropped. */
-export function parseOptionalNotifyWhatsapp(raw: string | null | undefined): string | null {
-  const trimmed = raw?.trim() ?? "";
-  if (!trimmed) {
-    return null;
+export type DodaBatchNotifyFields = {
+  notify_type: "individual" | "group" | null;
+  notify_whatsapp_number: string | null;
+  notify_whatsapp_group_id: string | null;
+};
+
+const EMPTY_BATCH_NOTIFY: DodaBatchNotifyFields = {
+  notify_type: null,
+  notify_whatsapp_number: null,
+  notify_whatsapp_group_id: null,
+};
+
+/** Parses optional batch notification from schedule form / API. */
+export function parseDodaBatchNotifySettings(input: {
+  notify_type?: string | null;
+  notify_whatsapp_number?: string | null;
+  notify_whatsapp_group_id?: string | null;
+}): DodaBatchNotifyFields {
+  const type = input.notify_type?.trim();
+  if (type !== "individual" && type !== "group") {
+    return EMPTY_BATCH_NOTIFY;
   }
-  if (!normalizeWhatsAppIndividualRecipient(trimmed)) {
-    return null;
+
+  if (type === "individual") {
+    const raw = input.notify_whatsapp_number?.trim() ?? "";
+    if (!raw || !normalizeWhatsAppIndividualRecipient(raw)) {
+      return EMPTY_BATCH_NOTIFY;
+    }
+    return {
+      notify_type: "individual",
+      notify_whatsapp_number: formatPhoneDisplay(raw),
+      notify_whatsapp_group_id: null,
+    };
   }
-  return formatPhoneDisplay(trimmed);
+
+  const groupRaw = input.notify_whatsapp_group_id?.trim() ?? "";
+  if (!groupRaw || !normalizeWhatsAppGroupRecipient(groupRaw)) {
+    return EMPTY_BATCH_NOTIFY;
+  }
+
+  return {
+    notify_type: "group",
+    notify_whatsapp_number: null,
+    notify_whatsapp_group_id: groupRaw.replace(/@g\.us$/i, "").trim(),
+  };
 }
 
 export function normalizeWhatsAppIndividualRecipient(phone: string): string | null {

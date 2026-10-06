@@ -22,6 +22,40 @@ import type { DodaRecord } from "@/lib/doda-types";
 
 const MAX_ITEMS = 15;
 
+type NotifyMode = "individual" | "group" | null;
+
+type BatchNotifyPayload = {
+  notify_type: NotifyMode;
+  notify_whatsapp_number: string | null;
+  notify_whatsapp_group_id: string | null;
+};
+
+function buildBatchNotifyPayload(
+  mode: NotifyMode,
+  phone: string,
+  groupId: string,
+): BatchNotifyPayload {
+  if (mode === "individual") {
+    return {
+      notify_type: "individual",
+      notify_whatsapp_number: phone.trim() || null,
+      notify_whatsapp_group_id: null,
+    };
+  }
+  if (mode === "group") {
+    return {
+      notify_type: "group",
+      notify_whatsapp_number: null,
+      notify_whatsapp_group_id: groupId.trim() || null,
+    };
+  }
+  return {
+    notify_type: null,
+    notify_whatsapp_number: null,
+    notify_whatsapp_group_id: null,
+  };
+}
+
 type DodaScheduleSectionProps = {
   clients: ClientOption[];
 };
@@ -62,6 +96,9 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number | null>(
     null,
   );
+  const [notifyMode, setNotifyMode] = useState<NotifyMode>(null);
+  const [notifyPhone, setNotifyPhone] = useState("");
+  const [notifyGroupId, setNotifyGroupId] = useState("");
 
   const isSubmitting = phase === "submitting";
 
@@ -98,7 +135,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
     integrationNumber: string,
     clienteId: string,
     notas: string,
-    notifyWhatsapp: string,
+    batchNotify: BatchNotifyPayload,
   ): Promise<DodaRecord> {
     const response = await fetch("/api/doda/lookup-by-number", {
       method: "POST",
@@ -107,7 +144,9 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
         integration_number: integrationNumber,
         cliente_id: clienteId || null,
         notas: notas || null,
-        notify_whatsapp: notifyWhatsapp.trim() || null,
+        notify_type: batchNotify.notify_type,
+        notify_whatsapp_number: batchNotify.notify_whatsapp_number,
+        notify_whatsapp_group_id: batchNotify.notify_whatsapp_group_id,
         monitor: true,
       }),
     });
@@ -129,7 +168,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
     numbers: string[],
     clienteId: string,
     notas: string,
-    notifyWhatsapp: string,
+    batchNotify: BatchNotifyPayload,
   ): Promise<number> {
     const initialQueue: DodaQueueItem[] = numbers.map((number) => ({
       number,
@@ -156,7 +195,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
           number,
           clienteId,
           notas,
-          notifyWhatsapp,
+          batchNotify,
         );
         successCount += 1;
         appendQueryResult(doda);
@@ -189,7 +228,11 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
     const formData = new FormData(form);
     const clienteId = String(formData.get("cliente_id") ?? "");
     const notas = String(formData.get("notas") ?? "");
-    const notifyWhatsapp = String(formData.get("notify_whatsapp") ?? "");
+    const batchNotify = buildBatchNotifyPayload(
+      notifyMode,
+      notifyPhone,
+      notifyGroupId,
+    );
 
     setPhase("submitting");
     setMessage(null);
@@ -205,6 +248,15 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
         }
 
         formData.delete("integration_numbers");
+        formData.set("notify_type", batchNotify.notify_type ?? "");
+        formData.set(
+          "notify_whatsapp_number",
+          batchNotify.notify_whatsapp_number ?? "",
+        );
+        formData.set(
+          "notify_whatsapp_group_id",
+          batchNotify.notify_whatsapp_group_id ?? "",
+        );
         selectedFiles.forEach((file) => {
           formData.append("files", file);
         });
@@ -261,7 +313,7 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
         validated.numbers,
         clienteId,
         notas,
-        notifyWhatsapp,
+        batchNotify,
       );
       setIntegrationNumbers([]);
       setIntegrationDraft("");
@@ -347,25 +399,75 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
             </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="schedule_notify_whatsapp"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Notificar a WhatsApp
-            </label>
-            <input
-              id="schedule_notify_whatsapp"
-              name="notify_whatsapp"
-              type="tel"
-              className={fieldClass}
-              placeholder="Número donde llega la notificación al liberarse"
-              disabled={isSubmitting}
-            />
-            <p className="mt-1.5 text-xs text-slate-500">
-              Opcional. Ejemplo: +52 899 421 4152
-            </p>
-          </div>
+          <fieldset className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4">
+            <legend className="px-1 text-sm font-medium text-slate-800">
+              Notificación WhatsApp (opcional)
+            </legend>
+            <div className="mt-2 space-y-2">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 has-[:checked]:border-[#227DE8] has-[:checked]:bg-[#227DE8]/5">
+                <input
+                  type="radio"
+                  name="schedule_notify_mode"
+                  checked={notifyMode === "individual"}
+                  onChange={() => setNotifyMode("individual")}
+                  disabled={isSubmitting}
+                  className="size-4 border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
+                />
+                <span className="text-sm text-slate-800">Número individual</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 has-[:checked]:border-[#227DE8] has-[:checked]:bg-[#227DE8]/5">
+                <input
+                  type="radio"
+                  name="schedule_notify_mode"
+                  checked={notifyMode === "group"}
+                  onChange={() => setNotifyMode("group")}
+                  disabled={isSubmitting}
+                  className="size-4 border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
+                />
+                <span className="text-sm text-slate-800">Grupo de WhatsApp</span>
+              </label>
+            </div>
+
+            {notifyMode === "individual" ? (
+              <div className="mt-3">
+                <label
+                  htmlFor="schedule_notify_phone"
+                  className="mb-1.5 block text-xs font-medium text-slate-600"
+                >
+                  Teléfono
+                </label>
+                <input
+                  id="schedule_notify_phone"
+                  type="tel"
+                  value={notifyPhone}
+                  onChange={(event) => setNotifyPhone(event.target.value)}
+                  className={fieldClass}
+                  placeholder="+52 899 421 4152"
+                  disabled={isSubmitting}
+                />
+              </div>
+            ) : null}
+
+            {notifyMode === "group" ? (
+              <div className="mt-3">
+                <label
+                  htmlFor="schedule_notify_group"
+                  className="mb-1.5 block text-xs font-medium text-slate-600"
+                >
+                  ID del grupo
+                </label>
+                <input
+                  id="schedule_notify_group"
+                  type="text"
+                  value={notifyGroupId}
+                  onChange={(event) => setNotifyGroupId(event.target.value)}
+                  className={fieldClass}
+                  placeholder="120363XXXXXXXXXX"
+                  disabled={isSubmitting}
+                />
+              </div>
+            ) : null}
+          </fieldset>
 
           {inputMode === "file" ? (
             <div>

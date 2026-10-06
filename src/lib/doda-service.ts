@@ -36,7 +36,9 @@ export type RunDodaLookupInput = {
   clienteId?: string | null;
   pedimentoId?: string | null;
   whatsappPhone?: string | null;
-  notifyWhatsapp?: string | null;
+  notifyType?: "individual" | "group" | null;
+  notifyWhatsappNumber?: string | null;
+  notifyWhatsappGroupId?: string | null;
   source?: string | null;
   notas?: string | null;
   createdBy?: string | null;
@@ -55,7 +57,9 @@ export type RunDodaLookupByNumberInput = {
   clienteId?: string | null;
   pedimentoId?: string | null;
   whatsappPhone?: string | null;
-  notifyWhatsapp?: string | null;
+  notifyType?: "individual" | "group" | null;
+  notifyWhatsappNumber?: string | null;
+  notifyWhatsappGroupId?: string | null;
   source?: string | null;
   notas?: string | null;
   createdBy?: string | null;
@@ -128,7 +132,9 @@ export async function runDodaLookupAndSave(
     clienteId = null,
     pedimentoId = null,
     whatsappPhone = null,
-    notifyWhatsapp = null,
+    notifyType = null,
+    notifyWhatsappNumber = null,
+    notifyWhatsappGroupId = null,
     source = null,
     notas = null,
     createdBy = null,
@@ -148,7 +154,9 @@ export async function runDodaLookupAndSave(
       cliente_id: clienteId,
       pedimento_id: pedimentoId,
       whatsapp_phone: whatsappPhone,
-      notify_whatsapp: notifyWhatsapp,
+      notify_type: notifyType,
+      notify_whatsapp_number: notifyWhatsappNumber,
+      notify_whatsapp_group_id: notifyWhatsappGroupId,
       source,
       notas,
       lookup_status: "consultando",
@@ -468,7 +476,9 @@ export async function runDodaLookupByNumberAndSave(
     clienteId = null,
     pedimentoId = null,
     whatsappPhone = null,
-    notifyWhatsapp = null,
+    notifyType = null,
+    notifyWhatsappNumber = null,
+    notifyWhatsappGroupId = null,
     source = null,
     notas = null,
     createdBy = null,
@@ -497,7 +507,9 @@ export async function runDodaLookupByNumberAndSave(
       cliente_id: clienteId,
       pedimento_id: pedimentoId,
       whatsapp_phone: whatsappPhone,
-      notify_whatsapp: notifyWhatsapp,
+      notify_type: notifyType,
+      notify_whatsapp_number: notifyWhatsappNumber,
+      notify_whatsapp_group_id: notifyWhatsappGroupId,
       source,
       notas,
       numero_integracion: trimmed,

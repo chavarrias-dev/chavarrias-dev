@@ -8,7 +8,6 @@ import { normalizeDodaTimestamp } from "@/components/dodas/doda-display-utils";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { formatTimeAgo } from "@/lib/messages";
-import { normalizePhoneDigits } from "@/lib/phone-match";
 import type { DodaRecord } from "@/lib/doda-types";
 import {
   categorizeDodasForDashboard,
@@ -26,20 +25,23 @@ const BADGE_BASE =
 
 const THREE_MINUTES_SECONDS = 3 * 60;
 
-function notifyWhatsappDisplay(phone: string | null | undefined): {
+function dodaNotifyCellDisplay(doda: DodaDashboardRow): {
   label: string;
   title?: string;
 } {
-  const trimmed = phone?.trim() ?? "";
-  if (!trimmed) {
-    return { label: "—" };
+  if (
+    doda.notify_type === "individual" &&
+    doda.notify_whatsapp_number?.trim()
+  ) {
+    return { label: "📱", title: doda.notify_whatsapp_number.trim() };
   }
-  const digits = normalizePhoneDigits(trimmed);
-  const last4 = digits.slice(-4);
-  return {
-    label: last4.length === 4 ? `···${last4}` : "—",
-    title: trimmed,
-  };
+  if (doda.notify_type === "group" && doda.notify_whatsapp_group_id?.trim()) {
+    return {
+      label: "👥",
+      title: doda.notify_whatsapp_group_id.trim(),
+    };
+  }
+  return { label: "—" };
 }
 /** Realtime (see DodaDashboardProvider) handles instant updates; this is just a safety net. */
 const MONITORING_REFRESH_FALLBACK_MS = 2 * 60 * 1000;
@@ -204,13 +206,14 @@ function ClientGroupSection({
                       {doda.datos_vehiculo ?? "—"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-center text-slate-600">
                     {(() => {
-                      const notify = notifyWhatsappDisplay(doda.notify_whatsapp);
+                      const notify = dodaNotifyCellDisplay(doda);
                       return (
                         <span
-                          className="font-mono text-xs text-slate-600"
+                          className="text-base leading-none"
                           title={notify.title}
+                          aria-label={notify.title ?? "Sin notificación WhatsApp"}
                         >
                           {notify.label}
                         </span>
@@ -340,7 +343,7 @@ function GroupedDodaTable({
           "Última consulta",
           "Veces revisado",
           "Vehículo",
-          "Notif. WhatsApp",
+          "Notif.",
           "Estado",
           "Acciones",
         ]
