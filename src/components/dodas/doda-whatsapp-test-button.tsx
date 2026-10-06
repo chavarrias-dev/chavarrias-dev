@@ -16,7 +16,7 @@ type DodaWhatsappTestButtonProps = {
 };
 
 const fieldClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
+  "h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
 export function DodaWhatsappTestButton({
   isAdmin,
@@ -122,7 +122,7 @@ export function DodaWhatsappTestButton({
           <div
             role="dialog"
             aria-labelledby="doda-wa-test-title"
-            className="font-poppins w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+            className="font-poppins w-full max-w-md min-w-0 overflow-x-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -147,7 +147,7 @@ export function DodaWhatsappTestButton({
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -178,8 +178,6 @@ export function DodaWhatsappTestButton({
                   localNumber={phoneLocal}
                   onLocalNumberChange={setPhoneLocal}
                   disabled={sending}
-                  inputClassName={fieldClass}
-                  prefixClassName={`${fieldClass} inline-flex shrink-0 items-center bg-slate-100 font-medium text-slate-700`}
                 />
               ) : (
                 <input

@@ -244,8 +244,6 @@ export function DodaWhatsappNotificationsSection({
                     localNumber={phoneLocal}
                     onLocalNumberChange={setPhoneLocal}
                     disabled={!isAdmin || saving}
-                    inputClassName={fieldClass}
-                    prefixClassName={`${fieldClass} inline-flex shrink-0 items-center bg-slate-100 font-medium text-slate-700`}
                   />
                 </div>
                 {isAdmin ? (

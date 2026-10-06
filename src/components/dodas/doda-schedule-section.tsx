@@ -19,7 +19,10 @@ import {
 } from "@/components/dodas/doda-queue-panel";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaWhatsappTestButton } from "@/components/dodas/doda-whatsapp-test-button";
-import { WhatsAppPhoneInput } from "@/components/dodas/whatsapp-phone-input";
+import {
+  WhatsAppPhoneInput,
+  whatsAppPhoneFieldClass,
+} from "@/components/dodas/whatsapp-phone-input";
 import type { DodaRecord } from "@/lib/doda-types";
 import { combineMexicoWhatsAppLocalNumber } from "@/lib/whatsapp-phone-input";
 
@@ -458,8 +461,7 @@ export function DodaScheduleSection({
                   localNumber={notifyPhoneLocal}
                   onLocalNumberChange={setNotifyPhoneLocal}
                   disabled={isSubmitting}
-                  inputClassName={fieldClass}
-                  prefixClassName={`${fieldClass} inline-flex shrink-0 items-center bg-slate-100 font-medium text-slate-700`}
+                  inputClassName={`${whatsAppPhoneFieldClass} text-[15px]`}
                 />
               </div>
             ) : null}
