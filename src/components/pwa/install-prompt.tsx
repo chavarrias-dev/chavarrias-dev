@@ -103,7 +103,7 @@ export function InstallPrompt() {
     <div
       role="banner"
       aria-label="Instalar aplicación"
-      className="fixed bottom-3 left-3 right-3 z-50 sm:bottom-4 sm:left-auto sm:right-6 sm:w-96"
+      className="fixed top-3 left-3 right-3 z-[100] sm:top-4 sm:left-auto sm:right-6 sm:w-96 animate-page-in"
     >
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-2xl shadow-slate-900/15 backdrop-blur-md transition-all duration-300 sm:p-4">
         <div className="flex items-start justify-between gap-3">

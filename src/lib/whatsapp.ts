@@ -24,11 +24,20 @@ function graphBaseUrl(): string {
 }
 
 export function getWhatsAppToken(): string {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+  const token =
+    process.env.WHATSAPP_ACCESS_TOKEN?.trim() ||
+    process.env.WHATSAPP_TOKEN?.trim();
   if (!token) {
-    throw new WhatsAppConfigError("WHATSAPP_ACCESS_TOKEN is not configured");
+    throw new WhatsAppConfigError(
+      "WHATSAPP_ACCESS_TOKEN (or legacy WHATSAPP_TOKEN) is not configured",
+    );
   }
   return token;
+}
+
+/** Meta WhatsApp Business Account id (WABA) — used for webhook sanity checks. */
+export function getWhatsAppBusinessAccountId(): string | null {
+  return process.env.WHATSAPP_BUSINESS_ACCOUNT_ID?.trim() || null;
 }
 
 export function getWhatsAppPhoneNumberId(): string {
@@ -216,6 +225,7 @@ type WhatsAppWebhookStatus = {
 export type WhatsAppWebhookBody = {
   object?: string;
   entry?: Array<{
+    id?: string;
     changes?: Array<{
       value?: {
         metadata?: { display_phone_number?: string; phone_number_id?: string };

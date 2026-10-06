@@ -5,6 +5,8 @@ import {
   extractWhatsAppIncomingMedia,
   extractWhatsAppIncomingMessages,
   extractWhatsAppStatusUpdates,
+  getWhatsAppBusinessAccountId,
+  getWhatsAppPhoneNumberId,
   saveIncomingWhatsAppMessage,
   sendWhatsAppMessage,
   verifyWhatsAppWebhook,
@@ -39,6 +41,36 @@ export async function POST(req: Request) {
   const mediaMessages = extractWhatsAppIncomingMedia(body);
   const incomingMessages = extractWhatsAppIncomingMessages(body);
   const statusUpdates = extractWhatsAppStatusUpdates(body);
+
+  const configuredWaba = getWhatsAppBusinessAccountId();
+  let configuredPhoneNumberId: string | null = null;
+  try {
+    configuredPhoneNumberId = getWhatsAppPhoneNumberId();
+  } catch {
+    configuredPhoneNumberId = null;
+  }
+
+  for (const entry of body.entry ?? []) {
+    if (configuredWaba && entry.id && entry.id !== configuredWaba) {
+      console.warn("[whatsapp-webhook] WABA id mismatch", {
+        received: entry.id,
+        expected: configuredWaba,
+      });
+    }
+    for (const change of entry.changes ?? []) {
+      const phoneNumberId = change.value?.metadata?.phone_number_id;
+      if (
+        configuredPhoneNumberId &&
+        phoneNumberId &&
+        phoneNumberId !== configuredPhoneNumberId
+      ) {
+        console.warn("[whatsapp-webhook] phone_number_id mismatch", {
+          received: phoneNumberId,
+          expected: configuredPhoneNumberId,
+        });
+      }
+    }
+  }
 
   after(async () => {
     for (const incoming of incomingMessages) {

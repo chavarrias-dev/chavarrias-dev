@@ -271,7 +271,7 @@ export function WhatsAppPanel({ initialMessages, clients }: WhatsAppPanelProps) 
                       <div
                         className={`max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm sm:max-w-[70%] ${
                           isMine
-                            ? "rounded-br-md bg-[#227DE8] text-white"
+                            ? "rounded-br-md bg-[#25D366] text-white"
                             : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
                         }`}
                       >
@@ -280,7 +280,7 @@ export function WhatsAppPanel({ initialMessages, clients }: WhatsAppPanelProps) 
                         </p>
                         <p
                           className={`mt-1 text-[10px] ${
-                            isMine ? "text-blue-100" : "text-slate-400"
+                            isMine ? "text-emerald-100" : "text-slate-400"
                           }`}
                         >
                           {formatMessageTime(message.created_at)}
