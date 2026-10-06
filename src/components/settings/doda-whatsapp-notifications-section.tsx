@@ -158,18 +158,19 @@ export function DodaWhatsappNotificationsSection({
   }
 
   return (
-    <SettingsCard
-      title="Notificaciones de DODA"
-      description="Configura a dónde se enviarán las notificaciones cuando un DODA sea liberado."
-    >
+    <SettingsCard title="Notificaciones de DODA">
       <div id="notificaciones-doda" className="scroll-mt-24">
-        <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-4 py-3">
+        <div className="flex items-start gap-2.5">
           <MessageCircle className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
           <div>
             <p className="text-sm font-medium text-slate-900">
               Notificaciones WhatsApp
             </p>
-            <p className="mt-0.5 text-xs text-slate-600">
+            <p className="mt-0.5 text-xs text-slate-500">
+              Configura a dónde se enviarán las notificaciones cuando un DODA
+              sea liberado.
+            </p>
+            <p className="mt-2 text-xs text-slate-600">
               Destino actual:{" "}
               <span className="font-medium text-slate-800">{destinationLabel}</span>
             </p>
@@ -183,20 +184,37 @@ export function DodaWhatsappNotificationsSection({
           </p>
         ) : (
           <>
-            <div className="flex flex-wrap gap-2">
-              <ModeButton
-                active={mode === "individual"}
-                onClick={() => setMode("individual")}
-                label="Enlazar chat individual"
-                disabled={!isAdmin}
-              />
-              <ModeButton
-                active={mode === "group"}
-                onClick={() => setMode("group")}
-                label="Enlazar grupo"
-                disabled={!isAdmin}
-              />
-            </div>
+            <fieldset className="space-y-2">
+              <legend className="sr-only">Tipo de destino WhatsApp</legend>
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5 has-[:checked]:border-[#227DE8] has-[:checked]:bg-[#227DE8]/5">
+                <input
+                  type="radio"
+                  name="doda_whatsapp_mode"
+                  value="individual"
+                  checked={mode === "individual"}
+                  onChange={() => setMode("individual")}
+                  disabled={!isAdmin}
+                  className="size-4 border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
+                />
+                <span className="text-sm font-medium text-slate-800">
+                  Chat individual
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5 has-[:checked]:border-[#227DE8] has-[:checked]:bg-[#227DE8]/5">
+                <input
+                  type="radio"
+                  name="doda_whatsapp_mode"
+                  value="group"
+                  checked={mode === "group"}
+                  onChange={() => setMode("group")}
+                  disabled={!isAdmin}
+                  className="size-4 border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
+                />
+                <span className="text-sm font-medium text-slate-800">
+                  Grupo de WhatsApp
+                </span>
+              </label>
+            </fieldset>
 
             {mode === "individual" ? (
               <div className="space-y-3">
@@ -270,8 +288,8 @@ export function DodaWhatsappNotificationsSection({
                     className={fieldClass}
                   />
                   <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                    Para obtener el ID del grupo, el número de negocio debe ser
-                    admin del grupo. El ID se obtiene desde Meta Business Manager.
+                    El número de negocio debe ser admin del grupo para poder
+                    enviar mensajes.
                   </p>
                 </div>
                 {isAdmin ? (
@@ -299,32 +317,5 @@ export function DodaWhatsappNotificationsSection({
         {message ? <SettingsAlert tone={message.tone} message={message.text} /> : null}
       </div>
     </SettingsCard>
-  );
-}
-
-function ModeButton({
-  active,
-  onClick,
-  label,
-  disabled,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded-lg border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
-        active
-          ? "border-[#227DE8] bg-[#227DE8]/10 text-[#227DE8]"
-          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

@@ -421,16 +421,16 @@ export function DodaScheduleSection({
         </div>
 
         <p className="border-t border-slate-100 px-5 pt-4 text-xs text-slate-500 sm:px-6">
-          Las notificaciones se enviarán a:{" "}
+          Notificaciones →{" "}
           <span className="font-medium text-slate-700">
             {notificationDestination}
-          </span>
-          .{" "}
+          </span>{" "}
+          ·{" "}
           <Link
             href="/dashboard/settings?tab=notificaciones#notificaciones-doda"
             className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
           >
-            Cambiar configuración
+            Configurar
           </Link>
         </p>
 
