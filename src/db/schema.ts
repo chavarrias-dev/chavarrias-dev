@@ -173,6 +173,15 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const dodaNotificationConfig = pgTable("doda_notification_config", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: text("type").notNull(),
+  whatsappNumber: text("whatsapp_number"),
+  whatsappGroupId: text("whatsapp_group_id"),
+  createdBy: uuid("created_by").references(() => profiles.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const whatsappMessages = pgTable("whatsapp_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   waMessageId: text("wa_message_id").unique(),

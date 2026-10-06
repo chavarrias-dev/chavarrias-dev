@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { SettingsTabs } from "@/components/settings/settings-tabs";
+import { SettingsTabsClient } from "@/components/settings/settings-tabs-client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type SettingsProfileRow = {
@@ -43,15 +44,21 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <SettingsTabs
-        isAdmin={isAdmin}
-        initialFullName={profile?.full_name ?? ""}
-        initialEmail={profile?.email ?? user.email ?? ""}
-        initialAvatarUrl={profile?.avatar_url ?? null}
-        initialNotifDodaAlert={profile?.notif_doda_alert ?? true}
-        initialNotifDocsAlert={profile?.notif_docs_alert ?? true}
-        initialNotifMessagesAlert={profile?.notif_messages_alert ?? true}
-      />
+      <Suspense
+        fallback={
+          <p className="text-sm text-slate-500">Cargando configuración…</p>
+        }
+      >
+        <SettingsTabsClient
+          isAdmin={isAdmin}
+          initialFullName={profile?.full_name ?? ""}
+          initialEmail={profile?.email ?? user.email ?? ""}
+          initialAvatarUrl={profile?.avatar_url ?? null}
+          initialNotifDodaAlert={profile?.notif_doda_alert ?? true}
+          initialNotifDocsAlert={profile?.notif_docs_alert ?? true}
+          initialNotifMessagesAlert={profile?.notif_messages_alert ?? true}
+        />
+      </Suspense>
     </main>
   );
 }

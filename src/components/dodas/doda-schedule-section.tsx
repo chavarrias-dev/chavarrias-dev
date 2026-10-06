@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Hash, Loader2 } from "lucide-react";
@@ -24,6 +25,7 @@ const MAX_ITEMS = 15;
 
 type DodaScheduleSectionProps = {
   clients: ClientOption[];
+  notificationDestination: string;
 };
 
 type UploadPhase = "idle" | "submitting" | "done" | "error";
@@ -44,7 +46,10 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
   }
 }
 
-export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
+export function DodaScheduleSection({
+  clients,
+  notificationDestination,
+}: DodaScheduleSectionProps) {
   const router = useRouter();
   const { refreshDashboard, setQueryResults, appendQueryResult, clearQueryResults } =
     useDodaDashboard();
@@ -414,6 +419,20 @@ export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
             </p>
           ) : null}
         </div>
+
+        <p className="border-t border-slate-100 px-5 pt-4 text-xs text-slate-500 sm:px-6">
+          Las notificaciones se enviarán a:{" "}
+          <span className="font-medium text-slate-700">
+            {notificationDestination}
+          </span>
+          .{" "}
+          <Link
+            href="/dashboard/settings?tab=notificaciones#notificaciones-doda"
+            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
+          >
+            Cambiar configuración
+          </Link>
+        </p>
 
         <div className="flex justify-end border-t border-slate-100 px-5 py-4 sm:px-6">
           <button
