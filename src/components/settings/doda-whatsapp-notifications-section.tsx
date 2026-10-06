@@ -2,8 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, MessageCircle } from "lucide-react";
+import { WhatsAppPhoneInput } from "@/components/dodas/whatsapp-phone-input";
 import { SettingsAlert } from "@/components/settings/settings-alert";
 import { SettingsCard } from "@/components/settings/settings-card";
+import {
+  combineWhatsAppPhoneParts,
+  DEFAULT_WHATSAPP_COUNTRY_CODE,
+  splitWhatsAppPhoneStored,
+} from "@/lib/whatsapp-phone-input";
 
 type ConfigType = "individual" | "group";
 
@@ -32,7 +38,8 @@ export function DodaWhatsappNotificationsSection({
   const [destinationLabel, setDestinationLabel] = useState(
     "números de administrador",
   );
-  const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState(DEFAULT_WHATSAPP_COUNTRY_CODE);
+  const [phoneLocal, setPhoneLocal] = useState("");
   const [groupId, setGroupId] = useState("");
   const [message, setMessage] = useState<{
     tone: "success" | "error";
@@ -49,10 +56,13 @@ export function DodaWhatsappNotificationsSection({
       if (payload.config?.type === "group") {
         setMode("group");
         setGroupId(payload.config.whatsapp_group_id ?? "");
-        setPhone("");
+        setPhoneCountry(DEFAULT_WHATSAPP_COUNTRY_CODE);
+        setPhoneLocal("");
       } else if (payload.config?.type === "individual") {
         setMode("individual");
-        setPhone(payload.config.whatsapp_number ?? "");
+        const split = splitWhatsAppPhoneStored(payload.config.whatsapp_number);
+        setPhoneCountry(split.countryCode);
+        setPhoneLocal(split.localNumber);
         setGroupId("");
       }
     },
@@ -92,7 +102,8 @@ export function DodaWhatsappNotificationsSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "individual",
-          whatsapp_number: phone,
+          whatsapp_number:
+            combineWhatsAppPhoneParts(phoneCountry, phoneLocal) ?? "",
         }),
       });
       const payload = (await response.json()) as {
@@ -228,26 +239,31 @@ export function DodaWhatsappNotificationsSection({
                 ) : null}
                 <div>
                   <label
-                    htmlFor="doda_notify_phone"
+                    htmlFor="doda_notify_phone_local"
                     className="mb-1.5 block text-sm font-medium text-slate-700"
                   >
                     Número de teléfono
                   </label>
-                  <input
-                    id="doda_notify_phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    placeholder="+52 899 421 4152"
+                  <WhatsAppPhoneInput
+                    selectId="doda_notify_phone_country"
+                    localInputId="doda_notify_phone_local"
+                    countryCode={phoneCountry}
+                    onCountryCodeChange={setPhoneCountry}
+                    localNumber={phoneLocal}
+                    onLocalNumberChange={setPhoneLocal}
                     disabled={!isAdmin || saving}
-                    className={fieldClass}
+                    inputClassName={fieldClass}
+                    selectClassName={`${fieldClass} h-auto shrink-0 px-2.5 py-2.5`}
                   />
                 </div>
                 {isAdmin ? (
                   <button
                     type="button"
                     onClick={() => void handleSaveIndividual()}
-                    disabled={saving || !phone.trim()}
+                    disabled={
+                      saving ||
+                      !combineWhatsAppPhoneParts(phoneCountry, phoneLocal)
+                    }
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white transition hover:bg-[#1a6ed4] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   formatDodaNotificationDestination,
-  formatPhoneDisplay,
   getLatestDodaNotificationConfig,
   normalizeWhatsAppGroupRecipient,
   normalizeWhatsAppIndividualRecipient,
   type DodaNotificationConfigRecord,
   type DodaNotificationConfigType,
 } from "@/lib/doda-notification-config";
+import { normalizeCombinedWhatsAppNumber } from "@/lib/whatsapp-phone-input";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -91,13 +91,14 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    if (!normalizeWhatsAppIndividualRecipient(raw)) {
+    const normalized = normalizeCombinedWhatsAppNumber(raw);
+    if (!normalized || !normalizeWhatsAppIndividualRecipient(normalized)) {
       return NextResponse.json(
         { ok: false, error: "Número de teléfono inválido" },
         { status: 400 },
       );
     }
-    whatsappNumber = formatPhoneDisplay(raw);
+    whatsappNumber = normalized;
   } else {
     const raw = body.whatsapp_group_id?.trim() ?? "";
     if (!raw) {

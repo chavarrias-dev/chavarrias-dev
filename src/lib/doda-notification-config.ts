@@ -2,6 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePhoneDigits } from "@/lib/phone-match";
+import {
+  formatWhatsAppPhoneForDisplay,
+  normalizeCombinedWhatsAppNumber,
+} from "@/lib/whatsapp-phone-input";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type DodaNotificationConfigType = "individual" | "group";
@@ -65,17 +69,7 @@ export function formatDodaNotificationDestination(
 }
 
 export function formatPhoneDisplay(phone: string): string {
-  const digits = normalizePhoneDigits(phone);
-  if (digits.length === 12 && digits.startsWith("52")) {
-    const local = digits.slice(2);
-    if (local.length === 10) {
-      return `+52 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
-    }
-  }
-  if (digits.length === 10) {
-    return `+52 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-  }
-  return phone.trim();
+  return formatWhatsAppPhoneForDisplay(phone);
 }
 
 export type DodaBatchNotifyFields = {
@@ -103,12 +97,13 @@ export function parseDodaBatchNotifySettings(input: {
 
   if (type === "individual") {
     const raw = input.notify_whatsapp_number?.trim() ?? "";
-    if (!raw || !normalizeWhatsAppIndividualRecipient(raw)) {
+    const normalized = normalizeCombinedWhatsAppNumber(raw);
+    if (!normalized || !normalizeWhatsAppIndividualRecipient(normalized)) {
       return EMPTY_BATCH_NOTIFY;
     }
     return {
       notify_type: "individual",
-      notify_whatsapp_number: formatPhoneDisplay(raw),
+      notify_whatsapp_number: normalized,
       notify_whatsapp_group_id: null,
     };
   }

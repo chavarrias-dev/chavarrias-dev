@@ -9,6 +9,7 @@ import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { formatTimeAgo } from "@/lib/messages";
 import type { DodaRecord } from "@/lib/doda-types";
+import { formatWhatsAppPhoneForDisplay } from "@/lib/whatsapp-phone-input";
 import {
   categorizeDodasForDashboard,
   groupDodasByClient,
@@ -33,7 +34,10 @@ function dodaNotifyCellDisplay(doda: DodaDashboardRow): {
     doda.notify_type === "individual" &&
     doda.notify_whatsapp_number?.trim()
   ) {
-    return { label: "📱", title: doda.notify_whatsapp_number.trim() };
+    return {
+      label: "📱",
+      title: formatWhatsAppPhoneForDisplay(doda.notify_whatsapp_number.trim()),
+    };
   }
   if (doda.notify_type === "group" && doda.notify_whatsapp_group_id?.trim()) {
     return {

@@ -3,13 +3,19 @@
 import { useEffect, useState } from "react";
 import { Loader2, MessageCircle, X } from "lucide-react";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
+import { WhatsAppPhoneInput } from "@/components/dodas/whatsapp-phone-input";
+import {
+  combineWhatsAppPhoneParts,
+  DEFAULT_WHATSAPP_COUNTRY_CODE,
+} from "@/lib/whatsapp-phone-input";
 
 type NotifyMode = "individual" | "group";
 
 type DodaWhatsappTestButtonProps = {
   isAdmin: boolean;
   defaultNotifyMode?: NotifyMode | null;
-  defaultPhone?: string;
+  defaultPhoneCountry?: string;
+  defaultPhoneLocal?: string;
   defaultGroupId?: string;
 };
 
@@ -19,7 +25,8 @@ const fieldClass =
 export function DodaWhatsappTestButton({
   isAdmin,
   defaultNotifyMode = null,
-  defaultPhone = "",
+  defaultPhoneCountry = DEFAULT_WHATSAPP_COUNTRY_CODE,
+  defaultPhoneLocal = "",
   defaultGroupId = "",
 }: DodaWhatsappTestButtonProps) {
   const [open, setOpen] = useState(false);
@@ -27,7 +34,8 @@ export function DodaWhatsappTestButton({
   const [mode, setMode] = useState<NotifyMode>(
     defaultNotifyMode === "group" ? "group" : "individual",
   );
-  const [phone, setPhone] = useState(defaultPhone);
+  const [phoneCountry, setPhoneCountry] = useState(defaultPhoneCountry);
+  const [phoneLocal, setPhoneLocal] = useState(defaultPhoneLocal);
   const [groupId, setGroupId] = useState(defaultGroupId);
   const [toast, setToast] = useState<{
     key: number;
@@ -40,9 +48,16 @@ export function DodaWhatsappTestButton({
       return;
     }
     setMode(defaultNotifyMode === "group" ? "group" : "individual");
-    setPhone(defaultPhone);
+    setPhoneCountry(defaultPhoneCountry);
+    setPhoneLocal(defaultPhoneLocal);
     setGroupId(defaultGroupId);
-  }, [open, defaultNotifyMode, defaultPhone, defaultGroupId]);
+  }, [
+    open,
+    defaultNotifyMode,
+    defaultPhoneCountry,
+    defaultPhoneLocal,
+    defaultGroupId,
+  ]);
 
   useEffect(() => {
     if (!toast) {
@@ -59,12 +74,17 @@ export function DodaWhatsappTestButton({
   async function handleSend() {
     setSending(true);
     try {
+      const combinedPhone =
+        mode === "individual"
+          ? combineWhatsAppPhoneParts(phoneCountry, phoneLocal)
+          : null;
+
       const response = await fetch("/api/doda/test-notification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           notify_type: mode,
-          notify_whatsapp_number: mode === "individual" ? phone : null,
+          notify_whatsapp_number: combinedPhone,
           notify_whatsapp_group_id: mode === "group" ? groupId : null,
         }),
       });
@@ -92,6 +112,10 @@ export function DodaWhatsappTestButton({
       setSending(false);
     }
   }
+
+  const canSendIndividual =
+    mode === "individual" &&
+    Boolean(combineWhatsAppPhoneParts(phoneCountry, phoneLocal));
 
   return (
     <>
@@ -165,13 +189,14 @@ export function DodaWhatsappTestButton({
               </div>
 
               {mode === "individual" ? (
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  placeholder="+52 899 421 4152"
+                <WhatsAppPhoneInput
+                  countryCode={phoneCountry}
+                  onCountryCodeChange={setPhoneCountry}
+                  localNumber={phoneLocal}
+                  onLocalNumberChange={setPhoneLocal}
                   disabled={sending}
-                  className={fieldClass}
+                  inputClassName={fieldClass}
+                  selectClassName={`${fieldClass} h-auto shrink-0 px-2.5 py-2.5`}
                 />
               ) : (
                 <input
@@ -199,7 +224,7 @@ export function DodaWhatsappTestButton({
                 onClick={() => void handleSend()}
                 disabled={
                   sending ||
-                  (mode === "individual" ? !phone.trim() : !groupId.trim())
+                  (mode === "individual" ? !canSendIndividual : !groupId.trim())
                 }
                 className="inline-flex items-center gap-2 rounded-lg bg-[#227DE8] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a6ed4] disabled:cursor-not-allowed disabled:opacity-60"
               >
