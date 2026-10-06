@@ -1,55 +1,35 @@
 "use client";
 
-import {
-  DEFAULT_WHATSAPP_COUNTRY_CODE,
-  WHATSAPP_COUNTRY_CODE_OPTIONS,
-} from "@/lib/whatsapp-phone-input";
+import { MEXICO_WHATSAPP_PREFIX } from "@/lib/whatsapp-phone-input";
 
-const selectClass =
-  "h-[42px] shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 outline-none transition focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
+const prefixClass =
+  "inline-flex h-full shrink-0 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-700";
 
 const inputClass =
   "min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
 type WhatsAppPhoneInputProps = {
-  countryCode: string;
-  onCountryCodeChange: (value: string) => void;
   localNumber: string;
   onLocalNumberChange: (value: string) => void;
   disabled?: boolean;
   localInputId?: string;
-  selectId?: string;
   inputClassName?: string;
-  selectClassName?: string;
+  prefixClassName?: string;
 };
 
 export function WhatsAppPhoneInput({
-  countryCode,
-  onCountryCodeChange,
   localNumber,
   onLocalNumberChange,
   disabled = false,
   localInputId,
-  selectId,
   inputClassName = inputClass,
-  selectClassName = selectClass,
+  prefixClassName = prefixClass,
 }: WhatsAppPhoneInputProps) {
   return (
     <div className="flex gap-2">
-      <select
-        id={selectId}
-        value={countryCode || DEFAULT_WHATSAPP_COUNTRY_CODE}
-        onChange={(event) => onCountryCodeChange(event.target.value)}
-        disabled={disabled}
-        className={selectClassName}
-        aria-label="Código de país"
-      >
-        {WHATSAPP_COUNTRY_CODE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <span className={prefixClassName} aria-hidden>
+        {MEXICO_WHATSAPP_PREFIX}
+      </span>
       <input
         id={localInputId}
         type="tel"

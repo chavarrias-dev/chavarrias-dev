@@ -21,10 +21,7 @@ import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaWhatsappTestButton } from "@/components/dodas/doda-whatsapp-test-button";
 import { WhatsAppPhoneInput } from "@/components/dodas/whatsapp-phone-input";
 import type { DodaRecord } from "@/lib/doda-types";
-import {
-  combineWhatsAppPhoneParts,
-  DEFAULT_WHATSAPP_COUNTRY_CODE,
-} from "@/lib/whatsapp-phone-input";
+import { combineMexicoWhatsAppLocalNumber } from "@/lib/whatsapp-phone-input";
 
 const MAX_ITEMS = 15;
 
@@ -38,12 +35,11 @@ type BatchNotifyPayload = {
 
 function buildBatchNotifyPayload(
   mode: NotifyMode,
-  phoneCountryCode: string,
   phoneLocal: string,
   groupId: string,
 ): BatchNotifyPayload {
   if (mode === "individual") {
-    const combined = combineWhatsAppPhoneParts(phoneCountryCode, phoneLocal);
+    const combined = combineMexicoWhatsAppLocalNumber(phoneLocal);
     return {
       notify_type: combined ? "individual" : null,
       notify_whatsapp_number: combined,
@@ -109,9 +105,6 @@ export function DodaScheduleSection({
     null,
   );
   const [notifyMode, setNotifyMode] = useState<NotifyMode>(null);
-  const [notifyPhoneCountry, setNotifyPhoneCountry] = useState(
-    DEFAULT_WHATSAPP_COUNTRY_CODE,
-  );
   const [notifyPhoneLocal, setNotifyPhoneLocal] = useState("");
   const [notifyGroupId, setNotifyGroupId] = useState("");
 
@@ -245,7 +238,6 @@ export function DodaScheduleSection({
     const notas = String(formData.get("notas") ?? "");
     const batchNotify = buildBatchNotifyPayload(
       notifyMode,
-      notifyPhoneCountry,
       notifyPhoneLocal,
       notifyGroupId,
     );
@@ -424,7 +416,6 @@ export function DodaScheduleSection({
               <DodaWhatsappTestButton
                 isAdmin={isAdmin}
                 defaultNotifyMode={notifyMode}
-                defaultPhoneCountry={notifyPhoneCountry}
                 defaultPhoneLocal={notifyPhoneLocal}
                 defaultGroupId={notifyGroupId}
               />
@@ -463,15 +454,12 @@ export function DodaScheduleSection({
                   Teléfono
                 </label>
                 <WhatsAppPhoneInput
-                  selectId="schedule_notify_phone_country"
                   localInputId="schedule_notify_phone_local"
-                  countryCode={notifyPhoneCountry}
-                  onCountryCodeChange={setNotifyPhoneCountry}
                   localNumber={notifyPhoneLocal}
                   onLocalNumberChange={setNotifyPhoneLocal}
                   disabled={isSubmitting}
                   inputClassName={fieldClass}
-                  selectClassName={`${fieldClass} h-auto shrink-0 px-2.5 py-2.5`}
+                  prefixClassName={`${fieldClass} inline-flex shrink-0 items-center bg-slate-100 font-medium text-slate-700`}
                 />
               </div>
             ) : null}

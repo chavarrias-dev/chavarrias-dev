@@ -4,17 +4,13 @@ import { useEffect, useState } from "react";
 import { Loader2, MessageCircle, X } from "lucide-react";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { WhatsAppPhoneInput } from "@/components/dodas/whatsapp-phone-input";
-import {
-  combineWhatsAppPhoneParts,
-  DEFAULT_WHATSAPP_COUNTRY_CODE,
-} from "@/lib/whatsapp-phone-input";
+import { combineMexicoWhatsAppLocalNumber } from "@/lib/whatsapp-phone-input";
 
 type NotifyMode = "individual" | "group";
 
 type DodaWhatsappTestButtonProps = {
   isAdmin: boolean;
   defaultNotifyMode?: NotifyMode | null;
-  defaultPhoneCountry?: string;
   defaultPhoneLocal?: string;
   defaultGroupId?: string;
 };
@@ -25,7 +21,6 @@ const fieldClass =
 export function DodaWhatsappTestButton({
   isAdmin,
   defaultNotifyMode = null,
-  defaultPhoneCountry = DEFAULT_WHATSAPP_COUNTRY_CODE,
   defaultPhoneLocal = "",
   defaultGroupId = "",
 }: DodaWhatsappTestButtonProps) {
@@ -34,7 +29,6 @@ export function DodaWhatsappTestButton({
   const [mode, setMode] = useState<NotifyMode>(
     defaultNotifyMode === "group" ? "group" : "individual",
   );
-  const [phoneCountry, setPhoneCountry] = useState(defaultPhoneCountry);
   const [phoneLocal, setPhoneLocal] = useState(defaultPhoneLocal);
   const [groupId, setGroupId] = useState(defaultGroupId);
   const [toast, setToast] = useState<{
@@ -48,16 +42,9 @@ export function DodaWhatsappTestButton({
       return;
     }
     setMode(defaultNotifyMode === "group" ? "group" : "individual");
-    setPhoneCountry(defaultPhoneCountry);
     setPhoneLocal(defaultPhoneLocal);
     setGroupId(defaultGroupId);
-  }, [
-    open,
-    defaultNotifyMode,
-    defaultPhoneCountry,
-    defaultPhoneLocal,
-    defaultGroupId,
-  ]);
+  }, [open, defaultNotifyMode, defaultPhoneLocal, defaultGroupId]);
 
   useEffect(() => {
     if (!toast) {
@@ -76,7 +63,7 @@ export function DodaWhatsappTestButton({
     try {
       const combinedPhone =
         mode === "individual"
-          ? combineWhatsAppPhoneParts(phoneCountry, phoneLocal)
+          ? combineMexicoWhatsAppLocalNumber(phoneLocal)
           : null;
 
       const response = await fetch("/api/doda/test-notification", {
@@ -113,9 +100,7 @@ export function DodaWhatsappTestButton({
     }
   }
 
-  const canSendIndividual =
-    mode === "individual" &&
-    Boolean(combineWhatsAppPhoneParts(phoneCountry, phoneLocal));
+  const canSendIndividual = Boolean(combineMexicoWhatsAppLocalNumber(phoneLocal));
 
   return (
     <>
@@ -190,13 +175,11 @@ export function DodaWhatsappTestButton({
 
               {mode === "individual" ? (
                 <WhatsAppPhoneInput
-                  countryCode={phoneCountry}
-                  onCountryCodeChange={setPhoneCountry}
                   localNumber={phoneLocal}
                   onLocalNumberChange={setPhoneLocal}
                   disabled={sending}
                   inputClassName={fieldClass}
-                  selectClassName={`${fieldClass} h-auto shrink-0 px-2.5 py-2.5`}
+                  prefixClassName={`${fieldClass} inline-flex shrink-0 items-center bg-slate-100 font-medium text-slate-700`}
                 />
               ) : (
                 <input
