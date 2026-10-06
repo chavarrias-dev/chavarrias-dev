@@ -8,6 +8,7 @@ import { normalizeDodaTimestamp } from "@/components/dodas/doda-display-utils";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { formatTimeAgo } from "@/lib/messages";
+import { normalizePhoneDigits } from "@/lib/phone-match";
 import type { DodaRecord } from "@/lib/doda-types";
 import {
   categorizeDodasForDashboard,
@@ -24,6 +25,22 @@ const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
 const THREE_MINUTES_SECONDS = 3 * 60;
+
+function notifyWhatsappDisplay(phone: string | null | undefined): {
+  label: string;
+  title?: string;
+} {
+  const trimmed = phone?.trim() ?? "";
+  if (!trimmed) {
+    return { label: "—" };
+  }
+  const digits = normalizePhoneDigits(trimmed);
+  const last4 = digits.slice(-4);
+  return {
+    label: last4.length === 4 ? `···${last4}` : "—",
+    title: trimmed,
+  };
+}
 /** Realtime (see DodaDashboardProvider) handles instant updates; this is just a safety net. */
 const MONITORING_REFRESH_FALLBACK_MS = 2 * 60 * 1000;
 
@@ -187,6 +204,19 @@ function ClientGroupSection({
                       {doda.datos_vehiculo ?? "—"}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {(() => {
+                      const notify = notifyWhatsappDisplay(doda.notify_whatsapp);
+                      return (
+                        <span
+                          className="font-mono text-xs text-slate-600"
+                          title={notify.title}
+                        >
+                          {notify.label}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3">
                     <MonitoringBadge />
                     <MonitoringCountdown
@@ -310,6 +340,7 @@ function GroupedDodaTable({
           "Última consulta",
           "Veces revisado",
           "Vehículo",
+          "Notif. WhatsApp",
           "Estado",
           "Acciones",
         ]

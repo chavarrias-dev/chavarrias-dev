@@ -6,11 +6,10 @@ import {
   DODA_DISPLAY_TIMEZONE,
   normalizeDodaTimestamp,
 } from "@/components/dodas/doda-display-utils";
-import { dodaNotificationHref } from "@/lib/doda-types";
 import {
-  getLatestDodaNotificationConfig,
-  resolveDodaWhatsAppDestinations,
+  normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
+import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
 import { sendWhatsAppTextMessage } from "@/lib/whatsapp";
 
 export type DodaResolvedNotificationInput = {
@@ -32,7 +31,6 @@ type EmailRecipient = {
   label: string;
   email: string;
 };
-
 
 function getAppBaseUrl(): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
@@ -64,7 +62,29 @@ function getResendFromAddress(): string {
   );
 }
 
-function buildEmailHtml(input: DodaResolvedNotificationInput): string {
+export function buildDodaLiberatedWhatsAppMessage(input: {
+  integrationNumber: string;
+  pedimento: string | null;
+  tipoPedimento: string | null;
+  changedAt: string;
+}): string {
+  const fecha = formatChangedAt(input.changedAt);
+
+  return [
+    "🟢 *DODA Liberado*",
+    "",
+    `Número: *${input.integrationNumber}*`,
+    `📋 Pedimento: ${input.pedimento?.trim() || "N/A"}`,
+    `🏛️ Tipo: ${input.tipoPedimento?.trim() || "N/A"}`,
+    `📅 ${fecha}`,
+    "",
+    "_Chavarrias Servicios Aduanales_",
+  ].join("\n");
+}
+
+function buildEmailHtml(
+  input: DodaResolvedNotificationInput,
+): string {
   const previous = input.previousStatus?.trim() || "Sin estatus previo";
   const changedAt = formatChangedAt(input.changedAt);
   const dodaUrl = `${getAppBaseUrl()}${dodaNotificationHref(input.dodaId)}`;
@@ -102,18 +122,6 @@ function buildEmailHtml(input: DodaResolvedNotificationInput): string {
   `.trim();
 }
 
-function buildWhatsAppMessage(input: DodaResolvedNotificationInput): string {
-  const previous = input.previousStatus?.trim() || "Sin estatus previo";
-  const changedAt = formatChangedAt(input.changedAt);
-
-  return [
-    `DODA #${input.integrationNumber}`,
-    `Estatus actualizado: ${previous} → ${input.newStatus}`,
-    `Fecha: ${changedAt}`,
-    "Consulta el CRM para ver el detalle completo.",
-  ].join("\n");
-}
-
 async function loadNotificationRecipients(
   supabase: SupabaseClient,
   input: DodaResolvedNotificationInput,
@@ -129,13 +137,11 @@ async function loadNotificationRecipients(
 
     if (error) {
       console.error("[doda-notify] failed to load client", error);
-    } else if (client) {
-      if (client.email?.trim()) {
-        emails.push({
-          label: client.full_name ?? "Cliente",
-          email: client.email.trim(),
-        });
-      }
+    } else if (client?.email?.trim()) {
+      emails.push({
+        label: client.full_name ?? "Cliente",
+        email: client.email.trim(),
+      });
     }
   }
 
@@ -154,10 +160,27 @@ async function loadNotificationRecipients(
         email: profile.email.trim(),
       });
     }
-
   }
 
   return { emails };
+}
+
+async function loadDodaForNotification(
+  supabase: SupabaseClient,
+  dodaId: string,
+): Promise<DodaRecord | null> {
+  const { data, error } = await supabase
+    .from("dodas")
+    .select(DODA_RECORD_SELECT)
+    .eq("id", dodaId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[doda-notify] failed to load doda", dodaId, error);
+    return null;
+  }
+
+  return (data as DodaRecord | null) ?? null;
 }
 
 async function sendResolvedEmail(
@@ -184,21 +207,9 @@ async function sendResolvedEmail(
   }
 }
 
-async function sendResolvedWhatsApp(
-  to: string,
-  label: string,
-  input: DodaResolvedNotificationInput,
-): Promise<void> {
-  if (!to.trim()) {
-    throw new Error(`Destino inválido para ${label}`);
-  }
-
-  await sendWhatsAppTextMessage(to, buildWhatsAppMessage(input));
-}
-
 /**
  * Sends email + WhatsApp when a monitored DODA is resolved.
- * Each channel is isolated in try/catch; failures are aggregated, never thrown.
+ * WhatsApp only when `notify_whatsapp` is set on the DODA row (no fallback).
  */
 export async function sendDodaResolvedExternalNotifications(
   supabase: SupabaseClient,
@@ -208,18 +219,11 @@ export async function sendDodaResolvedExternalNotifications(
   let successCount = 0;
   let attemptCount = 0;
 
+  const doda = await loadDodaForNotification(supabase, input.dodaId);
   const { emails } = await loadNotificationRecipients(supabase, input);
-  const config = await getLatestDodaNotificationConfig(supabase);
-  const whatsAppDestinations = await resolveDodaWhatsAppDestinations(
-    supabase,
-    config,
-  );
 
   const uniqueEmails = Array.from(
     new Map(emails.map((item) => [item.email.toLowerCase(), item])).values(),
-  );
-  const uniqueWhatsApp = Array.from(
-    new Map(whatsAppDestinations.map((item) => [item.to, item])).values(),
   );
 
   for (const recipient of uniqueEmails) {
@@ -235,16 +239,28 @@ export async function sendDodaResolvedExternalNotifications(
     }
   }
 
-  for (const destination of uniqueWhatsApp) {
-    attemptCount += 1;
-    try {
-      await sendResolvedWhatsApp(destination.to, destination.label, input);
-      successCount += 1;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Error al enviar WhatsApp";
-      errors.push(`WhatsApp (${destination.label}): ${message}`);
-      console.error("[doda-notify] whatsapp failed", destination.to, error);
+  const notifyRaw = doda?.notify_whatsapp?.trim() ?? "";
+  if (notifyRaw) {
+    const to = normalizeWhatsAppIndividualRecipient(notifyRaw);
+    if (to) {
+      attemptCount += 1;
+      try {
+        await sendWhatsAppTextMessage(
+          to,
+          buildDodaLiberatedWhatsAppMessage({
+            integrationNumber: input.integrationNumber,
+            pedimento: doda?.pedimento ?? null,
+            tipoPedimento: doda?.tipo_pedimento ?? null,
+            changedAt: input.changedAt,
+          }),
+        );
+        successCount += 1;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Error al enviar WhatsApp";
+        errors.push(`WhatsApp (${notifyRaw}): ${message}`);
+        console.error("[doda-notify] whatsapp failed", notifyRaw, error);
+      }
     }
   }
 
@@ -252,7 +268,7 @@ export async function sendDodaResolvedExternalNotifications(
     return {
       notification_sent_at: null,
       notification_error:
-        "No hay destinatarios con correo o destino WhatsApp configurado.",
+        "No hay destinatarios con correo ni número WhatsApp en este DODA.",
     };
   }
 

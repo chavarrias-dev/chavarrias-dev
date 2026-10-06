@@ -3,10 +3,6 @@ import { Suspense } from "react";
 import type { ClientOption } from "@/components/clients/types";
 import { DodaHighlightOnQuery } from "@/components/dodas/doda-highlight-on-query";
 import { DodaPageLayout } from "@/components/dodas/doda-page-layout";
-import {
-  formatDodaNotificationDestination,
-  getLatestDodaNotificationConfig,
-} from "@/lib/doda-notification-config";
 import { fetchDodaDashboardRows } from "@/lib/doda-dashboard-data";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -26,15 +22,10 @@ export default async function DodasPage() {
     redirect("/dashboard");
   }
 
-  const [{ data: clientsData }, dodas, dodaNotifyConfig] = await Promise.all([
+  const [{ data: clientsData }, dodas] = await Promise.all([
     supabase.from("clients").select("id, full_name").order("full_name"),
     fetchDodaDashboardRows(supabase),
-    getLatestDodaNotificationConfig(supabase),
   ]);
-
-  const dodaNotificationDestination = formatDodaNotificationDestination(
-    dodaNotifyConfig,
-  );
 
   const clients = (clientsData ?? []) as ClientOption[];
 
@@ -54,11 +45,7 @@ export default async function DodasPage() {
         </p>
       </div>
 
-      <DodaPageLayout
-        clients={clients}
-        dodas={dodas}
-        dodaNotificationDestination={dodaNotificationDestination}
-      />
+      <DodaPageLayout clients={clients} dodas={dodas} />
     </main>
   );
 }

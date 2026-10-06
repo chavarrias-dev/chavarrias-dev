@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity-log";
+import { parseOptionalNotifyWhatsapp } from "@/lib/doda-notification-config";
 import { validateIntegrationNumbersInput } from "@/lib/doda-sat-details";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,6 +17,7 @@ type LookupByNumberBody = {
   cliente_id?: string | null;
   pedimento_id?: string | null;
   notas?: string | null;
+  notify_whatsapp?: string | null;
   monitor?: boolean;
 };
 
@@ -50,6 +52,7 @@ export async function POST(req: Request) {
 
     const number = validated.numbers[0]!;
     const isMonitored = Boolean(body.monitor);
+    const notifyWhatsapp = parseOptionalNotifyWhatsapp(body.notify_whatsapp);
     const { runDodaLookupByNumberAndSave } = await import("@/lib/doda-service");
 
     const { lookup, doda } = await runDodaLookupByNumberAndSave({
@@ -58,6 +61,7 @@ export async function POST(req: Request) {
       clienteId: body.cliente_id ?? null,
       pedimentoId: body.pedimento_id ?? null,
       notas: body.notas ?? null,
+      notifyWhatsapp,
       source: isMonitored ? "dashboard_schedule" : "dashboard_number",
       createdBy: user.id,
       isMonitored,

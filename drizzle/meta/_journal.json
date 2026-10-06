@@ -64,6 +64,13 @@
       "when": 1782200000000,
       "tag": "0008_add_doda_notification_config",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782300000000,
+      "tag": "0009_add_doda_notify_whatsapp",
+      "breakpoints": true
     }
   ]
 }

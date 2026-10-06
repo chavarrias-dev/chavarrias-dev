@@ -18,26 +18,16 @@ import type { DodaDashboardRow } from "@/lib/doda-dashboard-categories";
 type DodaPageLayoutProps = {
   clients: ClientOption[];
   dodas: DodaDashboardRow[];
-  dodaNotificationDestination: string;
 };
 
-function DodaPageLayoutContent({
-  clients,
-  dodaNotificationDestination,
-}: {
-  clients: ClientOption[];
-  dodaNotificationDestination: string;
-}) {
+function DodaPageLayoutContent({ clients }: { clients: ClientOption[] }) {
   const { dodas, queryResults } = useDodaDashboard();
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
         <div className="space-y-6">
-          <DodaToolsSection
-            clients={clients}
-            dodaNotificationDestination={dodaNotificationDestination}
-          />
+          <DodaToolsSection clients={clients} />
           <DodaLatestResultsSection dodas={dodas} />
         </div>
 
@@ -59,17 +49,10 @@ function DodaPageLayoutContent({
   );
 }
 
-export function DodaPageLayout({
-  clients,
-  dodas,
-  dodaNotificationDestination,
-}: DodaPageLayoutProps) {
+export function DodaPageLayout({ clients, dodas }: DodaPageLayoutProps) {
   return (
     <DodaDashboardProvider initialDodas={dodas}>
-      <DodaPageLayoutContent
-        clients={clients}
-        dodaNotificationDestination={dodaNotificationDestination}
-      />
+      <DodaPageLayoutContent clients={clients} />
     </DodaDashboardProvider>
   );
 }

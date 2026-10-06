@@ -14,6 +14,7 @@ import {
   DODA_RESOLVED_SAT_STATUS,
   isDodaResolvedSatStatus,
 } from "@/lib/doda-monitoring-constants";
+import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
 import { notifyStaffDodaMonitoringComplete } from "@/lib/notifications";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 import { sendPushNotification } from "@/lib/web-push";
@@ -35,6 +36,7 @@ export type RunDodaLookupInput = {
   clienteId?: string | null;
   pedimentoId?: string | null;
   whatsappPhone?: string | null;
+  notifyWhatsapp?: string | null;
   source?: string | null;
   notas?: string | null;
   createdBy?: string | null;
@@ -53,6 +55,7 @@ export type RunDodaLookupByNumberInput = {
   clienteId?: string | null;
   pedimentoId?: string | null;
   whatsappPhone?: string | null;
+  notifyWhatsapp?: string | null;
   source?: string | null;
   notas?: string | null;
   createdBy?: string | null;
@@ -125,6 +128,7 @@ export async function runDodaLookupAndSave(
     clienteId = null,
     pedimentoId = null,
     whatsappPhone = null,
+    notifyWhatsapp = null,
     source = null,
     notas = null,
     createdBy = null,
@@ -144,6 +148,7 @@ export async function runDodaLookupAndSave(
       cliente_id: clienteId,
       pedimento_id: pedimentoId,
       whatsapp_phone: whatsappPhone,
+      notify_whatsapp: notifyWhatsapp,
       source,
       notas,
       lookup_status: "consultando",
@@ -348,6 +353,34 @@ export async function performDodaRecheck(
           console.error("[doda-service] push notification failed", dodaId, pushError);
         }
       }
+
+      const integrationNumber =
+        recheck.numeroIntegracion ?? doda.numero_integracion ?? dodaId.slice(0, 8);
+      try {
+        const external = await sendDodaResolvedExternalNotifications(supabase, {
+          dodaId,
+          clienteId: doda.cliente_id,
+          createdBy: doda.created_by,
+          integrationNumber,
+          previousStatus,
+          newStatus: recheck.satStatus!,
+          changedAt: checkedAt,
+        });
+
+        await supabase
+          .from("dodas")
+          .update({
+            notification_sent_at: external.notification_sent_at,
+            notification_error: external.notification_error,
+          })
+          .eq("id", dodaId);
+      } catch (externalError) {
+        console.error(
+          "[doda-service] external notifications failed",
+          dodaId,
+          externalError,
+        );
+      }
     }
 
     console.log("[doda-service] recheck persisted", {
@@ -435,6 +468,7 @@ export async function runDodaLookupByNumberAndSave(
     clienteId = null,
     pedimentoId = null,
     whatsappPhone = null,
+    notifyWhatsapp = null,
     source = null,
     notas = null,
     createdBy = null,
@@ -463,6 +497,7 @@ export async function runDodaLookupByNumberAndSave(
       cliente_id: clienteId,
       pedimento_id: pedimentoId,
       whatsapp_phone: whatsappPhone,
+      notify_whatsapp: notifyWhatsapp,
       source,
       notas,
       numero_integracion: trimmed,

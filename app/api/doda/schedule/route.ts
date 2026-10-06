@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity-log";
+import { parseOptionalNotifyWhatsapp } from "@/lib/doda-notification-config";
 import type { DodaRecord } from "@/lib/doda-types";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -66,6 +67,9 @@ export async function POST(req: Request) {
 
     const clienteId = emptyToNull(formData.get("cliente_id"));
     const notas = emptyToNull(formData.get("notas"));
+    const notifyWhatsapp = parseOptionalNotifyWhatsapp(
+      emptyToNull(formData.get("notify_whatsapp")),
+    );
     const { runDodaLookupAndSave } = await import("@/lib/doda-service");
 
     const dodas: DodaRecord[] = [];
@@ -78,6 +82,7 @@ export async function POST(req: Request) {
           file,
           clienteId,
           notas,
+          notifyWhatsapp,
           source: "dashboard_schedule",
           createdBy: user.id,
           isMonitored: true,

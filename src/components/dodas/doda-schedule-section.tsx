@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Hash, Loader2 } from "lucide-react";
@@ -25,7 +24,6 @@ const MAX_ITEMS = 15;
 
 type DodaScheduleSectionProps = {
   clients: ClientOption[];
-  notificationDestination: string;
 };
 
 type UploadPhase = "idle" | "submitting" | "done" | "error";
@@ -46,10 +44,7 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
   }
 }
 
-export function DodaScheduleSection({
-  clients,
-  notificationDestination,
-}: DodaScheduleSectionProps) {
+export function DodaScheduleSection({ clients }: DodaScheduleSectionProps) {
   const router = useRouter();
   const { refreshDashboard, setQueryResults, appendQueryResult, clearQueryResults } =
     useDodaDashboard();
@@ -103,6 +98,7 @@ export function DodaScheduleSection({
     integrationNumber: string,
     clienteId: string,
     notas: string,
+    notifyWhatsapp: string,
   ): Promise<DodaRecord> {
     const response = await fetch("/api/doda/lookup-by-number", {
       method: "POST",
@@ -111,6 +107,7 @@ export function DodaScheduleSection({
         integration_number: integrationNumber,
         cliente_id: clienteId || null,
         notas: notas || null,
+        notify_whatsapp: notifyWhatsapp.trim() || null,
         monitor: true,
       }),
     });
@@ -132,6 +129,7 @@ export function DodaScheduleSection({
     numbers: string[],
     clienteId: string,
     notas: string,
+    notifyWhatsapp: string,
   ): Promise<number> {
     const initialQueue: DodaQueueItem[] = numbers.map((number) => ({
       number,
@@ -154,7 +152,12 @@ export function DodaScheduleSection({
       );
 
       try {
-        const doda = await scheduleSingleNumber(number, clienteId, notas);
+        const doda = await scheduleSingleNumber(
+          number,
+          clienteId,
+          notas,
+          notifyWhatsapp,
+        );
         successCount += 1;
         appendQueryResult(doda);
         setQueueItems((current) =>
@@ -186,6 +189,7 @@ export function DodaScheduleSection({
     const formData = new FormData(form);
     const clienteId = String(formData.get("cliente_id") ?? "");
     const notas = String(formData.get("notas") ?? "");
+    const notifyWhatsapp = String(formData.get("notify_whatsapp") ?? "");
 
     setPhase("submitting");
     setMessage(null);
@@ -257,6 +261,7 @@ export function DodaScheduleSection({
         validated.numbers,
         clienteId,
         notas,
+        notifyWhatsapp,
       );
       setIntegrationNumbers([]);
       setIntegrationDraft("");
@@ -342,6 +347,26 @@ export function DodaScheduleSection({
             </div>
           </div>
 
+          <div>
+            <label
+              htmlFor="schedule_notify_whatsapp"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Notificar a WhatsApp
+            </label>
+            <input
+              id="schedule_notify_whatsapp"
+              name="notify_whatsapp"
+              type="tel"
+              className={fieldClass}
+              placeholder="Número donde llega la notificación al liberarse"
+              disabled={isSubmitting}
+            />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Opcional. Ejemplo: +52 899 421 4152
+            </p>
+          </div>
+
           {inputMode === "file" ? (
             <div>
               <label
@@ -419,20 +444,6 @@ export function DodaScheduleSection({
             </p>
           ) : null}
         </div>
-
-        <p className="border-t border-slate-100 px-5 pt-4 text-xs text-slate-500 sm:px-6">
-          Notificaciones →{" "}
-          <span className="font-medium text-slate-700">
-            {notificationDestination}
-          </span>{" "}
-          ·{" "}
-          <Link
-            href="/dashboard/settings?tab=notificaciones#notificaciones-doda"
-            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-          >
-            Configurar
-          </Link>
-        </p>
 
         <div className="flex justify-end border-t border-slate-100 px-5 py-4 sm:px-6">
           <button

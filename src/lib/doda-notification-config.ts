@@ -78,6 +78,18 @@ export function formatPhoneDisplay(phone: string): string {
   return phone.trim();
 }
 
+/** Parses optional schedule-form value; invalid numbers are dropped. */
+export function parseOptionalNotifyWhatsapp(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed) {
+    return null;
+  }
+  if (!normalizeWhatsAppIndividualRecipient(trimmed)) {
+    return null;
+  }
+  return formatPhoneDisplay(trimmed);
+}
+
 export function normalizeWhatsAppIndividualRecipient(phone: string): string | null {
   const digits = normalizePhoneDigits(phone);
   if (digits.length < 10) {
