@@ -20,6 +20,13 @@ import {
   normalizeDodaTimestamp,
 } from "@/components/dodas/doda-display-utils";
 import {
+  DodaDesktopTable,
+  DodaMobileGroup,
+  DodaMobileStack,
+} from "@/components/dodas/doda-mobile-ui";
+import { DodaResolvedMobileCard } from "@/components/dodas/doda-resolved-mobile-card";
+import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
+import {
   categorizeDodasForDashboard,
   UNASSIGNED_CLIENT_LABEL,
   type DodaDashboardRow,
@@ -276,7 +283,7 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+      <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-4">
         <div>
           <h2 className="text-base font-medium tracking-tight text-slate-900">
             Desaduanamiento confirmado
@@ -289,7 +296,7 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
           type="button"
           onClick={handleExport}
           disabled={exporting || confirmedAll.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 px-3.5 py-2 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-300 px-3.5 py-2 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           {exporting ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -300,7 +307,7 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 border-b border-slate-100 px-5 py-4 sm:grid-cols-4 sm:px-6">
+      <div className="grid grid-cols-1 gap-2 border-b border-slate-100 px-4 py-3 sm:grid-cols-4 sm:gap-3 sm:px-6 sm:py-4">
         <input
           type="text"
           value={search}
@@ -339,13 +346,15 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
       </div>
 
       {dayGroups.length === 0 ? (
-        <p className="px-5 py-8 text-sm text-slate-500 sm:px-6">
+        <p className="px-4 py-6 text-sm text-slate-500 sm:px-6 sm:py-8">
           {confirmedAll.length === 0
             ? "Aún no hay DODAs con desaduanamiento confirmado."
             : "No se encontraron resultados con los filtros aplicados."}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        <DodaDesktopTable>
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
           <table className={`${DODA_TABLE_CLASS} min-w-[1400px]`}>
             <thead>
               <tr className={DODA_TABLE_HEAD_ROW_CLASS}>
@@ -392,6 +401,28 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
             </tbody>
           </table>
         </div>
+        </DodaDesktopTable>
+
+        <DodaMobileStack>
+          {dayGroups.map((group) => (
+            <DodaMobileGroup
+              key={group.dayKey}
+              label={group.header}
+              count={group.items.length}
+              collapsed={collapsedDays.has(group.dayKey)}
+              onToggle={() => toggleDay(group.dayKey)}
+            >
+              {group.items.map((doda) => (
+                <DodaResolvedMobileCard
+                  key={doda.id}
+                  doda={doda}
+                  onViewDetail={openDetail}
+                />
+              ))}
+            </DodaMobileGroup>
+          ))}
+        </DodaMobileStack>
+        </>
       )}
 
       <DodaResultDetailModal

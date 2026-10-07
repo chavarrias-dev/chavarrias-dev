@@ -11,6 +11,15 @@ import { formatTimeAgo } from "@/lib/messages";
 import type { DodaRecord } from "@/lib/doda-types";
 import { formatWhatsAppPhoneForDisplay } from "@/lib/whatsapp-phone-input";
 import {
+  DodaDesktopTable,
+  DodaMobileActions,
+  DodaMobileCard,
+  DodaMobileCardTitle,
+  DodaMobileGroup,
+  DodaMobileKv,
+  DodaMobileStack,
+} from "@/components/dodas/doda-mobile-ui";
+import {
   categorizeDodasForDashboard,
   groupDodasByClient,
   type ClientDodaGroup,
@@ -125,6 +134,165 @@ function rowClassForVariant(variant: GroupedTableProps["variant"]): string {
     case "error":
       return "border-l-4 border-red-400 bg-red-50/30 hover:bg-red-50/60";
   }
+}
+
+function ClientGroupMobileSection({
+  group,
+  variant,
+  collapsed,
+  onToggle,
+  onRetry,
+  retryingId,
+  onCancelRequest,
+  cancellingId,
+  onCheckNowRequest,
+  checkingId,
+  disableRowActions,
+}: {
+  group: ClientDodaGroup;
+  variant: GroupedTableProps["variant"];
+  collapsed: boolean;
+  onToggle: () => void;
+  onRetry?: (dodaId: string) => Promise<void>;
+  retryingId?: string | null;
+  onCancelRequest?: (doda: DodaDashboardRow) => void;
+  cancellingId?: string | null;
+  onCheckNowRequest?: (doda: DodaDashboardRow) => void;
+  checkingId?: string | null;
+  disableRowActions?: boolean;
+}) {
+  const accent =
+    variant === "monitoring"
+      ? "border-l-orange-400 bg-orange-50/20"
+      : "border-l-red-400 bg-red-50/20";
+
+  return (
+    <DodaMobileGroup
+      label={group.clientLabel}
+      count={group.items.length}
+      collapsed={collapsed}
+      onToggle={onToggle}
+    >
+      {group.items.map((doda) => {
+        const notify = dodaNotifyCellDisplay(doda);
+        return (
+          <DodaMobileCard
+            key={doda.id}
+            id={`doda-row-${doda.id}`}
+            accentClass={accent}
+          >
+            <DodaMobileCardTitle>
+              {doda.numero_integracion ?? "—"}
+            </DodaMobileCardTitle>
+
+            {variant === "monitoring" ? (
+              <>
+                <div className="mt-2 space-y-0.5">
+                  <DodaMobileKv label="Última rev.">
+                    {doda.last_checked_at
+                      ? formatTimeAgo(normalizeDodaTimestamp(doda.last_checked_at))
+                      : "—"}
+                  </DodaMobileKv>
+                  <DodaMobileKv label="Revisiones">
+                    #{doda.check_count ?? 0}
+                  </DodaMobileKv>
+                  <DodaMobileKv label="Vehículo">
+                    <span className="break-words">{doda.datos_vehiculo ?? "—"}</span>
+                  </DodaMobileKv>
+                  <DodaMobileKv label="Notif.">
+                    <span title={notify.title}>{notify.label}</span>
+                    {notify.title ? (
+                      <span className="mt-0.5 block text-[11px] text-slate-500">
+                        {notify.title}
+                      </span>
+                    ) : null}
+                  </DodaMobileKv>
+                </div>
+                <div className="mt-2">
+                  <MonitoringBadge />
+                  <MonitoringCountdown
+                    key={doda.last_checked_at ?? doda.looked_up_at ?? doda.id}
+                  />
+                </div>
+                <DodaMobileActions>
+                  {onCheckNowRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => onCheckNowRequest(doda)}
+                      disabled={
+                        cancellingId === doda.id ||
+                        checkingId === doda.id ||
+                        disableRowActions
+                      }
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-[#227DE8]/40 px-2 py-1.5 text-xs font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {checkingId === doda.id ? (
+                        <Loader2 className="size-3 animate-spin" aria-hidden />
+                      ) : (
+                        <RotateCw className="size-3" aria-hidden />
+                      )}
+                      {checkingId === doda.id ? "Revisando…" : "Revisar"}
+                    </button>
+                  ) : null}
+                  {onCancelRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => onCancelRequest(doda)}
+                      disabled={
+                        cancellingId === doda.id || checkingId === doda.id
+                      }
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-red-300 px-2 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {cancellingId === doda.id ? (
+                        <Loader2 className="size-3 animate-spin" aria-hidden />
+                      ) : (
+                        <X className="size-3" aria-hidden />
+                      )}
+                      Cancelar
+                    </button>
+                  ) : null}
+                </DodaMobileActions>
+              </>
+            ) : null}
+
+            {variant === "error" ? (
+              <>
+                <div className="mt-2">
+                  <DodaMobileKv label="Error">
+                    <span className="break-words text-red-800">
+                      {doda.lookup_error ?? "Error desconocido"}
+                    </span>
+                  </DodaMobileKv>
+                </div>
+                <div className="mt-2">
+                  <ErrorBadge />
+                </div>
+                {onRetry ? (
+                  <DodaMobileActions>
+                    <button
+                      type="button"
+                      onClick={() => onRetry(doda.id)}
+                      disabled={retryingId === doda.id}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8]/40 py-1.5 text-xs font-medium text-[#227DE8] disabled:opacity-50"
+                    >
+                      {retryingId === doda.id ? (
+                        <>
+                          <Loader2 className="size-3 animate-spin" aria-hidden />
+                          Reintentando…
+                        </>
+                      ) : (
+                        "Reintentar consulta"
+                      )}
+                    </button>
+                  </DodaMobileActions>
+                ) : null}
+              </>
+            ) : null}
+          </DodaMobileCard>
+        );
+      })}
+    </DodaMobileGroup>
+  );
 }
 
 function ClientGroupSection({
@@ -356,54 +524,85 @@ function GroupedDodaTable({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
-        <div>
-          <h2 className="text-base font-medium tracking-tight text-slate-900">
+      <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:py-4 sm:px-6">
+        <div className="min-w-0">
+          <h2 className="text-sm font-medium tracking-tight text-slate-900 sm:text-base">
             {title}
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-slate-500 sm:text-xs">
+            {description}
+          </p>
         </div>
-        {headerAction}
+        {headerAction ? (
+          <div className="w-full shrink-0 sm:w-auto [&_button]:w-full sm:[&_button]:w-auto">
+            {headerAction}
+          </div>
+        ) : null}
       </div>
 
       {groups.length === 0 ? (
-        <p className="px-5 py-8 text-sm text-slate-500 sm:px-6">{emptyMessage}</p>
+        <p className="px-4 py-6 text-sm text-slate-500 sm:px-6 sm:py-8">
+          {emptyMessage}
+        </p>
       ) : (
-        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
-          <table className="w-full min-w-[520px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80">
-                {headColumns.map((column) => (
-                  <th
-                    key={column}
-                    className="px-4 py-3 font-medium text-slate-700"
-                  >
-                    {column}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((group) => (
-                <ClientGroupSection
-                  key={group.clientLabel}
-                  group={group}
-                  variant={variant}
-                  columnCount={headColumns.length}
-                  collapsed={collapsedGroups.has(group.clientLabel)}
-                  onToggle={() => toggleGroup(group.clientLabel)}
-                  onRetry={onRetry}
-                  retryingId={retryingId}
-                  onCancelRequest={onCancelRequest}
-                  cancellingId={cancellingId}
-                  onCheckNowRequest={onCheckNowRequest}
-                  checkingId={checkingId}
-                  disableRowActions={disableRowActions}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <DodaDesktopTable>
+            <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    {headColumns.map((column) => (
+                      <th
+                        key={column}
+                        className="px-4 py-3 font-medium text-slate-700"
+                      >
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((group) => (
+                    <ClientGroupSection
+                      key={group.clientLabel}
+                      group={group}
+                      variant={variant}
+                      columnCount={headColumns.length}
+                      collapsed={collapsedGroups.has(group.clientLabel)}
+                      onToggle={() => toggleGroup(group.clientLabel)}
+                      onRetry={onRetry}
+                      retryingId={retryingId}
+                      onCancelRequest={onCancelRequest}
+                      cancellingId={cancellingId}
+                      onCheckNowRequest={onCheckNowRequest}
+                      checkingId={checkingId}
+                      disableRowActions={disableRowActions}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DodaDesktopTable>
+
+          <DodaMobileStack>
+            {groups.map((group) => (
+              <ClientGroupMobileSection
+                key={group.clientLabel}
+                group={group}
+                variant={variant}
+                collapsed={collapsedGroups.has(group.clientLabel)}
+                onToggle={() => toggleGroup(group.clientLabel)}
+                onRetry={onRetry}
+                retryingId={retryingId}
+                onCancelRequest={onCancelRequest}
+                cancellingId={cancellingId}
+                onCheckNowRequest={onCheckNowRequest}
+                checkingId={checkingId}
+                disableRowActions={disableRowActions}
+              />
+            ))}
+          </DodaMobileStack>
+        </>
       )}
     </section>
   );

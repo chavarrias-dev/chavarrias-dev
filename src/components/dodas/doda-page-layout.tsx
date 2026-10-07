@@ -31,19 +31,19 @@ function DodaPageLayoutContent({
   const { dodas, queryResults } = useDodaDashboard();
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-        <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-4 sm:space-y-6">
           <DodaToolsSection clients={clients} isAdmin={isAdmin} />
           <DodaLatestResultsSection dodas={dodas} />
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <DodaMonitoringTable dodas={dodas} />
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {queryResults.length > 0 ? (
           <DodaResultsTable items={queryResults} />
         ) : null}

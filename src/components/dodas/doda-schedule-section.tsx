@@ -350,10 +350,10 @@ export function DodaScheduleSection({
         <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
           Acción recomendada
         </p>
-        <h2 className="mt-1 text-xl font-medium tracking-tight text-slate-900 sm:text-2xl">
+        <h2 className="mt-1 text-lg font-medium tracking-tight text-slate-900 sm:text-2xl">
           Programar DODA
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
           Monitorea uno o varios números de integración de forma continua. El
           sistema consultará el SAT cada 3 minutos y te avisará si cambia el
           estatus.

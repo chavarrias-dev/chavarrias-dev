@@ -14,6 +14,9 @@ import {
   formatDodaDateTime,
   getDodaConfirmationDate,
 } from "@/components/dodas/doda-display-utils";
+import { DodaResolvedMobileCard } from "@/components/dodas/doda-resolved-mobile-card";
+import { DodaDesktopTable, DodaMobileStack } from "@/components/dodas/doda-mobile-ui";
+import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 import {
   UNASSIGNED_CLIENT_LABEL,
   type DodaDashboardRow,
@@ -51,7 +54,7 @@ export function DodaLatestResultsSection({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2">
           <Clock className="size-4 text-slate-400" aria-hidden />
           <h2 className="text-base font-medium tracking-tight text-slate-900">
@@ -61,11 +64,13 @@ export function DodaLatestResultsSection({
       </div>
 
       {latestResolved.length === 0 ? (
-        <p className="px-5 py-8 text-sm text-slate-500 sm:px-6">
+        <p className="px-4 py-6 text-sm text-slate-500 sm:px-6 sm:py-8">
           Aún no hay resultados confirmados.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        <DodaDesktopTable>
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
           <table className={DODA_TABLE_CLASS}>
             <thead>
               <tr className={DODA_TABLE_HEAD_ROW_CLASS}>
@@ -127,9 +132,22 @@ export function DodaLatestResultsSection({
             </tbody>
           </table>
         </div>
+        </DodaDesktopTable>
+
+        <DodaMobileStack>
+          {latestResolved.map((doda) => (
+            <DodaResolvedMobileCard
+              key={doda.id}
+              doda={doda}
+              compact
+              onViewDetail={openDetail}
+            />
+          ))}
+        </DodaMobileStack>
+        </>
       )}
 
-      <div className="border-t border-slate-100 px-5 py-3 sm:px-6">
+      <div className="border-t border-slate-100 px-4 py-3 sm:px-6">
         <Link
           href="/dashboard/doda/history"
           className="text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
