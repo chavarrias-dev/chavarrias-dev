@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Download, Share2, X } from "lucide-react";
+import { PWA_APP_ICON_URL } from "@/lib/pwa-app-icon";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -108,13 +108,14 @@ export function InstallPrompt() {
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-2xl shadow-slate-900/15 backdrop-blur-md transition-all duration-300 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#227DE8] to-[#1456A8] p-1.5 shadow-sm ring-1 ring-black/5">
-              <Image
-                src="/icons/icon-96x96.png"
+            <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={PWA_APP_ICON_URL}
                 alt="Chavarrias CRM"
-                width={40}
-                height={40}
-                className="size-full object-contain"
+                width={44}
+                height={44}
+                className="size-full object-cover"
               />
             </div>
             <div className="min-w-0">

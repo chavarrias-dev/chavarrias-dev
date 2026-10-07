@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
+import {
+  PWA_APP_ICON_TYPE,
+  PWA_APP_ICON_URL,
+} from "@/lib/pwa-app-icon";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -18,7 +22,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Chavarrias CRM",
   description: "CRM de Chavarrias Servicios Aduanales SA de CV",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -26,11 +29,23 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      {
+        url: PWA_APP_ICON_URL,
+        sizes: "192x192",
+        type: PWA_APP_ICON_TYPE,
+      },
+      {
+        url: PWA_APP_ICON_URL,
+        sizes: "512x512",
+        type: PWA_APP_ICON_TYPE,
+      },
     ],
     apple: [
-      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      {
+        url: PWA_APP_ICON_URL,
+        sizes: "180x180",
+        type: PWA_APP_ICON_TYPE,
+      },
     ],
   },
 };
