@@ -29,6 +29,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { clients, facturas, pedimentos } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+} from "@/lib/dashboard-layout";
 
 type Profile = {
   id: string;
@@ -354,7 +358,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="w-full flex-1 px-6 py-8 lg:px-10">
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
       {resolvedRole === "cliente" ? (
         <PendingDocsAlert
           userId={user.id}
@@ -374,7 +378,7 @@ export default async function DashboardPage() {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-medium tracking-tight text-slate-900 sm:text-[1.65rem]">
+            <h1 className={`${DASHBOARD_PAGE_TITLE_CLASS} sm:text-[1.65rem]`}>
               Hola, {welcomeName}
             </h1>
             <RoleBadge role={userRole} />
@@ -390,22 +394,22 @@ export default async function DashboardPage() {
           </p>
         </div>
         {isStaff ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Link
               href="/dashboard/users/new"
-              className="btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+              className="btn-primary-motion inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:w-auto"
             >
               Nuevo usuario
             </Link>
             <Link
               href="/dashboard/facturas/new"
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5 sm:w-auto"
             >
               Nueva factura
             </Link>
             <Link
               href="/dashboard/pedimentos/new"
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5 sm:w-auto"
             >
               Nuevo pedimento
             </Link>

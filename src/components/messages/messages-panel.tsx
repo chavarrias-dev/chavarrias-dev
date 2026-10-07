@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessageSquarePlus, Search, Send, X } from "lucide-react";
+import { ArrowLeft, MessageSquarePlus, Search, Send, X } from "lucide-react";
 import {
   markConversationAsRead,
   sendMessage,
@@ -277,12 +277,20 @@ export function MessagesPanel({
     selectConversation(partnerId);
   };
 
+  const showConversation = Boolean(selectedPartnerId && selectedPartner);
+
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] min-h-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <aside className="flex w-full max-w-sm flex-col border-r border-slate-200 bg-slate-50/60 md:w-80">
-        <div className="border-b border-slate-200 bg-white px-4 py-4">
+    <div className="flex h-[calc(100dvh-7rem)] min-h-[480px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:h-[calc(100vh-8.5rem)] md:min-h-[560px]">
+      <aside
+        className={`flex w-full shrink-0 flex-col border-r border-slate-200 bg-slate-50/60 md:w-80 lg:w-96 ${
+          showConversation ? "hidden md:flex" : "flex"
+        }`}
+      >
+        <div className="border-b border-slate-200 bg-white px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-lg font-medium text-slate-900">Mensajes</h1>
+            <h1 className="text-base font-semibold text-slate-900 sm:text-lg">
+              Mensajes
+            </h1>
             <button
               type="button"
               onClick={() => setShowNewConversation((prev) => !prev)}
@@ -383,29 +391,34 @@ export function MessagesPanel({
         </div>
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
-        {selectedPartnerId && selectedPartner ? (
+      <section
+        className={`min-w-0 flex-1 flex-col bg-[#f8fafc] ${
+          showConversation ? "flex" : "hidden md:flex"
+        }`}
+      >
+        {showConversation && selectedPartner ? (
           <>
-            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-              <div>
-                <h2 className="text-base font-medium text-slate-900">
-                  {displayName(selectedPartner)}
-                </h2>
-                <p className="text-xs capitalize text-slate-500">
-                  {selectedPartner.role ?? "usuario"}
-                </p>
-              </div>
+            <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedPartnerId(null);
                   router.replace("/dashboard/messages", { scroll: false });
                 }}
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 md:hidden"
-                aria-label="Cerrar conversación"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 md:hidden active:scale-95"
+                aria-label="Volver a la lista de conversaciones"
+                title="Volver"
               >
-                <X className="size-5" />
+                <ArrowLeft className="size-4" />
               </button>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-sm font-semibold text-slate-900 sm:text-base">
+                  {displayName(selectedPartner)}
+                </h2>
+                <p className="truncate text-xs capitalize text-slate-500">
+                  {selectedPartner.role ?? "usuario"}
+                </p>
+              </div>
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-6">

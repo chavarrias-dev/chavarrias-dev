@@ -6,6 +6,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DeleteUserButton } from "./delete-user-button";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+  DASHBOARD_TABLE_SCROLL_CLASS,
+} from "@/lib/dashboard-layout";
 
 type ProfileRow = {
   id: string;
@@ -49,19 +54,17 @@ export default async function UsersListPage({ searchParams }: PageProps) {
   const listError = sp.error ? decodeURIComponent(sp.error) : undefined;
 
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-            Usuarios
-          </h1>
+          <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Usuarios</h1>
           <p className="mt-1.5 text-sm text-slate-500">
             Cuentas del CRM vinculadas a Supabase Auth.
           </p>
         </div>
         <Link
           href="/dashboard/users/new"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+          className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:w-auto"
         >
           Nuevo usuario
         </Link>
@@ -80,7 +83,7 @@ export default async function UsersListPage({ searchParams }: PageProps) {
       ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">

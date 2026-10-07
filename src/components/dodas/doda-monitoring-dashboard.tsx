@@ -16,6 +16,7 @@ import {
   type ClientDodaGroup,
   type DodaDashboardRow,
 } from "@/lib/doda-dashboard-categories";
+import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 
 type DodaMonitoringDashboardProps = {
   dodas: DodaDashboardRow[];
@@ -355,7 +356,7 @@ function GroupedDodaTable({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
         <div>
           <h2 className="text-base font-medium tracking-tight text-slate-900">
             {title}
@@ -368,7 +369,7 @@ function GroupedDodaTable({
       {groups.length === 0 ? (
         <p className="px-5 py-8 text-sm text-slate-500 sm:px-6">{emptyMessage}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
           <table className="w-full min-w-[520px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">

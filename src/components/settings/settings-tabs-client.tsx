@@ -74,7 +74,7 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
 
   return (
     <div>
-      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div className="mb-6 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-slate-200 pb-px [-webkit-overflow-scrolling:touch]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -96,7 +96,7 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
         })}
       </div>
 
-      <div className="max-w-2xl space-y-6">
+      <div className="max-w-2xl min-w-0 space-y-6">
         {activeTab === "perfil" ? (
           <ProfileSection
             initialFullName={props.initialFullName}

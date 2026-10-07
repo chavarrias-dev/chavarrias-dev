@@ -6,7 +6,7 @@ import {
 
 export default function PedimentosLoading() {
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
+    <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <SkeletonLine className="mb-2 h-8 w-44 max-w-[90vw]" />

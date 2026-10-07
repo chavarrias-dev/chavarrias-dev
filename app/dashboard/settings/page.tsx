@@ -2,6 +2,10 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { SettingsTabsClient } from "@/components/settings/settings-tabs-client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+} from "@/lib/dashboard-layout";
 
 type SettingsProfileRow = {
   full_name: string | null;
@@ -34,11 +38,9 @@ export default async function SettingsPage() {
   const isAdmin = profile?.role === "admin";
 
   return (
-    <main className="w-full flex-1 px-6 py-8 lg:px-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-          Configuración
-        </h1>
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
+      <div className="mb-6 sm:mb-8">
+        <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Configuración</h1>
         <p className="mt-1.5 text-sm text-slate-500">
           Administra tu cuenta, seguridad y notificaciones.
         </p>

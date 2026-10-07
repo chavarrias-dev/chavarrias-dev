@@ -346,7 +346,7 @@ export function DodaScheduleSection({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[#227DE8]/25 bg-white shadow-sm">
-      <div className="border-b border-[#227DE8]/15 bg-gradient-to-br from-[#227DE8]/8 via-white to-white px-5 py-5 sm:px-6 sm:py-6">
+      <div className="border-b border-[#227DE8]/15 bg-gradient-to-br from-[#227DE8]/8 via-white to-white px-4 py-5 sm:px-6 sm:py-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
           Acción recomendada
         </p>
@@ -368,7 +368,7 @@ export function DodaScheduleSection({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
+        <div className="space-y-4 px-4 py-5 sm:px-6 sm:py-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label

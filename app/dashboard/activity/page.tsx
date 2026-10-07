@@ -2,6 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+  DASHBOARD_TABLE_SCROLL_CLASS,
+} from "@/lib/dashboard-layout";
 
 type ActivityRow = {
   id: string;
@@ -37,19 +42,17 @@ export default async function ActivityLogPage() {
   const logs = (rows ?? []) as ActivityRow[];
 
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-            Actividad
-          </h1>
+          <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Actividad</h1>
           <p className="mt-1.5 text-sm text-slate-500">
             Últimos 50 registros del sistema.
           </p>
         </div>
         <Link
           href="/dashboard"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50"
+          className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50 sm:w-auto"
         >
           Volver al inicio
         </Link>
@@ -62,7 +65,7 @@ export default async function ActivityLogPage() {
       ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">

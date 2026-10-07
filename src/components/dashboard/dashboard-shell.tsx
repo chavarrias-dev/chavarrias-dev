@@ -175,6 +175,17 @@ export function DashboardShell({
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!mobileOpen) {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen]);
+
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
       const next = !prev;
@@ -405,7 +416,7 @@ export function DashboardShell({
   );
 
   return (
-    <div className="font-poppins flex h-screen overflow-hidden bg-white">
+    <div className="font-poppins flex h-dvh min-h-0 overflow-hidden bg-white">
       {/* Mobile Backdrop */}
       {mobileOpen ? (
         <div
@@ -435,8 +446,8 @@ export function DashboardShell({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-2.5 sm:px-6 sm:py-3">
-          <div className="flex items-center gap-3">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
@@ -457,7 +468,9 @@ export function DashboardShell({
               />
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">{alerts}</div>
+          <div className="ml-auto flex min-w-0 shrink items-center justify-end gap-1 sm:gap-2">
+            {alerts}
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto">

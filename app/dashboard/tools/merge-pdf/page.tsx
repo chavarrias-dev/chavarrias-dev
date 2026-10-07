@@ -18,7 +18,7 @@ export default async function MergePdfPage() {
   }
 
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
+    <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <div className="mb-8">
         <Link
           href="/dashboard"

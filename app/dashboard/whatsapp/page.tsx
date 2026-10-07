@@ -4,6 +4,7 @@ import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
 import type { WhatsAppMessageRecord } from "@/lib/whatsapp";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { DASHBOARD_CHAT_MAIN_CLASS } from "@/lib/dashboard-layout";
 
 const WHATSAPP_MESSAGE_SELECT =
   "id, wa_message_id, from_number, to_number, message, direction, status, client_id, created_at";
@@ -40,7 +41,7 @@ export default async function WhatsAppPage() {
   }[];
 
   return (
-    <main className="font-poppins w-full flex-1 px-4 py-6 lg:px-8">
+    <main className={DASHBOARD_CHAT_MAIN_CLASS}>
       <Suspense
         fallback={
           <div className="flex h-[calc(100vh-8.5rem)] items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">

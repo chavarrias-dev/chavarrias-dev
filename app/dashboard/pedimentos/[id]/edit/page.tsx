@@ -73,7 +73,7 @@ export default async function EditPedimentoPage({
 
   if (clients.length === 0) {
     return (
-      <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
+      <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
         <div className="mx-auto max-w-xl rounded-2xl border border-amber-200/90 bg-amber-50/80 px-5 py-8 text-center">
           <p className="text-sm text-amber-950">
             Necesitas al menos un cliente asignado.
@@ -101,7 +101,7 @@ export default async function EditPedimentoPage({
     : undefined;
 
   return (
-    <main className="w-full flex-1 px-6 py-8 lg:px-10">
+    <main className="w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <EditPedimentoForm
         pedimento={{
           id: p.id,

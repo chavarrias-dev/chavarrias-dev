@@ -6,6 +6,10 @@ import { DodaPageLayout } from "@/components/dodas/doda-page-layout";
 import { fetchDodaDashboardRows } from "@/lib/doda-dashboard-data";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+} from "@/lib/dashboard-layout";
 
 export default async function DodasPage() {
   const supabase = await createSupabaseServerClient();
@@ -31,15 +35,13 @@ export default async function DodasPage() {
   const isAdmin = role === "admin";
 
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
       <Suspense fallback={null}>
         <DodaHighlightOnQuery dodaIds={dodas.map((doda) => doda.id)} />
       </Suspense>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-          DODA
-        </h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>DODA</h1>
         <p className="mt-1.5 text-sm text-slate-500">
           Programa monitoreo continuo o realiza una consulta puntual en el
           validador QR del SAT.

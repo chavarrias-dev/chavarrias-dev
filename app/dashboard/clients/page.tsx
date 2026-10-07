@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { DeleteClientForm } from "@/components/clients/delete-client-form";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+} from "@/lib/dashboard-layout";
 
 type ClientRow = {
   id: string;
@@ -46,12 +50,10 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
   const rows = (clients ?? []) as ClientRow[];
 
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight text-slate-900">
-            Clientes
-          </h1>
+          <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Clientes</h1>
           <p className="mt-1.5 text-sm text-slate-500">
             Listado de clientes registrados en el CRM.
           </p>
@@ -59,7 +61,7 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
         {isAdmin ? (
           <Link
             href="/dashboard/users/new"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:w-auto"
           >
             Agregar usuario
           </Link>

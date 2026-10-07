@@ -5,7 +5,7 @@ import {
 
 export default function DashboardLoading() {
   return (
-    <main className="font-poppins w-full flex-1 px-6 py-8 lg:px-10">
+    <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">

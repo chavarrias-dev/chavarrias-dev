@@ -22,7 +22,7 @@ export function DodaToolsSection({ clients, isAdmin }: DodaToolsSectionProps) {
         <button
           type="button"
           onClick={() => setConsultOpen((open) => !open)}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-slate-50/80 sm:px-6"
+          className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition hover:bg-slate-50/80 sm:px-6"
         >
           <div className="flex items-start gap-3">
             <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600">
@@ -46,7 +46,7 @@ export function DodaToolsSection({ clients, isAdmin }: DodaToolsSectionProps) {
         </button>
 
         {consultOpen ? (
-          <div className="border-t border-slate-100 px-5 pb-5 sm:px-6 sm:pb-6">
+          <div className="border-t border-slate-100 px-4 pb-5 sm:px-6 sm:pb-6">
             <DodaLookupUploader clients={clients} variant="secondary" />
           </div>
         ) : null}
