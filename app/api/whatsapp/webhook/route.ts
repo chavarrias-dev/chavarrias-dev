@@ -1,117 +1,157 @@
 import { after } from "next/server";
 import { NextResponse } from "next/server";
+import { processWhatsAppDodaMedia } from "@/lib/whatsapp-doda";
 import {
   applyWhatsAppStatusUpdate,
-  extractWhatsAppIncomingMedia,
-  extractWhatsAppIncomingMessages,
-  extractWhatsAppStatusUpdates,
-  getWhatsAppBusinessAccountId,
-  getWhatsAppPhoneNumberId,
+  parseTwilioWhatsAppAddress,
   saveIncomingWhatsAppMessage,
   sendWhatsAppMessage,
-  verifyWhatsAppWebhook,
+  type WhatsAppIncomingMedia,
 } from "@/lib/whatsapp";
-import { processWhatsAppDodaMedia } from "@/lib/whatsapp-doda";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-type WhatsAppWebhookBody = Parameters<typeof extractWhatsAppIncomingMedia>[0];
+const EMPTY_TWIML =
+  '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 
-export async function GET(req: Request) {
-  const challenge = verifyWhatsAppWebhook(new URL(req.url).searchParams);
-  if (!challenge) {
-    return new Response("Forbidden", { status: 403 });
-  }
-
-  return new Response(challenge, {
+function twimlResponse() {
+  return new Response(EMPTY_TWIML, {
     status: 200,
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "text/xml" },
   });
 }
 
+function inferFilename(
+  kind: "image" | "document",
+  mimeType: string,
+): string {
+  if (kind === "document" && mimeType === "application/pdf") {
+    return "doda.pdf";
+  }
+  if (mimeType === "image/png") return "doda.png";
+  if (mimeType === "image/webp") return "doda.webp";
+  return "doda.jpg";
+}
+
+function extractTwilioMedia(
+  formData: FormData,
+  from: string,
+  messageSid: string,
+): WhatsAppIncomingMedia[] {
+  const numMedia = Number.parseInt(String(formData.get("NumMedia") ?? "0"), 10);
+  if (!Number.isFinite(numMedia) || numMedia <= 0) {
+    return [];
+  }
+
+  const results: WhatsAppIncomingMedia[] = [];
+
+  for (let index = 0; index < numMedia; index += 1) {
+    const mediaUrl = String(formData.get(`MediaUrl${index}`) ?? "").trim();
+    const contentType = String(
+      formData.get(`MediaContentType${index}`) ?? "",
+    ).trim();
+    if (!mediaUrl) {
+      continue;
+    }
+
+    const mimeType = contentType || "application/octet-stream";
+    const isImage = mimeType.startsWith("image/");
+    const isPdf = mimeType === "application/pdf";
+    if (!isImage && !isPdf) {
+      continue;
+    }
+
+    const kind: "image" | "document" = isImage ? "image" : "document";
+    results.push({
+      messageId: `${messageSid}-${index}`,
+      from,
+      mediaId: mediaUrl,
+      mimeType,
+      filename: inferFilename(kind, mimeType),
+      kind,
+    });
+  }
+
+  return results;
+}
+
+/** Twilio does not use GET verification (legacy Meta hub challenge). */
+export async function GET() {
+  return NextResponse.json({ ok: true, provider: "twilio" });
+}
+
 export async function POST(req: Request) {
-  let body: WhatsAppWebhookBody;
+  let formData: FormData;
   try {
-    body = (await req.json()) as WhatsAppWebhookBody;
+    formData = await req.formData();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
   }
 
-  const mediaMessages = extractWhatsAppIncomingMedia(body);
-  const incomingMessages = extractWhatsAppIncomingMessages(body);
-  const statusUpdates = extractWhatsAppStatusUpdates(body);
+  const messageSid = String(formData.get("MessageSid") ?? "").trim();
+  const messageStatus = String(formData.get("MessageStatus") ?? "").trim();
+  const fromRaw = String(formData.get("From") ?? "");
+  const toRaw = String(formData.get("To") ?? "");
+  const body = String(formData.get("Body") ?? "");
 
-  const configuredWaba = getWhatsAppBusinessAccountId();
-  let configuredPhoneNumberId: string | null = null;
-  try {
-    configuredPhoneNumberId = getWhatsAppPhoneNumberId();
-  } catch {
-    configuredPhoneNumberId = null;
-  }
-
-  for (const entry of body.entry ?? []) {
-    if (configuredWaba && entry.id && entry.id !== configuredWaba) {
-      console.warn("[whatsapp-webhook] WABA id mismatch", {
-        received: entry.id,
-        expected: configuredWaba,
+  if (messageSid && messageStatus && !fromRaw) {
+    after(async () => {
+      await applyWhatsAppStatusUpdate({
+        waMessageId: messageSid,
+        status: messageStatus,
       });
-    }
-    for (const change of entry.changes ?? []) {
-      const phoneNumberId = change.value?.metadata?.phone_number_id;
-      if (
-        configuredPhoneNumberId &&
-        phoneNumberId &&
-        phoneNumberId !== configuredPhoneNumberId
-      ) {
-        console.warn("[whatsapp-webhook] phone_number_id mismatch", {
-          received: phoneNumberId,
-          expected: configuredPhoneNumberId,
-        });
-      }
-    }
+    });
+    return twimlResponse();
   }
+
+  const from = parseTwilioWhatsAppAddress(fromRaw);
+  const to = parseTwilioWhatsAppAddress(toRaw);
+
+  if (!messageSid || !from) {
+    return NextResponse.json(
+      { error: "Missing MessageSid or From" },
+      { status: 400 },
+    );
+  }
+
+  const mediaMessages = extractTwilioMedia(formData, from, messageSid);
+  const incomingText =
+    body.trim() ||
+    (mediaMessages.length > 0
+      ? mediaMessages[0]!.kind === "image"
+        ? "📷 Imagen"
+        : "📄 Documento"
+      : "");
 
   after(async () => {
-    for (const incoming of incomingMessages) {
-      await saveIncomingWhatsAppMessage(incoming);
-    }
-
-    for (const update of statusUpdates) {
-      await applyWhatsAppStatusUpdate(update);
-    }
+    await saveIncomingWhatsAppMessage({
+      messageId: messageSid,
+      from,
+      to: to || null,
+      text: incomingText,
+      type: mediaMessages.length > 0 ? "media" : "text",
+    });
 
     for (const media of mediaMessages) {
       await processWhatsAppDodaMedia(media);
     }
 
-    const plainTextSenders = new Set<string>();
-    for (const entry of body.entry ?? []) {
-      for (const change of entry.changes ?? []) {
-        for (const message of change.value?.messages ?? []) {
-          const from = message.from?.trim();
-          if (!from || message.type === "image" || message.type === "document") {
-            continue;
-          }
-          if (!plainTextSenders.has(from)) {
-            plainTextSenders.add(from);
-            try {
-              await sendWhatsAppMessage(
-                from,
-                [
-                  "Hola 👋",
-                  "",
-                  "Para consultar un DODA en el SAT, envíanos el archivo como *imagen* o *PDF* con el código QR visible.",
-                ].join("\n"),
-              );
-            } catch (error) {
-              console.error("[whatsapp-webhook] reply failed", from, error);
-            }
-          }
-        }
+    if (mediaMessages.length === 0 && body.trim()) {
+      try {
+        await sendWhatsAppMessage(
+          from,
+          [
+            "Hola 👋",
+            "",
+            "Para consultar un DODA en el SAT, envíanos el archivo como *imagen* o *PDF* con el código QR visible.",
+          ].join("\n"),
+        );
+      } catch (error) {
+        console.error("[whatsapp-webhook] reply failed", from, error);
       }
     }
   });
 
-  return NextResponse.json({ ok: true });
+  return twimlResponse();
 }

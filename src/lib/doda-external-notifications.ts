@@ -11,7 +11,7 @@ import {
   normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
 import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
-import { sendWhatsAppTextMessage } from "@/lib/whatsapp";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
 export type DodaResolvedNotificationInput = {
   dodaId: string;
@@ -256,7 +256,7 @@ export async function sendDodaResolvedExternalNotifications(
   if (whatsAppTo) {
     attemptCount += 1;
     try {
-      await sendWhatsAppTextMessage(
+      await sendWhatsAppMessage(
         whatsAppTo,
         buildDodaLiberatedWhatsAppMessage({
           integrationNumber: input.integrationNumber,
