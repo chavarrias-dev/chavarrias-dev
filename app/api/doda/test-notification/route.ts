@@ -10,12 +10,12 @@ import {
 } from "@/lib/doda-notification-config";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendDodaLiberadoWhatsApp } from "@/lib/twilio";
 
 export const runtime = "nodejs";
 
-function buildTestWhatsAppMessage(): string {
-  const fecha = new Date(normalizeDodaTimestamp(new Date().toISOString())).toLocaleString(
+function buildTestTemplateFecha(): string {
+  return new Date(normalizeDodaTimestamp(new Date().toISOString())).toLocaleString(
     "es-MX",
     {
       timeZone: DODA_DISPLAY_TIMEZONE,
@@ -26,21 +26,6 @@ function buildTestWhatsAppMessage(): string {
       minute: "2-digit",
     },
   );
-
-  return [
-    "🧪 *Mensaje de prueba - Chavarrias CRM*",
-    "",
-    "✅ Las notificaciones de DODA están configuradas correctamente.",
-    "",
-    "Cuando un DODA sea liberado recibirás un mensaje como este:",
-    "",
-    "🟢 *DODA Liberado*",
-    "Número: *149066025*",
-    "📋 Pedimento: 300-1754-6003278/6",
-    `📅 ${fecha}`,
-    "",
-    "_Chavarrias Servicios Aduanales_",
-  ].join("\n");
 }
 
 type TestBody = {
@@ -105,18 +90,23 @@ export async function POST(req: Request) {
   }
 
   try {
-    const saved = await sendWhatsAppMessage(to, buildTestWhatsAppMessage());
-    if (!saved) {
+    const result = await sendDodaLiberadoWhatsApp({
+      to,
+      integracion: "149066025",
+      pedimento: "300-1754-6003278/6",
+      fecha: buildTestTemplateFecha(),
+    });
+    if (!result.record) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "El mensaje se envió pero no se pudo guardar en el historial de WhatsApp",
+            "La plantilla se envió pero no se pudo guardar en el historial de WhatsApp",
         },
         { status: 500 },
       );
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, sid: result.sid });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error al enviar WhatsApp";

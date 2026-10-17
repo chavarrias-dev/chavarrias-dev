@@ -11,7 +11,7 @@ import {
   normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
 import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendDodaLiberadoWhatsApp } from "@/lib/twilio";
 
 export type DodaResolvedNotificationInput = {
   dodaId: string;
@@ -256,15 +256,12 @@ export async function sendDodaResolvedExternalNotifications(
   if (whatsAppTo) {
     attemptCount += 1;
     try {
-      await sendWhatsAppMessage(
-        whatsAppTo,
-        buildDodaLiberatedWhatsAppMessage({
-          integrationNumber: input.integrationNumber,
-          pedimento: doda?.pedimento ?? null,
-          tipoPedimento: doda?.tipo_pedimento ?? null,
-          changedAt: input.changedAt,
-        }),
-      );
+      await sendDodaLiberadoWhatsApp({
+        to: whatsAppTo,
+        integracion: input.integrationNumber,
+        pedimento: doda?.pedimento?.trim() || "N/A",
+        fecha: formatChangedAt(input.changedAt),
+      });
       successCount += 1;
     } catch (error) {
       const message =

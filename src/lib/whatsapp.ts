@@ -1,8 +1,13 @@
 import "server-only";
 
-import twilio from "twilio";
 import { findClientIdByPhone } from "@/lib/phone-match";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  formatTwilioWhatsAppTo,
+  getTwilioClient,
+  getTwilioWhatsAppFrom,
+  TwilioConfigError,
+} from "@/lib/twilio";
 
 /** Placeholder for "our side" of a conversation — the UI only displays the counterpart's number. */
 const OUR_NUMBER_PLACEHOLDER = "business";
@@ -14,47 +19,14 @@ export class WhatsAppConfigError extends Error {
   }
 }
 
-function getTwilioAccountSid(): string {
-  const sid = process.env.TWILIO_ACCOUNT_SID?.trim();
-  if (!sid) {
-    throw new WhatsAppConfigError("TWILIO_ACCOUNT_SID is not configured");
-  }
-  return sid;
-}
-
-function getTwilioAuthToken(): string {
-  const token = process.env.TWILIO_AUTH_TOKEN?.trim();
-  if (!token) {
-    throw new WhatsAppConfigError("TWILIO_AUTH_TOKEN is not configured");
-  }
-  return token;
-}
-
-function getTwilioWhatsAppFrom(): string {
-  const from = process.env.TWILIO_WHATSAPP_NUMBER?.trim();
-  if (!from) {
-    throw new WhatsAppConfigError("TWILIO_WHATSAPP_NUMBER is not configured");
-  }
-  return from.startsWith("whatsapp:") ? from : `whatsapp:${from}`;
-}
-
-function getTwilioClient() {
-  return twilio(getTwilioAccountSid(), getTwilioAuthToken());
-}
+export { TwilioConfigError };
 
 /** Strips `whatsapp:+` prefix; returns digits only (e.g. 5218994214152). */
 export function parseTwilioWhatsAppAddress(value: string): string {
   return value.replace(/^whatsapp:/i, "").replace(/\D/g, "");
 }
 
-/** Formats stored digits for Twilio API (`whatsapp:+528994214152`). */
-export function formatTwilioWhatsAppTo(to: string): string {
-  const digits = to.replace(/\D/g, "");
-  if (!digits) {
-    throw new WhatsAppConfigError("Número de WhatsApp destino inválido");
-  }
-  return `whatsapp:+${digits}`;
-}
+export { formatTwilioWhatsAppTo };
 
 export type WhatsAppMediaDownload = {
   buffer: Buffer;
@@ -74,8 +46,11 @@ export async function downloadWhatsAppMedia(
     );
   }
 
-  const sid = getTwilioAccountSid();
-  const token = getTwilioAuthToken();
+  const sid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const token = process.env.TWILIO_AUTH_TOKEN?.trim();
+  if (!sid || !token) {
+    throw new WhatsAppConfigError("Credenciales Twilio no configuradas");
+  }
   const auth = Buffer.from(`${sid}:${token}`).toString("base64");
 
   const fileRes = await fetch(mediaRef, {
