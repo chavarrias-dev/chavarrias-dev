@@ -79,13 +79,34 @@ export async function sendWhatsAppTextMessage(
   to: string,
   body: string,
 ): Promise<string | null> {
-  const client = getTwilioClient();
-  const result = await client.messages.create({
-    from: getTwilioWhatsAppFrom(),
-    to: formatTwilioWhatsAppTo(to),
-    body,
-  });
-  return result.sid ?? null;
+  const toFormatted = formatTwilioWhatsAppTo(to);
+  const from = getTwilioWhatsAppFrom();
+  console.log("[twilio] Attempting to send to:", toFormatted);
+  console.log("[twilio] sendWhatsAppTextMessage from:", from);
+
+  try {
+    const client = getTwilioClient();
+    const result = await client.messages.create({
+      from,
+      to: toFormatted,
+      body,
+    });
+    console.log(
+      "[twilio] Response:",
+      JSON.stringify({
+        sid: result.sid,
+        status: result.status,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        to: result.to,
+        from: result.from,
+      }),
+    );
+    return result.sid ?? null;
+  } catch (error) {
+    console.error("[twilio] Error:", error);
+    throw error;
+  }
 }
 
 export type WhatsAppIncomingMedia = {
@@ -186,6 +207,7 @@ export async function sendWhatsAppMessage(
   to: string,
   message: string,
 ): Promise<WhatsAppMessageRecord | null> {
+  console.log("[twilio] sendWhatsAppMessage to (raw):", to);
   const waMessageId = await sendWhatsAppTextMessage(to, message);
 
   const supabase = createSupabaseAdminClient();

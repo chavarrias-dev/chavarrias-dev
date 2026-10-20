@@ -12,10 +12,19 @@ export class TwilioConfigError extends Error {
   }
 }
 
+/** Expected Content Template SID for `doda_liberado` (verify in env matches Twilio Console). */
+export const EXPECTED_DODA_CONTENT_SID =
+  "HX7f0f7b4521fd38bd37fa33cf2b8e3a0f";
+
 export function getTwilioAccountSid(): string {
   const sid = process.env.TWILIO_ACCOUNT_SID?.trim();
   if (!sid) {
     throw new TwilioConfigError("TWILIO_ACCOUNT_SID is not configured");
+  }
+  if (sid.startsWith("SK")) {
+    console.warn(
+      "[twilio] TWILIO_ACCOUNT_SID starts with SK — use the Account SID (AC…), not an API Key SID",
+    );
   }
   return sid;
 }
@@ -78,6 +87,40 @@ export type SendDodaLiberadoWhatsAppResult = {
   record: WhatsAppMessageRecord | null;
 };
 
+function serializeTwilioMessage(result: unknown): string {
+  if (!result || typeof result !== "object") {
+    return JSON.stringify(result);
+  }
+  const row = result as Record<string, unknown>;
+  return JSON.stringify({
+    sid: row.sid,
+    status: row.status,
+    errorCode: row.errorCode,
+    errorMessage: row.errorMessage,
+    to: row.to,
+    from: row.from,
+    dateCreated: row.dateCreated,
+    messagingServiceSid: row.messagingServiceSid,
+    numSegments: row.numSegments,
+  });
+}
+
+function logTwilioError(error: unknown): void {
+  console.error("[twilio] Error:", error);
+  if (error && typeof error === "object") {
+    const row = error as Record<string, unknown>;
+    console.error(
+      "[twilio] Error details:",
+      JSON.stringify({
+        code: row.code,
+        message: row.message,
+        moreInfo: row.moreInfo,
+        status: row.status,
+      }),
+    );
+  }
+}
+
 function buildDodaLiberadoLogMessage(input: SendDodaLiberadoWhatsAppInput): string {
   return [
     "🟢 DODA Liberado (plantilla doda_liberado)",
@@ -93,7 +136,8 @@ function buildDodaLiberadoLogMessage(input: SendDodaLiberadoWhatsAppInput): stri
 export async function sendDodaLiberadoWhatsApp(
   input: SendDodaLiberadoWhatsAppInput,
 ): Promise<SendDodaLiberadoWhatsAppResult> {
-  const client = getTwilioClient();
+  const accountSid = getTwilioAccountSid();
+  const from = getTwilioWhatsAppFrom();
   const contentSid = getTwilioTemplateDodaSid();
   const to = formatTwilioWhatsAppTo(input.to);
 
@@ -103,12 +147,32 @@ export async function sendDodaLiberadoWhatsApp(
     "3": input.fecha,
   });
 
-  const result = await client.messages.create({
-    from: getTwilioWhatsAppFrom(),
-    to,
+  console.log("[twilio] sendDodaLiberadoWhatsApp config", {
+    accountSid,
+    from,
     contentSid,
-    contentVariables,
+    expectedContentSid: EXPECTED_DODA_CONTENT_SID,
+    contentSidMatchesExpected: contentSid === EXPECTED_DODA_CONTENT_SID,
+    toRaw: input.to,
+    toFormatted: to,
   });
+  console.log("[twilio] Attempting to send to:", to);
+  console.log("[twilio] contentVariables:", contentVariables);
+
+  let result;
+  try {
+    const client = getTwilioClient();
+    result = await client.messages.create({
+      from,
+      to,
+      contentSid,
+      contentVariables,
+    });
+    console.log("[twilio] Response:", serializeTwilioMessage(result));
+  } catch (error) {
+    logTwilioError(error);
+    throw error;
+  }
 
   const sid = result.sid;
   if (!sid) {
