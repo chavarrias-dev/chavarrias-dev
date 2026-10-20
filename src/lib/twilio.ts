@@ -46,11 +46,47 @@ export function getTwilioWhatsAppFrom(): string {
 }
 
 export function getTwilioTemplateDodaSid(): string {
-  const sid = process.env.TWILIO_TEMPLATE_DODA_SID?.trim();
+  const sid =
+    process.env.TWILIO_TEMPLATE_DODA_SID?.trim() ||
+    EXPECTED_DODA_CONTENT_SID;
   if (!sid) {
     throw new TwilioConfigError("TWILIO_TEMPLATE_DODA_SID is not configured");
   }
+  if (sid !== EXPECTED_DODA_CONTENT_SID) {
+    console.warn(
+      "[twilio] TWILIO_TEMPLATE_DODA_SID differs from expected doda_liberado SID",
+      { configured: sid, expected: EXPECTED_DODA_CONTENT_SID },
+    );
+  }
   return sid;
+}
+
+/** Required for WhatsApp template (ContentSid) sends — Messaging → Services in Console. */
+export function getTwilioMessagingServiceSid(): string {
+  const sid = process.env.TWILIO_MESSAGING_SERVICE_SID?.trim();
+  if (!sid) {
+    throw new TwilioConfigError(
+      "TWILIO_MESSAGING_SERVICE_SID is not configured (required for WhatsApp templates)",
+    );
+  }
+  if (!sid.startsWith("MG")) {
+    console.warn(
+      "[twilio] TWILIO_MESSAGING_SERVICE_SID should start with MG",
+    );
+  }
+  return sid;
+}
+
+export function buildDodaLiberadoContentVariables(input: {
+  numeroIntegracion: string;
+  pedimento: string;
+  fecha: string;
+}): string {
+  return JSON.stringify({
+    "1": input.numeroIntegracion,
+    "2": input.pedimento,
+    "3": input.fecha,
+  });
 }
 
 export function getTwilioClient() {
@@ -265,22 +301,28 @@ export async function sendDodaLiberadoWhatsApp(
   input: SendDodaLiberadoWhatsAppInput,
 ): Promise<SendDodaLiberadoWhatsAppResult> {
   const accountSid = getTwilioAccountSid();
-  const from = getTwilioWhatsAppFrom();
+  const messagingServiceSid = getTwilioMessagingServiceSid();
   const contentSid = getTwilioTemplateDodaSid();
   const to = formatTwilioWhatsAppTo(input.to);
 
-  const contentVariables = JSON.stringify({
-    "1": input.integracion,
-    "2": input.pedimento,
-    "3": input.fecha,
+  const contentVariables = buildDodaLiberadoContentVariables({
+    numeroIntegracion: input.integracion,
+    pedimento: input.pedimento,
+    fecha: input.fecha,
   });
+
+  const templateConfiguredInEnv = Boolean(
+    process.env.TWILIO_TEMPLATE_DODA_SID?.trim(),
+  );
 
   console.log("[twilio] sendDodaLiberadoWhatsApp config", {
     accountSid,
-    from,
+    messagingServiceSid,
     contentSid,
     expectedContentSid: EXPECTED_DODA_CONTENT_SID,
     contentSidMatchesExpected: contentSid === EXPECTED_DODA_CONTENT_SID,
+    twilioTemplateDodaSidSetInEnv: templateConfiguredInEnv,
+    usesBodyParameter: false,
     toRaw: input.to,
     toFormatted: to,
   });
@@ -311,7 +353,7 @@ export async function sendDodaLiberadoWhatsApp(
   const client = getTwilioClient();
   try {
     result = await client.messages.create({
-      from,
+      messagingServiceSid,
       to,
       contentSid,
       contentVariables,

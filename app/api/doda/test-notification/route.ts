@@ -15,7 +15,7 @@ import {
   formatTwilioWhatsAppTo,
   getTwilioAccountSid,
   getTwilioTemplateDodaSid,
-  getTwilioWhatsAppFrom,
+  getTwilioMessagingServiceSid,
   inspectMexicoWhatsAppDestination,
   sendDodaLiberadoWhatsApp,
   twilioMessagingConsoleHint,
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
 
   try {
     const accountSid = getTwilioAccountSid();
-    const from = getTwilioWhatsAppFrom();
+    const messagingServiceSid = getTwilioMessagingServiceSid();
     const contentSid = getTwilioTemplateDodaSid();
     const toFormatted = formatTwilioWhatsAppTo(to);
 
@@ -124,10 +124,14 @@ export async function POST(req: Request) {
 
     console.log("[doda/test-notification] Twilio env snapshot", {
       accountSid,
-      from,
+      messagingServiceSid,
       contentSid,
       expectedContentSid: EXPECTED_DODA_CONTENT_SID,
       contentSidMatchesExpected: contentSid === EXPECTED_DODA_CONTENT_SID,
+      twilioTemplateDodaSidSetInEnv: Boolean(
+        process.env.TWILIO_TEMPLATE_DODA_SID?.trim(),
+      ),
+      sendMode: "contentSid template (no body)",
       toDigits: to,
       toFormatted,
       destinationPreview,
