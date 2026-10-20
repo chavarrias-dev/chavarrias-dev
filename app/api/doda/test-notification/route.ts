@@ -16,7 +16,9 @@ import {
   getTwilioAccountSid,
   getTwilioTemplateDodaSid,
   getTwilioWhatsAppFrom,
+  inspectMexicoWhatsAppDestination,
   sendDodaLiberadoWhatsApp,
+  twilioMessagingConsoleHint,
 } from "@/lib/twilio";
 
 export const runtime = "nodejs";
@@ -118,6 +120,8 @@ export async function POST(req: Request) {
     const contentSid = getTwilioTemplateDodaSid();
     const toFormatted = formatTwilioWhatsAppTo(to);
 
+    const destinationPreview = inspectMexicoWhatsAppDestination(toFormatted);
+
     console.log("[doda/test-notification] Twilio env snapshot", {
       accountSid,
       from,
@@ -126,6 +130,9 @@ export async function POST(req: Request) {
       contentSidMatchesExpected: contentSid === EXPECTED_DODA_CONTENT_SID,
       toDigits: to,
       toFormatted,
+      destinationPreview,
+      templateApprovalHint:
+        'Twilio Console → Content Template Builder → doda_liberado → status must be "Approved"',
     });
 
     const payload = {
@@ -140,8 +147,25 @@ export async function POST(req: Request) {
 
     console.log("[doda/test-notification] send result", {
       sid: result.sid,
+      status: result.twilio.status,
+      errorCode: result.twilio.errorCode,
+      errorMessage: result.twilio.errorMessage,
       savedToDb: Boolean(result.record),
+      twilioConsole: twilioMessagingConsoleHint(result.sid),
     });
+
+    const twilioPayload = {
+      twilioMessageSid: result.sid,
+      status: result.twilio.status,
+      errorCode: result.twilio.errorCode,
+      errorMessage: result.twilio.errorMessage,
+      to: result.twilio.to,
+      from: result.twilio.from,
+      destination: result.destination,
+      contentTemplate: result.contentTemplate,
+      twilioConsoleHint: twilioMessagingConsoleHint(result.sid),
+      savedToHistory: Boolean(result.record),
+    };
 
     if (!result.record) {
       return NextResponse.json(
@@ -149,12 +173,13 @@ export async function POST(req: Request) {
           ok: false,
           error:
             "La plantilla se envió pero no se pudo guardar en el historial de WhatsApp",
-          sid: result.sid,
+          ...twilioPayload,
         },
         { status: 500 },
       );
     }
-    return NextResponse.json({ ok: true, sid: result.sid });
+
+    return NextResponse.json({ ok: true, ...twilioPayload });
   } catch (error) {
     console.error("[doda/test-notification] send failed", error);
     const message =

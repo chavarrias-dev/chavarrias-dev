@@ -82,10 +82,63 @@ export type SendDodaLiberadoWhatsAppInput = {
   fecha: string;
 };
 
+export type MexicoWhatsAppDestinationCheck = {
+  toFormatted: string;
+  validMexicoFormat: boolean;
+  expectedPattern: string;
+  digitsAfterCountryCode: number;
+  nationalNumber: string;
+};
+
+export type TwilioMessageSendMeta = {
+  sid: string;
+  status: string | null;
+  errorCode: number | null;
+  errorMessage: string | null;
+  to: string | null;
+  from: string | null;
+  dateCreated: string | null;
+  /** Look up this SID under Twilio Console → Monitor → Logs → Messaging */
+  consoleLookupSid: string;
+};
+
+export type ContentTemplateCheck = {
+  contentSid: string;
+  fetched: boolean;
+  friendlyName?: string | null;
+  language?: string | null;
+  whatsappApprovalStatus?: string | null;
+  note: string;
+};
+
 export type SendDodaLiberadoWhatsAppResult = {
   sid: string;
   record: WhatsAppMessageRecord | null;
+  twilio: TwilioMessageSendMeta;
+  destination: MexicoWhatsAppDestinationCheck;
+  contentTemplate: ContentTemplateCheck;
 };
+
+/** Validates `whatsapp:+52` + 10 national digits (Mexico mobile). */
+export function inspectMexicoWhatsAppDestination(
+  toFormatted: string,
+): MexicoWhatsAppDestinationCheck {
+  const digits = toFormatted.replace(/^whatsapp:/i, "").replace(/\D/g, "");
+  const national = digits.startsWith("52") ? digits.slice(2) : digits;
+
+  return {
+    toFormatted,
+    validMexicoFormat:
+      toFormatted.startsWith("whatsapp:+52") && national.length === 10,
+    expectedPattern: "whatsapp:+52XXXXXXXXXX (10 digits after country code 52)",
+    digitsAfterCountryCode: national.length,
+    nationalNumber: national,
+  };
+}
+
+export function twilioMessagingConsoleHint(messageSid: string): string {
+  return `Twilio Console → Monitor → Logs → Messaging → search Message SID ${messageSid}`;
+}
 
 function serializeTwilioMessage(result: unknown): string {
   if (!result || typeof result !== "object") {
@@ -118,6 +171,81 @@ function logTwilioError(error: unknown): void {
         status: row.status,
       }),
     );
+  }
+}
+
+function extractTwilioMessageMeta(
+  message: {
+    sid?: string;
+    status?: string;
+    errorCode?: number | null;
+    errorMessage?: string | null;
+    to?: string;
+    from?: string;
+    dateCreated?: Date;
+  },
+  sidFallback: string,
+): TwilioMessageSendMeta {
+  const sid = message.sid ?? sidFallback;
+  return {
+    sid,
+    status: message.status ?? null,
+    errorCode: message.errorCode ?? null,
+    errorMessage: message.errorMessage ?? null,
+    to: message.to ?? null,
+    from: message.from ?? null,
+    dateCreated: message.dateCreated
+      ? message.dateCreated.toISOString()
+      : null,
+    consoleLookupSid: sid,
+  };
+}
+
+async function logContentTemplateApproval(
+  contentSid: string,
+): Promise<ContentTemplateCheck> {
+  const base: ContentTemplateCheck = {
+    contentSid,
+    fetched: false,
+    note:
+      'Verify in Twilio Console → Content Template Builder that "doda_liberado" status is Approved',
+  };
+
+  try {
+    const client = getTwilioClient();
+    const content = await client.content.v1.contents(contentSid).fetch();
+    const contentJson = content.toJSON() as Record<string, unknown>;
+    const approvalRequests = contentJson.approval_requests as
+      | { whatsapp?: { status?: string } }
+      | Array<{ status?: string }>
+      | undefined;
+
+    let whatsappStatus: string | null = null;
+    if (approvalRequests && !Array.isArray(approvalRequests)) {
+      whatsappStatus = approvalRequests.whatsapp?.status ?? null;
+    } else if (Array.isArray(approvalRequests) && approvalRequests[0]?.status) {
+      whatsappStatus = approvalRequests[0].status;
+    }
+
+    const check: ContentTemplateCheck = {
+      contentSid,
+      fetched: true,
+      friendlyName: content.friendlyName ?? null,
+      language: content.language ?? null,
+      whatsappApprovalStatus: whatsappStatus,
+      note: whatsappStatus
+        ? `WhatsApp approval status from API: ${whatsappStatus}`
+        : base.note,
+    };
+
+    console.log("[twilio] Content template (doda_liberado)", check);
+    return check;
+  } catch (error) {
+    console.warn(
+      "[twilio] Could not fetch content template approval via API — check Console manually",
+      error,
+    );
+    return base;
   }
 }
 
@@ -156,19 +284,39 @@ export async function sendDodaLiberadoWhatsApp(
     toRaw: input.to,
     toFormatted: to,
   });
+  const destination = inspectMexicoWhatsAppDestination(to);
+  console.log("[twilio] Destination format check", destination);
+  if (!destination.validMexicoFormat) {
+    console.warn(
+      "[twilio] Destination may be invalid for MX WhatsApp — expected whatsapp:+52 + 10 digits",
+    );
+  }
+
+  const contentTemplate = await logContentTemplateApproval(contentSid);
+  if (
+    contentTemplate.fetched &&
+    contentTemplate.whatsappApprovalStatus &&
+    contentTemplate.whatsappApprovalStatus.toLowerCase() !== "approved"
+  ) {
+    console.warn(
+      "[twilio] Content template WhatsApp status is not Approved:",
+      contentTemplate.whatsappApprovalStatus,
+    );
+  }
+
   console.log("[twilio] Attempting to send to:", to);
   console.log("[twilio] contentVariables:", contentVariables);
 
   let result;
+  const client = getTwilioClient();
   try {
-    const client = getTwilioClient();
     result = await client.messages.create({
       from,
       to,
       contentSid,
       contentVariables,
     });
-    console.log("[twilio] Response:", serializeTwilioMessage(result));
+    console.log("[twilio] Response (create):", serializeTwilioMessage(result));
   } catch (error) {
     logTwilioError(error);
     throw error;
@@ -178,6 +326,31 @@ export async function sendDodaLiberadoWhatsApp(
   if (!sid) {
     throw new Error("Twilio no devolvió SID del mensaje");
   }
+
+  console.log("[twilio] Message SID:", sid);
+  console.log("[twilio] Message status (create):", result.status ?? "unknown");
+  console.log("[twilio]", twilioMessagingConsoleHint(sid));
+
+  let latest = result;
+  try {
+    latest = await client.messages(sid).fetch();
+    console.log("[twilio] Response (fetch):", serializeTwilioMessage(latest));
+    console.log("[twilio] Message status (fetch):", latest.status ?? "unknown");
+    if (latest.errorCode || latest.errorMessage) {
+      console.error("[twilio] Message delivery error from Twilio", {
+        errorCode: latest.errorCode,
+        errorMessage: latest.errorMessage,
+      });
+    }
+  } catch (fetchError) {
+    console.warn("[twilio] Could not re-fetch message by SID after send", fetchError);
+  }
+
+  const twilioMeta = extractTwilioMessageMeta(latest, sid);
+  console.log(
+    "[twilio] Full send summary:",
+    JSON.stringify({ twilio: twilioMeta, destination, contentTemplate }),
+  );
 
   const logMessage = buildDodaLiberadoLogMessage(input);
   const toDigits = input.to.replace(/\D/g, "");
@@ -207,5 +380,8 @@ export async function sendDodaLiberadoWhatsApp(
   return {
     sid,
     record: (data as WhatsAppMessageRecord | null) ?? null,
+    twilio: twilioMeta,
+    destination,
+    contentTemplate,
   };
 }

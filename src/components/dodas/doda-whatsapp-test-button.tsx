@@ -78,15 +78,25 @@ export function DodaWhatsappTestButton({
       const payload = (await response.json()) as {
         ok?: boolean;
         error?: string;
+        twilioMessageSid?: string;
+        status?: string | null;
       };
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.error ?? "No se pudo enviar la prueba");
+        const sidHint = payload.twilioMessageSid
+          ? ` (SID: ${payload.twilioMessageSid})`
+          : "";
+        throw new Error(
+          (payload.error ?? "No se pudo enviar la prueba") + sidHint,
+        );
       }
       setOpen(false);
+      const sidLine = payload.twilioMessageSid
+        ? ` SID: ${payload.twilioMessageSid}${payload.status ? ` (${payload.status})` : ""}`
+        : "";
       setToast({
         key: Date.now(),
         tone: "success",
-        message: "✅ Mensaje de prueba enviado",
+        message: `✅ Mensaje de prueba enviado.${sidLine}`,
       });
     } catch (error) {
       setToast({
