@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { ClientOption } from "@/components/clients/types";
+import { ArchiveFileInput } from "@/components/files/archive-file-input";
 import { saveFactura } from "../../../app/dashboard/facturas/actions";
 
 type NewFacturaFormProps = {
@@ -235,28 +236,17 @@ export function NewFacturaForm({
             Archivo (PDF o ZIP)
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <input
-              id="archivo"
-              name="archivo"
-              type="file"
-              accept="application/pdf,.pdf,application/zip,.zip,application/x-zip-compressed"
-              className="min-w-0 flex-1 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20"
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null;
-                if (!f) {
-                  setSelectedFile(null);
+            <div className="min-w-0 flex-1">
+              <ArchiveFileInput
+                id="archivo"
+                folder="facturas"
+                onPdfSelected={(file) => {
+                  setSelectedFile(file);
                   setScanMessage(null);
                   setScanError(null);
-                  return;
-                }
-                const isPdf =
-                  f.type === "application/pdf" ||
-                  f.name.toLowerCase().endsWith(".pdf");
-                setSelectedFile(isPdf ? f : null);
-                setScanMessage(null);
-                setScanError(null);
-              }}
-            />
+                }}
+              />
+            </div>
             {selectedFile ? (
               <button
                 type="button"

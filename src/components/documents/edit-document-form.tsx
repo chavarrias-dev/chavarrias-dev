@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { DocumentExpirationFields } from "@/components/documents/document-expiration-fields";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
-import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
+import { DocumentFileInput } from "@/components/files/document-file-input";
 import type { DocumentType, ValidityPeriod } from "@/lib/documents-config";
 import { updateClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
 
@@ -51,7 +50,6 @@ export function EditDocumentForm({
   notas,
   errorMessage,
 }: EditDocumentFormProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -119,19 +117,11 @@ export function EditDocumentForm({
               Reemplazar archivo (PDF o ZIP){" "}
               <span className="font-normal text-slate-400">(opcional)</span>
             </label>
-            <input
+            <DocumentFileInput
               id="archivo"
-              name="archivo"
-              type="file"
-              accept={ARCHIVE_FILE_ACCEPT}
-              className={`${fieldClass} file:mr-3 file:rounded-md file:border-0 file:bg-[#227DE8]/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#227DE8]`}
-              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+              clientId={clientId}
+              documentType={documentType}
             />
-            {selectedFile ? (
-              <p className="mt-1.5 text-xs text-slate-500">
-                Nuevo archivo: {selectedFile.name}
-              </p>
-            ) : null}
           </div>
 
           <DocumentExpirationFields

@@ -5,12 +5,21 @@ import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
-import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
+import {
+  ARCHIVE_FILE_ACCEPT,
+  ARCHIVE_FILE_ERROR,
+  archiveKindFromFile,
+} from "@/lib/archive-file";
+import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 import {
   ConfigureDocumentModal,
   type ConfigureModalDocument,
 } from "@/components/documents/configure-document-modal";
-import type { DocumentStatus, DocumentType } from "@/lib/documents-config";
+import {
+  documentStoragePath,
+  type DocumentStatus,
+  type DocumentType,
+} from "@/lib/documents-config";
 import {
   quickUploadClientDocument,
 } from "../../../app/dashboard/clients/[id]/documents/actions";
@@ -126,15 +135,32 @@ export function ClientDocumentsSection({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("clientId", clientId);
-    formData.append("documentType", documentType);
-    formData.append("archivo", file);
+    const kind = archiveKindFromFile(file);
+    if (!kind) {
+      setErrorMessage(ARCHIVE_FILE_ERROR);
+      setPendingUploadType(null);
+      return;
+    }
 
     setUploadingType(documentType);
     setErrorMessage(null);
 
     startUploadTransition(async () => {
+      const uploaded = await uploadArchiveFromBrowser(
+        file,
+        documentStoragePath(clientId, documentType, kind),
+      );
+      if (!uploaded.ok) {
+        setUploadingType(null);
+        setPendingUploadType(null);
+        setErrorMessage(uploaded.error);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("clientId", clientId);
+      formData.append("documentType", documentType);
+      formData.append("archivo_public_url", uploaded.url);
       const result = await quickUploadClientDocument(formData);
       setUploadingType(null);
       setPendingUploadType(null);

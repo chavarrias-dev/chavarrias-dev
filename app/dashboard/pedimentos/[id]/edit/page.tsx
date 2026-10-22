@@ -9,6 +9,7 @@ type PedimentoRecord = {
   id: string;
   numero_pedimento: string;
   fecha: string;
+  fecha_cierre: string | null;
   aduana: string;
   cliente_id: string | null;
   archivo_url: string | null;
@@ -43,7 +44,7 @@ export default async function EditPedimentoPage({
   const { data: pedimento, error } = await supabase
     .from("pedimentos")
     .select(
-      "id, numero_pedimento, fecha, aduana, cliente_id, archivo_url, notas",
+      "id, numero_pedimento, fecha, fecha_cierre, aduana, cliente_id, archivo_url, notas",
     )
     .eq("id", id)
     .maybeSingle();
@@ -108,6 +109,7 @@ export default async function EditPedimentoPage({
           cliente_id: p.cliente_id,
           numero_pedimento: p.numero_pedimento,
           fecha: p.fecha,
+          fecha_cierre: p.fecha_cierre,
           aduana: p.aduana,
           notas: p.notas,
           archivo_url: p.archivo_url,

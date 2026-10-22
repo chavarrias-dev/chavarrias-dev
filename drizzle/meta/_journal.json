@@ -85,6 +85,13 @@
       "when": 1792627200000,
       "tag": "0011_add_client_company_role_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792710000000,
+      "tag": "0012_add_pedimento_fecha_cierre",
+      "breakpoints": true
     }
   ]
 }

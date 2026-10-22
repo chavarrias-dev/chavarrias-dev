@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
+import { ArchiveFileInput } from "@/components/files/archive-file-input";
 import type { ClientOption } from "@/components/clients/types";
 import { PedimentoNumberFields } from "@/components/pedimentos/pedimento-number-fields";
 import { savePedimento } from "../../../app/dashboard/pedimentos/actions";
@@ -70,7 +70,7 @@ export function NewPedimentoForm({
               htmlFor="fecha"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Fecha <span className="text-red-600">*</span>
+              Fecha de apertura <span className="text-red-600">*</span>
             </label>
             <input
               id="fecha"
@@ -82,20 +82,38 @@ export function NewPedimentoForm({
           </div>
           <div>
             <label
-              htmlFor="aduana"
+              htmlFor="fecha_cierre"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Aduana <span className="text-red-600">*</span>
+              Fecha de cierre
             </label>
             <input
-              id="aduana"
-              name="aduana"
-              type="text"
-              required
+              id="fecha_cierre"
+              name="fecha_cierre"
+              type="date"
               className={fieldClass}
-              placeholder="Ej. Veracruz"
             />
           </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="aduana"
+            className="mb-1.5 block text-sm font-medium text-slate-700"
+          >
+            Aduana <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="aduana"
+            name="aduana"
+            type="text"
+            required
+            className={fieldClass}
+            placeholder="Ej. Veracruz"
+          />
+          <p className="mt-1.5 text-xs text-slate-500">
+            Nombre de la aduana, aparte de la clave de 2 dígitos del número.
+          </p>
         </div>
 
         <div>
@@ -115,13 +133,7 @@ export function NewPedimentoForm({
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
             Archivo (PDF o ZIP)
           </label>
-          <input
-            id="archivo"
-            name="archivo"
-            type="file"
-            accept={ARCHIVE_FILE_ACCEPT}
-            className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20"
-          />
+          <ArchiveFileInput id="archivo" folder="pedimentos" />
         </div>
 
         {errorMessage ? (

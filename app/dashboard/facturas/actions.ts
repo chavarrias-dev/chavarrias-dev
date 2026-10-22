@@ -7,6 +7,7 @@ import {
   ARCHIVE_MAX_BYTES,
   archiveKindFromFile,
   contentTypeForArchive,
+  acceptedPreuploadedUrl,
   recordArchivePath,
   type ArchiveKind,
 } from "@/lib/archive-file";
@@ -77,6 +78,13 @@ export async function saveFactura(formData: FormData) {
     redirect("/login");
   }
 
+  const uploaded = acceptedPreuploadedUrl(formData, `facturas/${user.id}/`);
+  if (!uploaded.ok) {
+    redirect(
+      `/dashboard/facturas/new?error=${encodeURIComponent(uploaded.error)}`,
+    );
+  }
+
   const { data: row, error } = await supabase
     .from("facturas")
     .insert({
@@ -85,7 +93,7 @@ export async function saveFactura(formData: FormData) {
       monto,
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
-      archivo_url: null,
+      archivo_url: uploaded.url,
     })
     .select("id")
     .single();
@@ -96,23 +104,27 @@ export async function saveFactura(formData: FormData) {
     );
   }
 
-  if (file instanceof File && file.size > 0 && archiveKind) {
+  if (!uploaded.url && file instanceof File && file.size > 0 && archiveKind) {
     const path = recordArchivePath("facturas", user.id, row.id, archiveKind);
+    const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
+      .upload(path, bytes, {
         contentType: contentTypeForArchive(archiveKind),
         upsert: true,
       });
-    if (!upErr) {
-      const { data: pub } = supabase.storage
-        .from(CRM_DOCUMENTS_BUCKET)
-        .getPublicUrl(path);
-      await supabase
-        .from("facturas")
-        .update({ archivo_url: pub.publicUrl })
-        .eq("id", row.id);
+    if (upErr) {
+      redirect(
+        `/dashboard/facturas/${row.id}/edit?error=${encodeURIComponent(`Error al subir el archivo: ${upErr.message}`)}`,
+      );
     }
+    const { data: pub } = supabase.storage
+      .from(CRM_DOCUMENTS_BUCKET)
+      .getPublicUrl(path);
+    await supabase
+      .from("facturas")
+      .update({ archivo_url: pub.publicUrl })
+      .eq("id", row.id);
   }
 
   await logActivity(supabase, {
@@ -186,6 +198,13 @@ export async function updateFactura(formData: FormData) {
     redirect("/dashboard/facturas?error=Factura%20no%20encontrada");
   }
 
+  const uploaded = acceptedPreuploadedUrl(formData, `facturas/${user.id}/`);
+  if (!uploaded.ok) {
+    redirect(
+      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(uploaded.error)}`,
+    );
+  }
+
   const { error: updErr } = await supabase
     .from("facturas")
     .update({
@@ -194,6 +213,7 @@ export async function updateFactura(formData: FormData) {
       monto,
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
+      ...(uploaded.url ? { archivo_url: uploaded.url } : {}),
     })
     .eq("id", id);
 
@@ -203,11 +223,20 @@ export async function updateFactura(formData: FormData) {
     );
   }
 
-  if (file instanceof File && file.size > 0 && archiveKind) {
+  if (uploaded.url) {
+    const previous = storageObjectPathFromPublicUrl(
+      (existing as { archivo_url?: string | null }).archivo_url ?? "",
+    );
+    const next = storageObjectPathFromPublicUrl(uploaded.url);
+    if (previous && next && previous !== next) {
+      await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previous]);
+    }
+  } else if (file instanceof File && file.size > 0 && archiveKind) {
     const path = recordArchivePath("facturas", user.id, id, archiveKind);
+    const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
+      .upload(path, bytes, {
         contentType: contentTypeForArchive(archiveKind),
         upsert: true,
       });

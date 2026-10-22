@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
+  acceptedPreuploadedUrl,
   ARCHIVE_FILE_ERROR,
   ARCHIVE_MAX_BYTES,
   archiveKindFromFile,
@@ -21,7 +22,10 @@ import {
 } from "@/lib/documents-config";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+import {
+  CRM_DOCUMENTS_BUCKET,
+  storageObjectPathFromPublicUrl,
+} from "@/lib/supabase-storage";
 
 function emptyToNull(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -201,9 +205,10 @@ async function uploadClientArchive(
     documentType,
     kind === "pdf" ? "zip" : "pdf",
   );
+  const bytes = new Uint8Array(await file.arrayBuffer());
   const { error: upErr } = await supabase.storage
     .from(CRM_DOCUMENTS_BUCKET)
-    .upload(path, file, {
+    .upload(path, bytes, {
       contentType: contentTypeForArchive(kind),
       upsert: true,
     });
@@ -219,6 +224,43 @@ async function uploadClientArchive(
     .getPublicUrl(path);
 
   return { ok: true, url: pub.publicUrl };
+}
+
+async function resolveClientArchive(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  clientId: string,
+  documentType: string,
+  formData: FormData,
+): Promise<{ ok: true; url: string | null } | { ok: false; error: string }> {
+  const preuploaded = acceptedPreuploadedUrl(
+    formData,
+    `documentos/${clientId}/`,
+  );
+  if (!preuploaded.ok) return preuploaded;
+  if (preuploaded.url) {
+    const path = storageObjectPathFromPublicUrl(preuploaded.url);
+    if (path) {
+      const sibling = path.endsWith(".zip")
+        ? `${path.slice(0, -4)}.pdf`
+        : `${path.slice(0, -4)}.zip`;
+      await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([sibling]);
+    }
+    return { ok: true, url: preuploaded.url };
+  }
+
+  const file = formData.get("archivo");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: true, url: null };
+  }
+
+  const uploaded = await uploadClientArchive(
+    supabase,
+    clientId,
+    documentType,
+    file,
+  );
+  if (!uploaded.ok) return uploaded;
+  return { ok: true, url: uploaded.url };
 }
 
 export async function quickUploadClientDocument(
@@ -237,7 +279,12 @@ export async function quickUploadClientDocument(
   }
 
   const file = formData.get("archivo");
-  if (!(file instanceof File) || file.size === 0) {
+  const preuploaded = acceptedPreuploadedUrl(
+    formData,
+    `documentos/${clientId}/`,
+  );
+  if (!preuploaded.ok) return preuploaded;
+  if (!preuploaded.url && (!(file instanceof File) || file.size === 0)) {
     return { ok: false, error: "Debes seleccionar un archivo PDF o ZIP" };
   }
 
@@ -254,14 +301,17 @@ export async function quickUploadClientDocument(
   const existing = await fetchExistingDocument(supabase, clientId, documentType);
   const fechaSubida = new Date();
 
-  const uploaded = await uploadClientArchive(
-    supabase,
-    clientId,
-    documentType,
-    file,
-  );
-  if (!uploaded.ok) return uploaded;
-  const archivoUrl = uploaded.url;
+  let archivoUrl = preuploaded.url;
+  if (!archivoUrl) {
+    const uploaded = await uploadClientArchive(
+      supabase,
+      clientId,
+      documentType,
+      file as File,
+    );
+    if (!uploaded.ok) return uploaded;
+    archivoUrl = uploaded.url;
+  }
 
   const expiration = existing
     ? {
@@ -356,17 +406,14 @@ export async function configureClientDocument(
 
   let archivoUrl = existing?.archivo_url ?? null;
 
-  const file = formData.get("archivo");
-  if (file instanceof File && file.size > 0) {
-    const uploaded = await uploadClientArchive(
-      supabase,
-      clientId,
-      documentType,
-      file,
-    );
-    if (!uploaded.ok) return uploaded;
-    archivoUrl = uploaded.url;
-  }
+  const resolved = await resolveClientArchive(
+    supabase,
+    clientId,
+    documentType,
+    formData,
+  );
+  if (!resolved.ok) return resolved;
+  if (resolved.url) archivoUrl = resolved.url;
 
   const status = calculateDocumentStatus(archivoUrl, expiration);
 
@@ -433,11 +480,6 @@ export async function uploadClientDocument(
 
   const trimmedClientId = clientId;
 
-  const file = formData.get("archivo");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Debes seleccionar un archivo PDF o ZIP" };
-  }
-
   const notas = emptyToNull(formData.get("notas"));
   const fechaSubida = new Date();
   const expiration = parseExpirationFromForm(formData, fechaSubida);
@@ -452,14 +494,17 @@ export async function uploadClientDocument(
     return { ok: false, error: "Cliente no encontrado" };
   }
 
-  const uploaded = await uploadClientArchive(
+  const resolved = await resolveClientArchive(
     supabase,
     trimmedClientId,
     documentType,
-    file,
+    formData,
   );
-  if (!uploaded.ok) return uploaded;
-  const archivoUrl = uploaded.url;
+  if (!resolved.ok) return resolved;
+  if (!resolved.url) {
+    return { ok: false, error: "Debes seleccionar un archivo PDF o ZIP" };
+  }
+  const archivoUrl = resolved.url;
   const status = calculateDocumentStatus(archivoUrl, expiration);
 
   const { data: existing } = await supabase
@@ -555,27 +600,24 @@ export async function updateClientDocument(formData: FormData) {
 
   let archivoUrl = (existingDoc as { archivo_url: string | null }).archivo_url;
 
-  const file = formData.get("archivo");
-  if (file instanceof File && file.size > 0) {
-    const uploaded = await uploadClientArchive(
-      supabase,
-      trimmedClientId,
-      documentType,
-      file,
+  const resolved = await resolveClientArchive(
+    supabase,
+    trimmedClientId,
+    documentType,
+    formData,
+  );
+  if (!resolved.ok) {
+    redirect(
+      buildRedirectUrl(
+        trimmedClientId,
+        documentType,
+        resolved.error,
+        "edit",
+        trimmedDocId,
+      ),
     );
-    if (!uploaded.ok) {
-      redirect(
-        buildRedirectUrl(
-          trimmedClientId,
-          documentType,
-          uploaded.error,
-          "edit",
-          trimmedDocId,
-        ),
-      );
-    }
-    archivoUrl = uploaded.url;
   }
+  if (resolved.url) archivoUrl = resolved.url;
 
   const status = calculateDocumentStatus(archivoUrl, expiration);
 

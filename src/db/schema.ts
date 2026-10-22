@@ -65,6 +65,7 @@ export const pedimentos = pgTable("pedimentos", {
   id: uuid("id").primaryKey().defaultRandom(),
   numeroPedimento: text("numero_pedimento").notNull(),
   fecha: date("fecha", { mode: "string" }).notNull(),
+  fechaCierre: date("fecha_cierre", { mode: "string" }),
   aduana: text("aduana").notNull(),
   clienteId: uuid("cliente_id").references(() => clients.id),
   archivoUrl: text("archivo_url"),

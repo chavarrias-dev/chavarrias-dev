@@ -13,6 +13,7 @@ type PedimentoRow = {
   id: string;
   numero_pedimento: string;
   fecha: string;
+  fecha_cierre: string | null;
   aduana: string;
   cliente_id: string | null;
   archivo_url: string | null;
@@ -73,7 +74,7 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
   let query = supabase
     .from("pedimentos")
     .select(
-      "id, numero_pedimento, fecha, aduana, cliente_id, archivo_url, notas, created_at",
+      "id, numero_pedimento, fecha, fecha_cierre, aduana, cliente_id, archivo_url, notas, created_at",
     );
 
   if (numeroFilter) {
@@ -240,11 +241,12 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-4 py-3 font-medium text-slate-700">Número</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Fecha</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Apertura</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Cierre</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Aduana</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Cliente</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
@@ -258,7 +260,7 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={isStaff ? 7 : 6}
+                    colSpan={isStaff ? 8 : 7}
                     className="px-4 py-10 text-center text-sm text-slate-500"
                   >
                     {hasFilters ? (
@@ -311,6 +313,17 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
                               year: "numeric",
                             },
                           )
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {p.fecha_cierre
+                        ? new Date(
+                            p.fecha_cierre + "T12:00:00",
+                          ).toLocaleDateString("es-MX", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{p.aduana}</td>

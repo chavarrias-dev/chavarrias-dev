@@ -44,6 +44,7 @@ type PedimentoRow = {
   id: string;
   numero_pedimento: string;
   fecha: string;
+  fecha_cierre: string | null;
   aduana: string;
   archivo_url: string | null;
 };
@@ -150,7 +151,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
         .order("created_at", { ascending: false }),
       supabase
         .from("pedimentos")
-        .select("id, numero_pedimento, fecha, aduana, archivo_url")
+        .select("id, numero_pedimento, fecha, fecha_cierre, aduana, archivo_url")
         .eq("cliente_id", id)
         .order("created_at", { ascending: false }),
       supabase
@@ -474,14 +475,17 @@ export default async function ClientProfilePage({ params }: PageProps) {
         </div>
         <div className={sectionShell}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Número
                   </th>
                   <th className="px-4 py-3 font-medium text-slate-700">
-                    Fecha
+                    Apertura
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-700">
+                    Cierre
                   </th>
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Aduana
@@ -496,7 +500,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                 {pedimentos.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={actionsColSpan}
+                      colSpan={isStaff ? 6 : 5}
                       className="px-4 py-10 text-center text-sm text-slate-500"
                     >
                       Este cliente aún no tiene pedimentos registrados.
@@ -513,6 +517,9 @@ export default async function ClientProfilePage({ params }: PageProps) {
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {formatShortDate(p.fecha)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatShortDate(p.fecha_cierre)}
                       </td>
                       <td className="px-4 py-3 text-slate-700">{p.aduana}</td>
                       <td className="px-4 py-3">

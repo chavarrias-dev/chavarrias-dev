@@ -8,8 +8,8 @@ import {
   ARCHIVE_FILE_ERROR,
   ARCHIVE_MAX_BYTES,
   archiveKindFromFile,
-  contentTypeForArchive,
 } from "@/lib/archive-file";
+import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 import {
   calculateDocumentStatusFromRow,
 } from "@/lib/document-status";
@@ -95,25 +95,15 @@ export function ExpedientePdfUpload({
         documentType,
         kind === "pdf" ? "zip" : "pdf",
       );
-      const { error: uploadError } = await supabase.storage
-        .from(CRM_DOCUMENTS_BUCKET)
-        .upload(path, file, {
-          contentType: contentTypeForArchive(kind),
-          upsert: true,
-        });
-
-      if (uploadError) {
-        setError(`Error al subir: ${uploadError.message}`);
+      const uploaded = await uploadArchiveFromBrowser(file, path);
+      if (!uploaded.ok) {
+        setError(uploaded.error);
         return;
       }
 
       await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previousPath]);
 
-      const { data: publicData } = supabase.storage
-        .from(CRM_DOCUMENTS_BUCKET)
-        .getPublicUrl(path);
-
-      const nextArchivoUrl = publicData.publicUrl;
+      const nextArchivoUrl = uploaded.url;
       const status = calculateDocumentStatusFromRow({
         archivoUrl: nextArchivoUrl,
         fechaVencimiento,

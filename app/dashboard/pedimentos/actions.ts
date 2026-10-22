@@ -7,6 +7,7 @@ import {
   ARCHIVE_MAX_BYTES,
   archiveKindFromFile,
   contentTypeForArchive,
+  acceptedPreuploadedUrl,
   recordArchivePath,
   type ArchiveKind,
 } from "@/lib/archive-file";
@@ -21,6 +22,26 @@ function emptyToNull(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   return t.length ? t : null;
+}
+
+function readFechaCierre(
+  raw: unknown,
+  apertura: string,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { ok: true, value: null };
+  }
+  const cierre = raw.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cierre)) {
+    return { ok: false, error: "Fecha de cierre inválida" };
+  }
+  if (cierre < apertura) {
+    return {
+      ok: false,
+      error: "La fecha de cierre no puede ser anterior a la de apertura",
+    };
+  }
+  return { ok: true, value: cierre };
 }
 
 function readArchiveKind(
@@ -48,7 +69,15 @@ export async function savePedimento(formData: FormData) {
     );
   }
   if (typeof fecha !== "string" || !fecha.trim()) {
-    redirect("/dashboard/pedimentos/new?error=Fecha%20requerida");
+    redirect(
+      "/dashboard/pedimentos/new?error=Fecha%20de%20apertura%20requerida",
+    );
+  }
+  const fechaCierre = readFechaCierre(formData.get("fecha_cierre"), fecha.trim());
+  if (!fechaCierre.ok) {
+    redirect(
+      `/dashboard/pedimentos/new?error=${encodeURIComponent(fechaCierre.error)}`,
+    );
   }
   if (typeof aduana !== "string" || !aduana.trim()) {
     redirect("/dashboard/pedimentos/new?error=Aduana%20requerida");
@@ -70,15 +99,23 @@ export async function savePedimento(formData: FormData) {
     redirect("/login");
   }
 
+  const uploaded = acceptedPreuploadedUrl(formData, `pedimentos/${user.id}/`);
+  if (!uploaded.ok) {
+    redirect(
+      `/dashboard/pedimentos/new?error=${encodeURIComponent(uploaded.error)}`,
+    );
+  }
+
   const { data: row, error } = await supabase
     .from("pedimentos")
     .insert({
       numero_pedimento: numero.value,
       fecha: fecha.trim(),
+      fecha_cierre: fechaCierre.value,
       aduana: aduana.trim(),
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
-      archivo_url: null,
+      archivo_url: uploaded.url,
     })
     .select("id")
     .single();
@@ -89,23 +126,27 @@ export async function savePedimento(formData: FormData) {
     );
   }
 
-  if (file instanceof File && file.size > 0 && archiveKind) {
+  if (!uploaded.url && file instanceof File && file.size > 0 && archiveKind) {
     const path = recordArchivePath("pedimentos", user.id, row.id, archiveKind);
+    const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
+      .upload(path, bytes, {
         contentType: contentTypeForArchive(archiveKind),
         upsert: true,
       });
-    if (!upErr) {
-      const { data: pub } = supabase.storage
-        .from(CRM_DOCUMENTS_BUCKET)
-        .getPublicUrl(path);
-      await supabase
-        .from("pedimentos")
-        .update({ archivo_url: pub.publicUrl })
-        .eq("id", row.id);
+    if (upErr) {
+      redirect(
+        `/dashboard/pedimentos/${row.id}/edit?error=${encodeURIComponent(`Error al subir el archivo: ${upErr.message}`)}`,
+      );
     }
+    const { data: pub } = supabase.storage
+      .from(CRM_DOCUMENTS_BUCKET)
+      .getPublicUrl(path);
+    await supabase
+      .from("pedimentos")
+      .update({ archivo_url: pub.publicUrl })
+      .eq("id", row.id);
   }
 
   await logActivity(supabase, {
@@ -139,7 +180,13 @@ export async function updatePedimento(formData: FormData) {
   }
   if (typeof fecha !== "string" || !fecha.trim()) {
     redirect(
-      `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent("Fecha requerida")}`,
+      `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent("Fecha de apertura requerida")}`,
+    );
+  }
+  const fechaCierre = readFechaCierre(formData.get("fecha_cierre"), fecha.trim());
+  if (!fechaCierre.ok) {
+    redirect(
+      `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(fechaCierre.error)}`,
     );
   }
   if (typeof aduana !== "string" || !aduana.trim()) {
@@ -178,14 +225,23 @@ export async function updatePedimento(formData: FormData) {
     redirect("/dashboard/pedimentos?error=Pedimento%20no%20encontrado");
   }
 
+  const uploaded = acceptedPreuploadedUrl(formData, `pedimentos/${user.id}/`);
+  if (!uploaded.ok) {
+    redirect(
+      `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(uploaded.error)}`,
+    );
+  }
+
   const { error: updErr } = await supabase
     .from("pedimentos")
     .update({
       numero_pedimento: numero.value,
       fecha: fecha.trim(),
+      fecha_cierre: fechaCierre.value,
       aduana: aduana.trim(),
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
+      ...(uploaded.url ? { archivo_url: uploaded.url } : {}),
     })
     .eq("id", id);
 
@@ -195,11 +251,20 @@ export async function updatePedimento(formData: FormData) {
     );
   }
 
-  if (file instanceof File && file.size > 0 && archiveKind) {
+  if (uploaded.url) {
+    const previous = storageObjectPathFromPublicUrl(
+      (existing as { archivo_url?: string | null }).archivo_url ?? "",
+    );
+    const next = storageObjectPathFromPublicUrl(uploaded.url);
+    if (previous && next && previous !== next) {
+      await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previous]);
+    }
+  } else if (file instanceof File && file.size > 0 && archiveKind) {
     const path = recordArchivePath("pedimentos", user.id, id, archiveKind);
+    const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
+      .upload(path, bytes, {
         contentType: contentTypeForArchive(archiveKind),
         upsert: true,
       });
