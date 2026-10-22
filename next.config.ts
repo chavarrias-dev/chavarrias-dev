@@ -34,6 +34,12 @@ const dodaPuppeteerTraceIncludes = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "25mb",
+    },
+    proxyClientMaxBodySize: "25mb",
+  },
   turbopack: {},
   serverExternalPackages: [
     "sharp",

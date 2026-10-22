@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
+import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
 import {
   ConfigureDocumentModal,
   type ConfigureModalDocument,
@@ -139,7 +141,7 @@ export function ClientDocumentsSection({
 
       if (result.ok) {
         setSuccessMessage(
-          `PDF de "${documentType}" subido correctamente.`,
+          `Archivo de "${documentType}" subido correctamente.`,
         );
         router.refresh();
       } else {
@@ -225,7 +227,7 @@ export function ClientDocumentsSection({
                 <th className="px-4 py-3 font-medium text-slate-700">
                   Subida
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
                 {showActions ? (
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Acciones
@@ -260,14 +262,7 @@ export function ClientDocumentsSection({
                     </td>
                     <td className="px-4 py-3">
                       {row.archivoUrl ? (
-                        <a
-                          href={row.archivoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                        >
-                          Ver PDF
-                        </a>
+                        <ArchiveFileLink href={row.archivoUrl} />
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
@@ -309,7 +304,7 @@ export function ClientDocumentsSection({
           <input
             ref={fileInputRef}
             type="file"
-            accept="application/pdf,.pdf"
+            accept={ARCHIVE_FILE_ACCEPT}
             className="hidden"
             onChange={handleQuickFileChange}
           />

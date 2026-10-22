@@ -2,8 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
+import {
+  ARCHIVE_FILE_ERROR,
+  ARCHIVE_MAX_BYTES,
+  archiveKindFromFile,
+  contentTypeForArchive,
+  recordArchivePath,
+  type ArchiveKind,
+} from "@/lib/archive-file";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+import {
+  CRM_DOCUMENTS_BUCKET,
+  storageObjectPathFromPublicUrl,
+} from "@/lib/supabase-storage";
 
 function emptyToNull(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -18,6 +29,19 @@ function parseMonto(raw: unknown): string | null {
   const v = Number.parseFloat(n);
   if (!Number.isFinite(v)) return null;
   return v.toFixed(2);
+}
+
+function readArchiveKind(
+  file: FormDataEntryValue | null,
+  fail: (message: string) => never,
+): ArchiveKind | null {
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (file.size > ARCHIVE_MAX_BYTES) {
+    fail("El archivo supera el límite de 25 MB");
+  }
+  const kind = archiveKindFromFile(file);
+  if (!kind) fail(ARCHIVE_FILE_ERROR);
+  return kind;
 }
 
 export async function saveFactura(formData: FormData) {
@@ -41,9 +65,9 @@ export async function saveFactura(formData: FormData) {
   }
 
   const file = formData.get("archivo");
-  if (file instanceof File && file.size > 0 && file.type !== "application/pdf") {
-    redirect("/dashboard/facturas/new?error=Solo%20se%20permiten%20archivos%20PDF");
-  }
+  const archiveKind = readArchiveKind(file, (message) => {
+    redirect(`/dashboard/facturas/new?error=${encodeURIComponent(message)}`);
+  });
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -72,12 +96,12 @@ export async function saveFactura(formData: FormData) {
     );
   }
 
-  if (file instanceof File && file.size > 0) {
-    const path = `facturas/${user.id}/${row.id}.pdf`;
+  if (file instanceof File && file.size > 0 && archiveKind) {
+    const path = recordArchivePath("facturas", user.id, row.id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
       .upload(path, file, {
-        contentType: "application/pdf",
+        contentType: contentTypeForArchive(archiveKind),
         upsert: true,
       });
     if (!upErr) {
@@ -138,11 +162,11 @@ export async function updateFactura(formData: FormData) {
   }
 
   const file = formData.get("archivo");
-  if (file instanceof File && file.size > 0 && file.type !== "application/pdf") {
+  const archiveKind = readArchiveKind(file, (message) => {
     redirect(
-      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent("Solo se permiten archivos PDF")}`,
+      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(message)}`,
     );
-  }
+  });
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -179,19 +203,29 @@ export async function updateFactura(formData: FormData) {
     );
   }
 
-  if (file instanceof File && file.size > 0) {
-    const path = `facturas/${user.id}/${id}.pdf`;
+  if (file instanceof File && file.size > 0 && archiveKind) {
+    const path = recordArchivePath("facturas", user.id, id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
       .upload(path, file, {
-        contentType: "application/pdf",
+        contentType: contentTypeForArchive(archiveKind),
         upsert: true,
       });
     if (upErr) {
       redirect(
-        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(`Error al subir el PDF: ${upErr.message}`)}`,
+        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(`Error al subir el archivo: ${upErr.message}`)}`,
       );
     }
+    await supabase.storage
+      .from(CRM_DOCUMENTS_BUCKET)
+      .remove([
+        recordArchivePath(
+          "facturas",
+          user.id,
+          id,
+          archiveKind === "pdf" ? "zip" : "pdf",
+        ),
+      ]);
     const { data: pub } = supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
       .getPublicUrl(path);
@@ -247,8 +281,13 @@ export async function deleteFactura(formData: FormData) {
     (row as { numero_factura?: string }).numero_factura?.trim() ?? id;
 
   if (row.archivo_url) {
-    const path = `facturas/${user.id}/${id}.pdf`;
-    await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([path]);
+    const fromUrl = storageObjectPathFromPublicUrl(row.archivo_url);
+    const paths = [
+      recordArchivePath("facturas", user.id, id, "pdf"),
+      recordArchivePath("facturas", user.id, id, "zip"),
+    ];
+    if (fromUrl) paths.push(fromUrl);
+    await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove(paths);
   }
 
   const { error: delErr } = await supabase.from("facturas").delete().eq("id", id);

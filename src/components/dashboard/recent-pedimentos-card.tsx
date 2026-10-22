@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatPedimentoNumber } from "@/lib/pedimento-number";
 
 export type RecentPedimentoRow = {
   id: string;
@@ -51,8 +52,8 @@ export function RecentPedimentosCard({
               key={p.id}
               className="grid grid-cols-1 gap-1 px-5 py-3 transition-colors duration-200 hover:bg-slate-50/90 sm:grid-cols-12 sm:items-center sm:gap-4"
             >
-              <div className="font-medium text-slate-900 sm:col-span-3">
-                {p.numeroPedimento}
+              <div className="font-medium tracking-wide text-slate-900 sm:col-span-3">
+                {formatPedimentoNumber(p.numeroPedimento)}
               </div>
               <div className="text-sm text-slate-600 sm:col-span-4">
                 {p.clientName ?? "—"}

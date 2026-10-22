@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
+import { formatPedimentoNumber } from "@/lib/pedimento-number";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -75,7 +77,11 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
     );
 
   if (numeroFilter) {
-    query = query.ilike("numero_pedimento", `%${numeroFilter}%`);
+    const compact = numeroFilter.replace(/\s+/g, "");
+    const pattern = /^\d{14,16}$/.test(compact)
+      ? formatPedimentoNumber(compact)
+      : numeroFilter;
+    query = query.ilike("numero_pedimento", `%${pattern}%`);
   }
   if (clienteFilterScoped) {
     query = query.eq("cliente_id", clienteFilterScoped);
@@ -241,7 +247,7 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
                 <th className="px-4 py-3 font-medium text-slate-700">Fecha</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Aduana</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Cliente</th>
-                <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Alta</th>
                 {isStaff ? (
                   <th className="px-4 py-3 font-medium text-slate-700"> </th>
@@ -292,8 +298,8 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
                     key={p.id}
                     className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
                   >
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {p.numero_pedimento}
+                    <td className="px-4 py-3 font-medium tracking-wide text-slate-900">
+                      {formatPedimentoNumber(p.numero_pedimento)}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       {p.fecha
@@ -315,14 +321,7 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-4 py-3">
                       {p.archivo_url ? (
-                        <a
-                          href={p.archivo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                        >
-                          Ver PDF
-                        </a>
+                        <ArchiveFileLink href={p.archivo_url} />
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}

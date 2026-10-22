@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -241,7 +242,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                 <th className="px-4 py-3 font-medium text-slate-700">Fecha</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Cliente</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Monto</th>
-                <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Alta</th>
                 {isStaff ? (
                   <th className="px-4 py-3 font-medium text-slate-700"> </th>
@@ -318,14 +319,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-4 py-3">
                       {f.archivo_url ? (
-                        <a
-                          href={f.archivo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                        >
-                          Ver PDF
-                        </a>
+                        <ArchiveFileLink href={f.archivo_url} />
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}

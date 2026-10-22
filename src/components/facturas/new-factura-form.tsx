@@ -232,14 +232,14 @@ export function NewFacturaForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            PDF de la factura
+            Archivo (PDF o ZIP)
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <input
               id="archivo"
               name="archivo"
               type="file"
-              accept="application/pdf,.pdf"
+              accept="application/pdf,.pdf,application/zip,.zip,application/x-zip-compressed"
               className="min-w-0 flex-1 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20"
               onChange={(e) => {
                 const f = e.target.files?.[0] ?? null;

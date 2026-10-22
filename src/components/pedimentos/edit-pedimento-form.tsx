@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
+import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
 import type { ClientOption } from "@/components/clients/types";
+import { PedimentoNumberFields } from "@/components/pedimentos/pedimento-number-fields";
 import { updatePedimento } from "../../../app/dashboard/pedimentos/actions";
 
 export type EditPedimentoInitial = {
@@ -77,23 +80,7 @@ export function EditPedimentoForm({
           </select>
         </div>
 
-        <div>
-          <label
-            htmlFor="numero_pedimento"
-            className="mb-1.5 block text-sm font-medium text-slate-700"
-          >
-            Número de pedimento <span className="text-red-600">*</span>
-          </label>
-          <input
-            id="numero_pedimento"
-            name="numero_pedimento"
-            type="text"
-            required
-            defaultValue={pedimento.numero_pedimento}
-            className={fieldClass}
-            placeholder="Ej. 24  48  3512  8000892"
-          />
-        </div>
+        <PedimentoNumberFields initialValue={pedimento.numero_pedimento} />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
@@ -148,30 +135,23 @@ export function EditPedimentoForm({
         {pedimento.archivo_url ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm">
             <span className="text-slate-600">Archivo actual: </span>
-            <a
-              href={pedimento.archivo_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-            >
-              Ver PDF actual
-            </a>
+            <ArchiveFileLink href={pedimento.archivo_url} current />
           </div>
         ) : null}
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Reemplazar PDF (opcional)
+            Reemplazar archivo (PDF o ZIP, opcional)
           </label>
           <input
             id="archivo"
             name="archivo"
             type="file"
-            accept="application/pdf,.pdf"
+            accept={ARCHIVE_FILE_ACCEPT}
             className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20"
           />
           <p className="mt-1.5 text-xs text-slate-500">
-            Si subes un archivo nuevo, sustituye al PDF anterior en el almacenamiento.
+            Si subes un archivo nuevo, sustituye al archivo anterior en el almacenamiento.
           </p>
         </div>
 

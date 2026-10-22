@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { notFound, redirect } from "next/navigation";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
@@ -14,6 +15,7 @@ import {
   calculateDocumentStatusFromRow,
   recalculateDocumentStatuses,
 } from "@/lib/document-status";
+import { formatPedimentoNumber } from "@/lib/pedimento-number";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -393,7 +395,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Monto
                   </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                  <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
                   {isStaff ? (
                     <th className="px-4 py-3 font-medium text-slate-700"> </th>
                   ) : null}
@@ -429,14 +431,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                       </td>
                       <td className="px-4 py-3">
                         {f.archivo_url ? (
-                          <a
-                            href={f.archivo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                          >
-                            Ver PDF
-                          </a>
+                          <ArchiveFileLink href={f.archivo_url} />
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
@@ -491,7 +486,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                   <th className="px-4 py-3 font-medium text-slate-700">
                     Aduana
                   </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                  <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
                   {isStaff ? (
                     <th className="px-4 py-3 font-medium text-slate-700"> </th>
                   ) : null}
@@ -513,8 +508,8 @@ export default async function ClientProfilePage({ params }: PageProps) {
                       key={p.id}
                       className="border-b border-slate-100 table-row-interactive last:border-0 hover:bg-slate-50/60"
                     >
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {p.numero_pedimento}
+                      <td className="px-4 py-3 font-medium tracking-wide text-slate-900">
+                        {formatPedimentoNumber(p.numero_pedimento)}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {formatShortDate(p.fecha)}
@@ -522,14 +517,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
                       <td className="px-4 py-3 text-slate-700">{p.aduana}</td>
                       <td className="px-4 py-3">
                         {p.archivo_url ? (
-                          <a
-                            href={p.archivo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                          >
-                            Ver PDF
-                          </a>
+                          <ArchiveFileLink href={p.archivo_url} />
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}

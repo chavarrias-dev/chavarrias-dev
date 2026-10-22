@@ -2,6 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
+import {
+  ARCHIVE_FILE_ACCEPT,
+  ARCHIVE_FILE_ERROR,
+  ARCHIVE_MAX_BYTES,
+  archiveKindFromFile,
+  contentTypeForArchive,
+} from "@/lib/archive-file";
 import {
   calculateDocumentStatusFromRow,
 } from "@/lib/document-status";
@@ -45,14 +53,7 @@ export function ExpedientePdfUpload({
 
   if (archivoUrl) {
     return (
-      <a
-        href={archivoUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-      >
-        Ver documento
-      </a>
+      <ArchiveFileLink href={archivoUrl} />
     );
   }
 
@@ -64,8 +65,13 @@ export function ExpedientePdfUpload({
       return;
     }
 
-    if (file.type !== "application/pdf") {
-      setError("Solo se permiten archivos PDF");
+    const kind = archiveKindFromFile(file);
+    if (!kind) {
+      setError(ARCHIVE_FILE_ERROR);
+      return;
+    }
+    if (file.size > ARCHIVE_MAX_BYTES) {
+      setError("El archivo supera el límite de 25 MB");
       return;
     }
 
@@ -83,11 +89,16 @@ export function ExpedientePdfUpload({
         return;
       }
 
-      const path = documentStoragePath(clientId, documentType);
+      const path = documentStoragePath(clientId, documentType, kind);
+      const previousPath = documentStoragePath(
+        clientId,
+        documentType,
+        kind === "pdf" ? "zip" : "pdf",
+      );
       const { error: uploadError } = await supabase.storage
         .from(CRM_DOCUMENTS_BUCKET)
         .upload(path, file, {
-          contentType: "application/pdf",
+          contentType: contentTypeForArchive(kind),
           upsert: true,
         });
 
@@ -95,6 +106,8 @@ export function ExpedientePdfUpload({
         setError(`Error al subir: ${uploadError.message}`);
         return;
       }
+
+      await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previousPath]);
 
       const { data: publicData } = supabase.storage
         .from(CRM_DOCUMENTS_BUCKET)
@@ -136,7 +149,7 @@ export function ExpedientePdfUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept={ARCHIVE_FILE_ACCEPT}
         className="hidden"
         onChange={handleFileChange}
       />
@@ -146,7 +159,7 @@ export function ExpedientePdfUpload({
         onClick={() => inputRef.current?.click()}
         className="inline-flex h-8 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-2.5 text-xs font-medium text-[#227DE8] transition-all duration-200 hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Subiendo…" : "Subir PDF"}
+        {loading ? "Subiendo…" : "Subir archivo"}
       </button>
       {error ? (
         <span className="text-[11px] text-red-600" role="alert">

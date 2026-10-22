@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { DocumentExpirationFields } from "@/components/documents/document-expiration-fields";
+import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
 import type { DocumentType } from "@/lib/documents-config";
 import { uploadClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
 
@@ -82,13 +83,13 @@ export function UploadDocumentForm({
               htmlFor="archivo"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Archivo PDF <span className="text-red-600">*</span>
+              Archivo (PDF o ZIP) <span className="text-red-600">*</span>
             </label>
             <input
               id="archivo"
               name="archivo"
               type="file"
-              accept="application/pdf,.pdf"
+              accept={ARCHIVE_FILE_ACCEPT}
               required
               className={`${fieldClass} file:mr-3 file:rounded-md file:border-0 file:bg-[#227DE8]/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#227DE8]`}
               onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}

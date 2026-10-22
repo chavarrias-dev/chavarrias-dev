@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
 import type { ClientOption } from "@/components/clients/types";
+import { PedimentoNumberFields } from "@/components/pedimentos/pedimento-number-fields";
 import { savePedimento } from "../../../app/dashboard/pedimentos/actions";
 
 type NewPedimentoFormProps = {
@@ -60,22 +62,7 @@ export function NewPedimentoForm({
           </select>
         </div>
 
-        <div>
-          <label
-            htmlFor="numero_pedimento"
-            className="mb-1.5 block text-sm font-medium text-slate-700"
-          >
-            Número de pedimento <span className="text-red-600">*</span>
-          </label>
-          <input
-            id="numero_pedimento"
-            name="numero_pedimento"
-            type="text"
-            required
-            className={fieldClass}
-            placeholder="Ej. 24  48  3512  8000892"
-          />
-        </div>
+        <PedimentoNumberFields />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
@@ -126,13 +113,13 @@ export function NewPedimentoForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            PDF del pedimento
+            Archivo (PDF o ZIP)
           </label>
           <input
             id="archivo"
             name="archivo"
             type="file"
-            accept="application/pdf,.pdf"
+            accept={ARCHIVE_FILE_ACCEPT}
             className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20"
           />
         </div>

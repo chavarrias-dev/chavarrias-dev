@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { DocumentExpirationFields } from "@/components/documents/document-expiration-fields";
+import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
 import { ModalShell } from "@/components/ui/modal-shell";
 import type { DocumentType, ValidityPeriod } from "@/lib/documents-config";
 import { uploadClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
@@ -106,8 +107,8 @@ export function UploadDocumentModal({
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">
               {document.isUpdate
-                ? "Actualiza el archivo PDF y la vigencia."
-                : "Sube el archivo PDF y define la vigencia."}
+                ? "Actualiza el archivo (PDF o ZIP) y la vigencia."
+                : "Sube el archivo (PDF o ZIP) y define la vigencia."}
             </p>
           </div>
           <button
@@ -143,13 +144,13 @@ export function UploadDocumentModal({
                 htmlFor="modal-archivo"
                 className="mb-1.5 block text-sm font-medium text-slate-700"
               >
-                Archivo PDF <span className="text-red-600">*</span>
+                Archivo (PDF o ZIP) <span className="text-red-600">*</span>
               </label>
               <input
                 id="modal-archivo"
                 name="archivo"
                 type="file"
-                accept="application/pdf,.pdf"
+                accept={ARCHIVE_FILE_ACCEPT}
                 required
                 className={`${fieldClass} file:mr-3 file:rounded-md file:border-0 file:bg-[#227DE8]/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#227DE8]`}
                 onChange={(e) =>

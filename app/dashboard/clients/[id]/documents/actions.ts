@@ -3,6 +3,12 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
+  ARCHIVE_FILE_ERROR,
+  ARCHIVE_MAX_BYTES,
+  archiveKindFromFile,
+  contentTypeForArchive,
+} from "@/lib/archive-file";
+import {
   calculateDocumentStatus,
   recalculateDocumentStatuses,
 } from "@/lib/document-status";
@@ -175,6 +181,46 @@ async function fetchExistingDocument(
   return (data as ExistingDocumentRow | null) ?? null;
 }
 
+async function uploadClientArchive(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  clientId: string,
+  documentType: string,
+  file: File,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  if (file.size > ARCHIVE_MAX_BYTES) {
+    return { ok: false, error: "El archivo supera el límite de 25 MB" };
+  }
+  const kind = archiveKindFromFile(file);
+  if (!kind) {
+    return { ok: false, error: ARCHIVE_FILE_ERROR };
+  }
+
+  const path = documentStoragePath(clientId, documentType, kind);
+  const previousPath = documentStoragePath(
+    clientId,
+    documentType,
+    kind === "pdf" ? "zip" : "pdf",
+  );
+  const { error: upErr } = await supabase.storage
+    .from(CRM_DOCUMENTS_BUCKET)
+    .upload(path, file, {
+      contentType: contentTypeForArchive(kind),
+      upsert: true,
+    });
+
+  if (upErr) {
+    return { ok: false, error: `Error al subir el archivo: ${upErr.message}` };
+  }
+
+  await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previousPath]);
+
+  const { data: pub } = supabase.storage
+    .from(CRM_DOCUMENTS_BUCKET)
+    .getPublicUrl(path);
+
+  return { ok: true, url: pub.publicUrl };
+}
+
 export async function quickUploadClientDocument(
   formData: FormData,
 ): Promise<UploadDocumentResult> {
@@ -192,10 +238,7 @@ export async function quickUploadClientDocument(
 
   const file = formData.get("archivo");
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Debes seleccionar un archivo PDF" };
-  }
-  if (file.type !== "application/pdf") {
-    return { ok: false, error: "Solo se permiten archivos PDF" };
+    return { ok: false, error: "Debes seleccionar un archivo PDF o ZIP" };
   }
 
   const { data: clientRow } = await supabase
@@ -211,22 +254,14 @@ export async function quickUploadClientDocument(
   const existing = await fetchExistingDocument(supabase, clientId, documentType);
   const fechaSubida = new Date();
 
-  const path = documentStoragePath(clientId, documentType);
-  const { error: upErr } = await supabase.storage
-    .from(CRM_DOCUMENTS_BUCKET)
-    .upload(path, file, {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-
-  if (upErr) {
-    return { ok: false, error: `Error al subir el PDF: ${upErr.message}` };
-  }
-
-  const { data: pub } = supabase.storage
-    .from(CRM_DOCUMENTS_BUCKET)
-    .getPublicUrl(path);
-  const archivoUrl = pub.publicUrl;
+  const uploaded = await uploadClientArchive(
+    supabase,
+    clientId,
+    documentType,
+    file,
+  );
+  if (!uploaded.ok) return uploaded;
+  const archivoUrl = uploaded.url;
 
   const expiration = existing
     ? {
@@ -323,26 +358,14 @@ export async function configureClientDocument(
 
   const file = formData.get("archivo");
   if (file instanceof File && file.size > 0) {
-    if (file.type !== "application/pdf") {
-      return { ok: false, error: "Solo se permiten archivos PDF" };
-    }
-
-    const path = documentStoragePath(clientId, documentType);
-    const { error: upErr } = await supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-
-    if (upErr) {
-      return { ok: false, error: `Error al subir el PDF: ${upErr.message}` };
-    }
-
-    const { data: pub } = supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .getPublicUrl(path);
-    archivoUrl = pub.publicUrl;
+    const uploaded = await uploadClientArchive(
+      supabase,
+      clientId,
+      documentType,
+      file,
+    );
+    if (!uploaded.ok) return uploaded;
+    archivoUrl = uploaded.url;
   }
 
   const status = calculateDocumentStatus(archivoUrl, expiration);
@@ -412,10 +435,7 @@ export async function uploadClientDocument(
 
   const file = formData.get("archivo");
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Debes seleccionar un archivo PDF" };
-  }
-  if (file.type !== "application/pdf") {
-    return { ok: false, error: "Solo se permiten archivos PDF" };
+    return { ok: false, error: "Debes seleccionar un archivo PDF o ZIP" };
   }
 
   const notas = emptyToNull(formData.get("notas"));
@@ -432,22 +452,14 @@ export async function uploadClientDocument(
     return { ok: false, error: "Cliente no encontrado" };
   }
 
-  const path = documentStoragePath(trimmedClientId, documentType);
-  const { error: upErr } = await supabase.storage
-    .from(CRM_DOCUMENTS_BUCKET)
-    .upload(path, file, {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-
-  if (upErr) {
-    return { ok: false, error: `Error al subir el PDF: ${upErr.message}` };
-  }
-
-  const { data: pub } = supabase.storage
-    .from(CRM_DOCUMENTS_BUCKET)
-    .getPublicUrl(path);
-  const archivoUrl = pub.publicUrl;
+  const uploaded = await uploadClientArchive(
+    supabase,
+    trimmedClientId,
+    documentType,
+    file,
+  );
+  if (!uploaded.ok) return uploaded;
+  const archivoUrl = uploaded.url;
   const status = calculateDocumentStatus(archivoUrl, expiration);
 
   const { data: existing } = await supabase
@@ -545,42 +557,24 @@ export async function updateClientDocument(formData: FormData) {
 
   const file = formData.get("archivo");
   if (file instanceof File && file.size > 0) {
-    if (file.type !== "application/pdf") {
+    const uploaded = await uploadClientArchive(
+      supabase,
+      trimmedClientId,
+      documentType,
+      file,
+    );
+    if (!uploaded.ok) {
       redirect(
         buildRedirectUrl(
           trimmedClientId,
           documentType,
-          "Solo se permiten archivos PDF",
+          uploaded.error,
           "edit",
           trimmedDocId,
         ),
       );
     }
-
-    const path = documentStoragePath(trimmedClientId, documentType);
-    const { error: upErr } = await supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-
-    if (upErr) {
-      redirect(
-        buildRedirectUrl(
-          trimmedClientId,
-          documentType,
-          `Error al subir el PDF: ${upErr.message}`,
-          "edit",
-          trimmedDocId,
-        ),
-      );
-    }
-
-    const { data: pub } = supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .getPublicUrl(path);
-    archivoUrl = pub.publicUrl;
+    archivoUrl = uploaded.url;
   }
 
   const status = calculateDocumentStatus(archivoUrl, expiration);

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { DocumentExpirationFields } from "@/components/documents/document-expiration-fields";
+import { ArchiveFileLink } from "@/components/files/archive-file-link";
+import { ARCHIVE_FILE_ACCEPT } from "@/lib/archive-file";
 import type { DocumentType, ValidityPeriod } from "@/lib/documents-config";
 import { updateClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
 
@@ -101,14 +103,11 @@ export function EditDocumentForm({
               <p className="mb-1.5 text-sm font-medium text-slate-700">
                 Archivo actual
               </p>
-              <a
+              <ArchiveFileLink
                 href={archivoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                current
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-[#227DE8] hover:underline"
-              >
-                Ver PDF actual
-              </a>
+              />
             </div>
           ) : null}
 
@@ -117,14 +116,14 @@ export function EditDocumentForm({
               htmlFor="archivo"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Reemplazar PDF{" "}
+              Reemplazar archivo (PDF o ZIP){" "}
               <span className="font-normal text-slate-400">(opcional)</span>
             </label>
             <input
               id="archivo"
               name="archivo"
               type="file"
-              accept="application/pdf,.pdf"
+              accept={ARCHIVE_FILE_ACCEPT}
               className={`${fieldClass} file:mr-3 file:rounded-md file:border-0 file:bg-[#227DE8]/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#227DE8]`}
               onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
             />

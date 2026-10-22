@@ -26,12 +26,13 @@ export function isDocumentType(value: string): value is DocumentType {
   return (DOCUMENT_TYPES as readonly string[]).includes(value);
 }
 
-/** Storage path: documentos/{clientId}/{documentType}.pdf */
+/** Storage path: documentos/{clientId}/{documentType}.pdf or .zip */
 export function documentStoragePath(
   clientId: string,
   documentType: string,
+  extension: "pdf" | "zip" = "pdf",
 ): string {
-  return `documentos/${clientId}/${documentType}.pdf`;
+  return `documentos/${clientId}/${documentType}.${extension}`;
 }
 
 export const VALIDITY_PERIODS = [
