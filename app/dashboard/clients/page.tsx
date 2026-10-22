@@ -14,6 +14,8 @@ type ClientRow = {
   email: string;
   phone: string | null;
   company_name: string | null;
+  tipo_razon_social: string | null;
+  puesto: string | null;
   rfc: string | null;
   notes: string | null;
   created_at: string | null;
@@ -43,7 +45,7 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
   const { data: clients, error } = await supabase
     .from("clients")
     .select(
-      "id, full_name, email, phone, company_name, rfc, notes, created_at",
+      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, notes, created_at",
     )
     .order("created_at", { ascending: false });
 
@@ -137,7 +139,14 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
                       {c.phone ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {c.company_name ?? "—"}
+                      <div>{c.company_name ?? "—"}</div>
+                      {c.tipo_razon_social || c.puesto ? (
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          {[c.tipo_razon_social, c.puesto]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">
                       {c.rfc ?? "—"}

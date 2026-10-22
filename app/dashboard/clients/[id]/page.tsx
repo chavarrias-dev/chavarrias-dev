@@ -23,6 +23,8 @@ type ClientRecord = {
   email: string;
   phone: string | null;
   company_name: string | null;
+  tipo_razon_social: string | null;
+  puesto: string | null;
   rfc: string | null;
   constancia_url: string | null;
   created_at: string | null;
@@ -124,7 +126,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
   const { data: clientRow, error: clientErr } = await supabase
     .from("clients")
     .select(
-      "id, full_name, email, phone, company_name, rfc, constancia_url, created_at",
+      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -288,6 +290,22 @@ export default async function ClientProfilePage({ params }: PageProps) {
                 </dt>
                 <dd className="mt-1 text-sm text-slate-800">
                   {client.company_name ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Tipo de razón social
+                </dt>
+                <dd className="mt-1 text-sm text-slate-800">
+                  {client.tipo_razon_social ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Puesto
+                </dt>
+                <dd className="mt-1 text-sm text-slate-800">
+                  {client.puesto ?? "—"}
                 </dd>
               </div>
               <div>

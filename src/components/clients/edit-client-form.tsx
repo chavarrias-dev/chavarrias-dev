@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClientCompanyFields } from "@/components/clients/client-company-fields";
 import { updateClient } from "../../../app/dashboard/clients/actions";
 
 export type EditClientInitial = {
@@ -7,6 +8,8 @@ export type EditClientInitial = {
   email: string;
   phone: string | null;
   company_name: string | null;
+  tipo_razon_social: string | null;
+  puesto: string | null;
   rfc: string | null;
   notes: string | null;
 };
@@ -90,23 +93,11 @@ export function EditClientForm({ client, errorMessage }: EditClientFormProps) {
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="company_name"
-            className="mb-1.5 block text-sm font-medium text-slate-700"
-          >
-            Empresa
-          </label>
-          <input
-            id="company_name"
-            name="company_name"
-            type="text"
-            autoComplete="organization"
-            defaultValue={client.company_name ?? ""}
-            className={inputClass}
-            placeholder="Razón social o nombre comercial"
-          />
-        </div>
+        <ClientCompanyFields
+          companyName={client.company_name ?? ""}
+          tipoRazonSocial={client.tipo_razon_social}
+          puesto={client.puesto}
+        />
 
         <div>
           <label

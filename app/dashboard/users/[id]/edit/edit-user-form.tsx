@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ClientCompanyFields } from "@/components/clients/client-company-fields";
 import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { updateUser } from "../../actions";
 
@@ -12,6 +13,8 @@ type EditUserFormProps = {
   initialRole: ProfileRole | null;
   initialPhone: string;
   initialCompanyName: string;
+  initialTipoRazonSocial: string;
+  initialPuesto: string;
   initialRfc: string;
   errorMessage?: string;
 };
@@ -26,6 +29,8 @@ export function EditUserForm({
   initialRole,
   initialPhone,
   initialCompanyName,
+  initialTipoRazonSocial,
+  initialPuesto,
   initialRfc,
   errorMessage,
 }: EditUserFormProps) {
@@ -144,22 +149,11 @@ export function EditUserForm({
 
         {role === "cliente" ? (
           <>
-            <div>
-              <label
-                htmlFor="company_name"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Empresa
-              </label>
-              <input
-                id="company_name"
-                name="company_name"
-                type="text"
-                autoComplete="organization"
-                defaultValue={initialCompanyName}
-                className={inputClass}
-              />
-            </div>
+            <ClientCompanyFields
+              companyName={initialCompanyName}
+              tipoRazonSocial={initialTipoRazonSocial}
+              puesto={initialPuesto}
+            />
             <div>
               <label
                 htmlFor="rfc"

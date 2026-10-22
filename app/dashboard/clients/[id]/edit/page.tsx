@@ -10,6 +10,8 @@ type ClientRecord = {
   email: string;
   phone: string | null;
   company_name: string | null;
+  tipo_razon_social: string | null;
+  puesto: string | null;
   rfc: string | null;
   notes: string | null;
 };
@@ -37,7 +39,9 @@ export default async function EditClientPage({ params, searchParams }: PageProps
 
   const { data: client, error } = await supabase
     .from("clients")
-    .select("id, full_name, email, phone, company_name, rfc, notes")
+    .select(
+      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, notes",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -61,6 +65,8 @@ export default async function EditClientPage({ params, searchParams }: PageProps
           email: c.email,
           phone: c.phone,
           company_name: c.company_name,
+          tipo_razon_social: c.tipo_razon_social,
+          puesto: c.puesto,
           rfc: c.rfc,
           notes: c.notes,
         }}

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
+import { readClientCompanyFields } from "@/lib/client-company";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -54,13 +55,22 @@ export async function updateClient(formData: FormData) {
     );
   }
 
+  const companyFields = readClientCompanyFields(formData);
+  if (!companyFields.ok) {
+    redirect(
+      `/dashboard/clients/${clientId}/edit?error=${encodeURIComponent(companyFields.error)}`,
+    );
+  }
+
   const { error } = await supabase
     .from("clients")
     .update({
       full_name: fullName.trim(),
       email: email.trim().toLowerCase(),
       phone: emptyToNull(formData.get("phone")),
-      company_name: emptyToNull(formData.get("company_name")),
+      company_name: companyFields.value.companyName,
+      tipo_razon_social: companyFields.value.tipoRazonSocial,
+      puesto: companyFields.value.puesto,
       rfc: emptyToNull(formData.get("rfc")),
       notes: emptyToNull(formData.get("notes")),
     })

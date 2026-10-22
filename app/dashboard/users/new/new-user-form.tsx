@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ClientCompanyFields } from "@/components/clients/client-company-fields";
 import type { ExtractedConstanciaData } from "@/lib/extract-constancia-types";
 import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { createUser } from "../actions";
@@ -238,22 +239,7 @@ export function NewUserForm({ errorMessage }: NewUserFormProps) {
 
         {role === "cliente" ? (
           <>
-            <div>
-              <label
-                htmlFor="company_name"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
-              >
-                Empresa
-              </label>
-              <input
-                id="company_name"
-                name="company_name"
-                type="text"
-                autoComplete="organization"
-                className={inputClass}
-                placeholder="Razón social o nombre comercial"
-              />
-            </div>
+            <ClientCompanyFields />
 
             <div>
               <label

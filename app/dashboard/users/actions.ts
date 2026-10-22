@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
+import { readClientCompanyFields } from "@/lib/client-company";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ProfileRole } from "@/lib/supabase/profile-role";
@@ -85,7 +86,20 @@ export async function createUser(formData: FormData) {
 
   const email = emailRaw.trim().toLowerCase();
   const phone = emptyToNull(formData.get("phone"));
-  const companyName = emptyToNull(formData.get("company_name"));
+  const companyFields =
+    role === "cliente" ? readClientCompanyFields(formData) : null;
+  if (companyFields && !companyFields.ok) {
+    redirect(
+      `/dashboard/users/new?error=${encodeURIComponent(companyFields.error)}`,
+    );
+  }
+  const companyName = companyFields?.ok
+    ? companyFields.value.companyName
+    : null;
+  const tipoRazonSocial = companyFields?.ok
+    ? companyFields.value.tipoRazonSocial
+    : null;
+  const puesto = companyFields?.ok ? companyFields.value.puesto : null;
   const rfc = emptyToNull(formData.get("rfc"));
   const curp = emptyToNull(formData.get("curp"));
   const codigoPostal = emptyToNull(formData.get("codigo_postal"));
@@ -143,6 +157,8 @@ export async function createUser(formData: FormData) {
         email,
         phone,
         company_name: companyName,
+        tipo_razon_social: tipoRazonSocial,
+        puesto,
         rfc,
         curp,
         codigo_postal: codigoPostal,
@@ -255,7 +271,20 @@ export async function updateUser(formData: FormData) {
 
   const email = emailRaw.trim().toLowerCase();
   const phone = emptyToNull(formData.get("phone"));
-  const companyName = emptyToNull(formData.get("company_name"));
+  const companyFields =
+    role === "cliente" ? readClientCompanyFields(formData) : null;
+  if (companyFields && !companyFields.ok) {
+    redirect(
+      `/dashboard/users/${id}/edit?error=${encodeURIComponent(companyFields.error)}`,
+    );
+  }
+  const companyName = companyFields?.ok
+    ? companyFields.value.companyName
+    : null;
+  const tipoRazonSocial = companyFields?.ok
+    ? companyFields.value.tipoRazonSocial
+    : null;
+  const puesto = companyFields?.ok ? companyFields.value.puesto : null;
   const rfc = emptyToNull(formData.get("rfc"));
 
   if (
@@ -344,6 +373,8 @@ export async function updateUser(formData: FormData) {
           email,
           phone,
           company_name: companyName,
+          tipo_razon_social: tipoRazonSocial,
+          puesto,
           rfc,
         })
         .eq("id", clientRow.id);
@@ -358,6 +389,8 @@ export async function updateUser(formData: FormData) {
         email,
         phone,
         company_name: companyName,
+        tipo_razon_social: tipoRazonSocial,
+        puesto,
         rfc,
         notes: null,
       });

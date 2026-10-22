@@ -78,6 +78,13 @@
       "when": 1782400000000,
       "tag": "0010_doda_notify_type_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792627200000,
+      "tag": "0011_add_client_company_role_fields",
+      "breakpoints": true
     }
   ]
 }

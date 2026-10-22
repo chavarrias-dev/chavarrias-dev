@@ -36,6 +36,8 @@ export const clients = pgTable("clients", {
   email: text("email").notNull(),
   phone: text("phone"),
   companyName: text("company_name"),
+  tipoRazonSocial: text("tipo_razon_social"),
+  puesto: text("puesto"),
   rfc: text("rfc"),
   curp: text("curp"),
   codigoPostal: text("codigo_postal"),

@@ -52,22 +52,28 @@ export default async function EditUserPage({ params, searchParams }: PageProps) 
 
   let initialPhone = metaPhone;
   let initialCompanyName = "";
+  let initialTipoRazonSocial = "";
+  let initialPuesto = "";
   let initialRfc = "";
 
   if (profile.role === "cliente") {
     const { data: clientRow } = await admin
       .from("clients")
-      .select("phone, company_name, rfc")
+      .select("phone, company_name, tipo_razon_social, puesto, rfc")
       .eq("email", profile.email.trim().toLowerCase())
       .maybeSingle<{
         phone: string | null;
         company_name: string | null;
+        tipo_razon_social: string | null;
+        puesto: string | null;
         rfc: string | null;
       }>();
 
     if (clientRow) {
       initialPhone = clientRow.phone ?? "";
       initialCompanyName = clientRow.company_name ?? "";
+      initialTipoRazonSocial = clientRow.tipo_razon_social ?? "";
+      initialPuesto = clientRow.puesto ?? "";
       initialRfc = clientRow.rfc ?? "";
     }
   }
@@ -86,6 +92,8 @@ export default async function EditUserPage({ params, searchParams }: PageProps) 
         initialRole={profile.role}
         initialPhone={initialPhone}
         initialCompanyName={initialCompanyName}
+        initialTipoRazonSocial={initialTipoRazonSocial}
+        initialPuesto={initialPuesto}
         initialRfc={initialRfc}
         errorMessage={errorMessage}
       />
