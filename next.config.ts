@@ -23,14 +23,14 @@ const pdfJsTraceIncludes = [
 const dodaApiTraceIncludes = [
   ...sharpTraceIncludes,
   ...pdfJsTraceIncludes,
-  "./node_modules/@sparticuz/chromium/**/*",
   "./node_modules/puppeteer-core/**/*",
+  "./node_modules/@sparticuz/chromium-min/**/*",
 ] as const;
 
-/** Cron + lookup-by-number: Puppeteer only (no sharp/pdfjs). */
+/** Cron + lookup-by-number: Puppeteer only (no sharp/pdfjs). Chromium binary is fetched at runtime. */
 const dodaPuppeteerTraceIncludes = [
-  "./node_modules/@sparticuz/chromium/**/*",
   "./node_modules/puppeteer-core/**/*",
+  "./node_modules/@sparticuz/chromium-min/**/*",
 ] as const;
 
 const nextConfig: NextConfig = {
@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
     "@img/sharp-linuxmusl-x64",
     "@img/sharp-libvips-linux-x64",
     "@img/sharp-libvips-linuxmusl-x64",
-    "@sparticuz/chromium",
+    "@sparticuz/chromium-min",
     "puppeteer-core",
     "@napi-rs/canvas",
     "pdfjs-dist",
