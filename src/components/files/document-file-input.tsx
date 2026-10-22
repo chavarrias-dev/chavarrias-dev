@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  ARCHIVE_FILE_ACCEPT,
-  validateArchiveFile,
-} from "@/lib/archive-file";
+import { validateArchiveFile } from "@/lib/archive-file";
 import { documentStoragePath } from "@/lib/documents-config";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 
@@ -99,7 +96,6 @@ export function DocumentFileInput({
         ref={inputRef}
         id={id}
         type="file"
-        accept={ARCHIVE_FILE_ACCEPT}
         className={inputClass}
         onChange={(event) => {
           void onChange(event.target.files?.[0]);

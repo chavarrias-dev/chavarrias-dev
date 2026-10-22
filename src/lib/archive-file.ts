@@ -1,7 +1,11 @@
 import { storageObjectPathFromPublicUrl } from "@/lib/supabase-storage";
 
-export const ARCHIVE_FILE_ACCEPT =
-  "application/pdf,.pdf,application/zip,.zip,application/x-zip-compressed";
+/**
+ * Extension-only filter (safe on macOS/Linux). On Windows, Chromium often hides
+ * `.zip` when MIME types are mixed in `accept` — archive inputs omit `accept`
+ * and rely on {@link validateArchiveFile} instead.
+ */
+export const ARCHIVE_FILE_ACCEPT = ".pdf,.zip";
 
 export const ARCHIVE_FILE_ERROR = "Solo se permiten archivos PDF o ZIP";
 
@@ -40,14 +44,20 @@ export function validateArchiveFile(
 }
 
 export const ARCHIVE_UPLOAD_HINT =
-  "PDF hasta 25 MB o ZIP hasta 100 MB";
+  "PDF (25 MB) o ZIP (100 MB). Si no ves tu .zip, elige «Todos los archivos» en el explorador.";
 
 export type ArchiveKind = "pdf" | "zip";
 
 export function archiveKindFromFile(file: File): ArchiveKind | null {
   const name = file.name.toLowerCase();
   const type = file.type.toLowerCase();
-  if (name.endsWith(".zip") || type.includes("zip")) return "zip";
+  if (
+    name.endsWith(".zip") ||
+    type.includes("zip") ||
+    type === "application/x-zip-compressed"
+  ) {
+    return "zip";
+  }
   if (name.endsWith(".pdf") || type === "application/pdf") return "pdf";
   return null;
 }

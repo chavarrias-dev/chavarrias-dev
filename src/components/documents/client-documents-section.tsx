@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
-import {
-  ARCHIVE_FILE_ACCEPT,
-  validateArchiveFile,
-} from "@/lib/archive-file";
+import { validateArchiveFile } from "@/lib/archive-file";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 import {
   ConfigureDocumentModal,
@@ -330,7 +327,6 @@ export function ClientDocumentsSection({
           <input
             ref={fileInputRef}
             type="file"
-            accept={ARCHIVE_FILE_ACCEPT}
             className="hidden"
             onChange={handleQuickFileChange}
           />

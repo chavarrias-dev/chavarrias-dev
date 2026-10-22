@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ARCHIVE_FILE_ACCEPT,
+  ARCHIVE_UPLOAD_HINT,
   validateArchiveFile,
 } from "@/lib/archive-file";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -103,7 +103,6 @@ export function ArchiveFileInput({
         ref={inputRef}
         id={id}
         type="file"
-        accept={ARCHIVE_FILE_ACCEPT}
         className={inputClass}
         onChange={(event) => {
           void onChange(event.target.files?.[0]);
@@ -122,7 +121,9 @@ export function ArchiveFileInput({
         <p className="mt-1.5 text-sm text-red-700" role="alert">
           {error}
         </p>
-      ) : null}
+      ) : (
+        <p className="mt-1.5 text-xs text-slate-500">{ARCHIVE_UPLOAD_HINT}</p>
+      )}
     </div>
   );
 }

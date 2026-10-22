@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import {
-  ARCHIVE_FILE_ACCEPT,
   ARCHIVE_UPLOAD_HINT,
   validateArchiveFile,
 } from "@/lib/archive-file";
@@ -135,7 +134,6 @@ export function ExpedientePdfUpload({
       <input
         ref={inputRef}
         type="file"
-        accept={ARCHIVE_FILE_ACCEPT}
         className="hidden"
         onChange={handleFileChange}
       />
