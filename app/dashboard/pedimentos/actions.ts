@@ -3,12 +3,10 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
-  ARCHIVE_FILE_ERROR,
-  ARCHIVE_MAX_BYTES,
-  archiveKindFromFile,
   contentTypeForArchive,
   acceptedPreuploadedUrl,
   recordArchivePath,
+  validateArchiveFile,
   type ArchiveKind,
 } from "@/lib/archive-file";
 import { readPedimentoNumber } from "@/lib/pedimento-number";
@@ -49,12 +47,9 @@ function readArchiveKind(
   fail: (message: string) => never,
 ): ArchiveKind | null {
   if (!(file instanceof File) || file.size === 0) return null;
-  if (file.size > ARCHIVE_MAX_BYTES) {
-    fail("El archivo supera el límite de 25 MB");
-  }
-  const kind = archiveKindFromFile(file);
-  if (!kind) fail(ARCHIVE_FILE_ERROR);
-  return kind;
+  const validated = validateArchiveFile(file);
+  if (!validated.ok) fail(validated.error);
+  return validated.kind;
 }
 
 export async function savePedimento(formData: FormData) {

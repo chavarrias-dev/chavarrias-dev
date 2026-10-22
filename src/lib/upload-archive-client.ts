@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  ARCHIVE_FILE_ERROR,
-  ARCHIVE_MAX_BYTES,
-  archiveKindFromFile,
   contentTypeForArchive,
+  validateArchiveFile,
 } from "@/lib/archive-file";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
@@ -13,13 +11,11 @@ export async function uploadArchiveFromBrowser(
   file: File,
   objectPath: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const kind = archiveKindFromFile(file);
-  if (!kind) {
-    return { ok: false, error: ARCHIVE_FILE_ERROR };
+  const validated = validateArchiveFile(file);
+  if (!validated.ok) {
+    return { ok: false, error: validated.error };
   }
-  if (file.size > ARCHIVE_MAX_BYTES) {
-    return { ok: false, error: "El archivo supera el límite de 25 MB" };
-  }
+  const { kind } = validated;
 
   const supabase = createSupabaseBrowserClient();
   const {
@@ -29,13 +25,10 @@ export async function uploadArchiveFromBrowser(
     return { ok: false, error: "Sesión no válida. Vuelve a iniciar sesión." };
   }
 
-  const body = new Blob([await file.arrayBuffer()], {
-    type: contentTypeForArchive(kind),
-  });
   const { error } = await supabase.storage
     .from(CRM_DOCUMENTS_BUCKET)
-    .upload(objectPath, body, {
-      contentType: body.type,
+    .upload(objectPath, file, {
+      contentType: contentTypeForArchive(kind),
       upsert: true,
     });
 

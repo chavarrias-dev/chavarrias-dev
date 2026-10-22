@@ -4,10 +4,8 @@ import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
   acceptedPreuploadedUrl,
-  ARCHIVE_FILE_ERROR,
-  ARCHIVE_MAX_BYTES,
-  archiveKindFromFile,
   contentTypeForArchive,
+  validateArchiveFile,
 } from "@/lib/archive-file";
 import {
   calculateDocumentStatus,
@@ -191,13 +189,11 @@ async function uploadClientArchive(
   documentType: string,
   file: File,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  if (file.size > ARCHIVE_MAX_BYTES) {
-    return { ok: false, error: "El archivo supera el límite de 25 MB" };
+  const validated = validateArchiveFile(file);
+  if (!validated.ok) {
+    return { ok: false, error: validated.error };
   }
-  const kind = archiveKindFromFile(file);
-  if (!kind) {
-    return { ok: false, error: ARCHIVE_FILE_ERROR };
-  }
+  const { kind } = validated;
 
   const path = documentStoragePath(clientId, documentType, kind);
   const previousPath = documentStoragePath(
@@ -205,10 +201,9 @@ async function uploadClientArchive(
     documentType,
     kind === "pdf" ? "zip" : "pdf",
   );
-  const bytes = new Uint8Array(await file.arrayBuffer());
   const { error: upErr } = await supabase.storage
     .from(CRM_DOCUMENTS_BUCKET)
-    .upload(path, bytes, {
+    .upload(path, file, {
       contentType: contentTypeForArchive(kind),
       upsert: true,
     });

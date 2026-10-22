@@ -5,8 +5,42 @@ export const ARCHIVE_FILE_ACCEPT =
 
 export const ARCHIVE_FILE_ERROR = "Solo se permiten archivos PDF o ZIP";
 
-/** ZIPs are larger than a single PDF. Server actions use the same ceiling. */
-export const ARCHIVE_MAX_BYTES = 25 * 1024 * 1024;
+export const ARCHIVE_PDF_MAX_BYTES = 25 * 1024 * 1024;
+/** Expedientes: fotos u otros documentos comprimidos en ZIP. */
+export const ARCHIVE_ZIP_MAX_BYTES = 100 * 1024 * 1024;
+
+/** Upper bound for any archive upload (ZIP). */
+export const ARCHIVE_MAX_BYTES = ARCHIVE_ZIP_MAX_BYTES;
+
+export function maxArchiveBytesForKind(kind: ArchiveKind): number {
+  return kind === "zip" ? ARCHIVE_ZIP_MAX_BYTES : ARCHIVE_PDF_MAX_BYTES;
+}
+
+export function archiveMaxSizeLabel(kind: ArchiveKind): string {
+  const mb = maxArchiveBytesForKind(kind) / (1024 * 1024);
+  return `${mb} MB`;
+}
+
+export function validateArchiveFile(
+  file: File,
+): { ok: true; kind: ArchiveKind } | { ok: false; error: string } {
+  const kind = archiveKindFromFile(file);
+  if (!kind) {
+    return { ok: false, error: ARCHIVE_FILE_ERROR };
+  }
+  const max = maxArchiveBytesForKind(kind);
+  if (file.size > max) {
+    const tipo = kind === "zip" ? "ZIP" : "PDF";
+    return {
+      ok: false,
+      error: `El ${tipo} supera el límite de ${archiveMaxSizeLabel(kind)}`,
+    };
+  }
+  return { ok: true, kind };
+}
+
+export const ARCHIVE_UPLOAD_HINT =
+  "PDF hasta 25 MB o ZIP hasta 100 MB";
 
 export type ArchiveKind = "pdf" | "zip";
 

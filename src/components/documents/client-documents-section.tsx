@@ -7,8 +7,7 @@ import { DocumentStatusBadge } from "@/components/documents/document-status-badg
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import {
   ARCHIVE_FILE_ACCEPT,
-  ARCHIVE_FILE_ERROR,
-  archiveKindFromFile,
+  validateArchiveFile,
 } from "@/lib/archive-file";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 import {
@@ -135,12 +134,13 @@ export function ClientDocumentsSection({
       return;
     }
 
-    const kind = archiveKindFromFile(file);
-    if (!kind) {
-      setErrorMessage(ARCHIVE_FILE_ERROR);
+    const validated = validateArchiveFile(file);
+    if (!validated.ok) {
+      setErrorMessage(validated.error);
       setPendingUploadType(null);
       return;
     }
+    const { kind } = validated;
 
     setUploadingType(documentType);
     setErrorMessage(null);

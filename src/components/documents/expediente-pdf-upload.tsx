@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import {
   ARCHIVE_FILE_ACCEPT,
-  ARCHIVE_FILE_ERROR,
-  ARCHIVE_MAX_BYTES,
-  archiveKindFromFile,
+  ARCHIVE_UPLOAD_HINT,
+  validateArchiveFile,
 } from "@/lib/archive-file";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 import {
@@ -65,15 +64,12 @@ export function ExpedientePdfUpload({
       return;
     }
 
-    const kind = archiveKindFromFile(file);
-    if (!kind) {
-      setError(ARCHIVE_FILE_ERROR);
+    const validated = validateArchiveFile(file);
+    if (!validated.ok) {
+      setError(validated.error);
       return;
     }
-    if (file.size > ARCHIVE_MAX_BYTES) {
-      setError("El archivo supera el límite de 25 MB");
-      return;
-    }
+    const { kind } = validated;
 
     setLoading(true);
     setError(null);
@@ -151,6 +147,11 @@ export function ExpedientePdfUpload({
       >
         {loading ? "Subiendo…" : "Subir archivo"}
       </button>
+      {!error ? (
+        <span className="text-[10px] leading-snug text-slate-500">
+          {ARCHIVE_UPLOAD_HINT}
+        </span>
+      ) : null}
       {error ? (
         <span className="text-[11px] text-red-600" role="alert">
           {error}

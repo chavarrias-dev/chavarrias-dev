@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ARCHIVE_FILE_ACCEPT,
-  archiveKindFromFile,
+  validateArchiveFile,
 } from "@/lib/archive-file";
 import { documentStoragePath } from "@/lib/documents-config";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
@@ -69,9 +69,9 @@ export function DocumentFileInput({
     setFileName("");
     if (!file) return;
 
-    const kind = archiveKindFromFile(file);
-    if (!kind) {
-      setError("Solo se permiten archivos PDF o ZIP");
+    const validated = validateArchiveFile(file);
+    if (!validated.ok) {
+      setError(validated.error);
       return;
     }
 
@@ -80,7 +80,7 @@ export function DocumentFileInput({
     try {
       const result = await uploadArchiveFromBrowser(
         file,
-        documentStoragePath(clientId, documentType, kind),
+        documentStoragePath(clientId, documentType, validated.kind),
       );
       if (!result.ok) {
         setError(result.error);

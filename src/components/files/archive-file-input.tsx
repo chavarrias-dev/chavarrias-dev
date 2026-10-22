@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ARCHIVE_FILE_ACCEPT,
-  archiveKindFromFile,
+  validateArchiveFile,
 } from "@/lib/archive-file";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
@@ -64,12 +64,12 @@ export function ArchiveFileInput({
     onPdfSelected?.(null);
     if (!file) return;
 
-    const kind = archiveKindFromFile(file);
-    if (!kind) {
-      setError("Solo se permiten archivos PDF o ZIP");
+    const validated = validateArchiveFile(file);
+    if (!validated.ok) {
+      setError(validated.error);
       return;
     }
-    if (kind === "pdf") onPdfSelected?.(file);
+    if (validated.kind === "pdf") onPdfSelected?.(file);
 
     setUploading(true);
     setFileName(file.name);
@@ -84,7 +84,7 @@ export function ArchiveFileInput({
         return;
       }
 
-      const objectPath = `${folder}/${user.id}/${crypto.randomUUID()}.${kind}`;
+      const objectPath = `${folder}/${user.id}/${crypto.randomUUID()}.${validated.kind}`;
       const result = await uploadArchiveFromBrowser(file, objectPath);
       if (!result.ok) {
         setError(result.error);

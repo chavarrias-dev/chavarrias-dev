@@ -235,7 +235,7 @@ export default async function ExpedientePage() {
                 <th className="px-4 py-3 font-medium text-slate-700">
                   Vencimiento
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700">PDF</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
               </tr>
             </thead>
             <tbody>
