@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "version:show": "node scripts/bump-app-version.mjs read",
+    "version:bump": "node scripts/bump-app-version.mjs bump",
+    "push": "node scripts/git-push-with-bump.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.3",

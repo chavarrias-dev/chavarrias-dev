@@ -1,11 +1,10 @@
-/** Número de release (commits en git al momento del build). */
-export const APP_RELEASE_NUMBER = Number(
-  process.env.NEXT_PUBLIC_APP_RELEASE ?? "0",
-);
+/** Versión visible (ej. 15.1, 16) embebida en build desde app-version.json */
+export const APP_RELEASE_RAW = process.env.NEXT_PUBLIC_APP_RELEASE ?? "";
 
 export function formatAppReleaseLabel(): string {
-  if (!APP_RELEASE_NUMBER || Number.isNaN(APP_RELEASE_NUMBER)) {
+  const raw = APP_RELEASE_RAW.trim();
+  if (!raw || raw === "0") {
     return "v?";
   }
-  return `v${APP_RELEASE_NUMBER}`;
+  return raw.startsWith("v") ? raw : `v${raw}`;
 }

@@ -5,7 +5,7 @@ export function AppReleaseBadge() {
   return (
     <span
       className="inline-flex shrink-0 items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-500"
-      title="Versión de la aplicación (sube con cada despliegue)"
+      title="Versión de la aplicación (sube con cada push: 15.1 → 15.9 → 16 → 16.1…)"
     >
       {label}
     </span>

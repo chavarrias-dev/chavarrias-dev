@@ -1,17 +1,27 @@
-import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import type { NextConfig } from "next";
 import withPWAInit from "next-pwa";
 
-function gitReleaseNumber(): string {
+function appReleaseFromFile(): string {
   if (process.env.NEXT_PUBLIC_APP_RELEASE) {
     return process.env.NEXT_PUBLIC_APP_RELEASE;
   }
   try {
-    const count = execSync("git rev-list --count HEAD", {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return count || "0";
+    const filePath = path.join(process.cwd(), "app-version.json");
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
+      major?: number;
+      minor?: number;
+    };
+    const major = Number(parsed.major);
+    const minor = Number(parsed.minor);
+    if (!Number.isFinite(major) || !Number.isFinite(minor)) {
+      return "0";
+    }
+    if (minor === 0) {
+      return String(major);
+    }
+    return `${major}.${minor}`;
   } catch {
     return "0";
   }
@@ -51,7 +61,7 @@ const dodaPuppeteerTraceIncludes = [
 
 const nextConfig: NextConfig = {
   env: {
-    NEXT_PUBLIC_APP_RELEASE: gitReleaseNumber(),
+    NEXT_PUBLIC_APP_RELEASE: appReleaseFromFile(),
   },
   experimental: {
     serverActions: {
