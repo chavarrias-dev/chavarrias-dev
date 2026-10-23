@@ -10,6 +10,8 @@ export const PEDIMENTO_ARCHIVE_MIME_TYPES = [
   "application/vnd.rar",
   "application/x-rar-compressed",
   "application/x-rar",
+  "application/rar",
+  "application/x-compressed",
 ] as const;
 
 export const PEDIMENTO_ARCHIVE_FILE_ERROR =
@@ -79,16 +81,17 @@ export function pedimentoArchiveMimeAllowed(
   kind: PedimentoArchiveKind,
 ): boolean {
   const byExtension = pedimentoArchiveKindFromFilename(file.name);
+  // Windows/macOS often mislabel .rar/.zip; extension + magic-byte check is authoritative.
   if (byExtension === kind) {
-    const type = file.type.toLowerCase().trim();
-    if (!type || PEDIMENTO_EXTENSION_TRUSTED_MIME_TYPES.has(type)) {
-      return true;
-    }
+    return true;
   }
 
   const type = file.type.toLowerCase().trim();
   if (!type) {
     return byExtension === kind;
+  }
+  if (PEDIMENTO_EXTENSION_TRUSTED_MIME_TYPES.has(type) && byExtension === kind) {
+    return true;
   }
   if (!PEDIMENTO_MIME_SET.has(type)) return false;
   const inferred = pedimentoArchiveKindFromFile(file);

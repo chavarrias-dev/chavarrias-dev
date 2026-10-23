@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import {
   CRM_ATTACHMENT_HELP_HINT,
   validatePedimentoArchiveFile,
@@ -73,8 +74,8 @@ export function ArchiveFileInput({
     }
     if (validated.kind === "pdf") onPdfSelected?.(file);
 
-    setUploading(true);
     setFileName(file.name);
+    setUploading(true);
     setUploadProgress(0);
     try {
       const supabase = createSupabaseBrowserClient();
@@ -140,15 +141,36 @@ export function ArchiveFileInput({
               style={{ width: `${progressValue}%` }}
             />
           </div>
-          <p
-            className={`mt-1.5 text-xs ${
-              uploading ? "text-slate-600" : "font-medium text-emerald-700"
+          <div
+            className={`mt-2 flex items-center gap-2 text-xs ${
+              uploading ? "text-slate-600" : "text-emerald-800"
             }`}
           >
-            {uploading
-              ? `Subiendo… ${uploadProgress}%`
-              : `Archivo listo: ${fileName}`}
-          </p>
+            {uploading ? (
+              <Loader2
+                className="size-4 shrink-0 animate-spin text-[#227DE8]"
+                aria-hidden
+              />
+            ) : (
+              <CheckCircle2
+                className="animate-check-pop size-4 shrink-0 text-emerald-600"
+                aria-hidden
+              />
+            )}
+            <p className="min-w-0 leading-snug">
+              {uploading ? (
+                <>
+                  Subiendo <span className="font-medium">{fileName}</span>…{" "}
+                  {uploadProgress}%
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">Cargado completamente:</span>{" "}
+                  <span className="font-medium">{fileName}</span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
       ) : null}
       {error ? (

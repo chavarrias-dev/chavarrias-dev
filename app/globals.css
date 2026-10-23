@@ -115,6 +115,25 @@ body {
   animation: page-in 300ms ease-out both;
 }
 
+@keyframes check-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-check-pop {
+  animation: check-pop 450ms ease-out both;
+}
+
 .animate-card-in {
   animation: card-in 400ms ease-out both;
 }
