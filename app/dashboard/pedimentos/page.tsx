@@ -31,6 +31,46 @@ type ClientOption = {
 const fieldClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
+function pedimentoMonthKey(fecha: string | null | undefined): string {
+  if (!fecha) return "sin-fecha";
+  const d = fecha.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(0, 7) : "sin-fecha";
+}
+
+function formatPedimentoMonthHeading(monthKey: string): string {
+  if (monthKey === "sin-fecha") return "Sin fecha de apertura";
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) return monthKey;
+  const label = new Date(year, month - 1, 1).toLocaleDateString("es-MX", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function groupPedimentosByAperturaMonth(
+  rows: PedimentoRow[],
+): { monthKey: string; items: PedimentoRow[] }[] {
+  const map = new Map<string, PedimentoRow[]>();
+  for (const row of rows) {
+    const key = pedimentoMonthKey(row.fecha);
+    const list = map.get(key);
+    if (list) {
+      list.push(row);
+    } else {
+      map.set(key, [row]);
+    }
+  }
+
+  return [...map.entries()]
+    .sort(([a], [b]) => {
+      if (a === "sin-fecha") return 1;
+      if (b === "sin-fecha") return -1;
+      return b.localeCompare(a);
+    })
+    .map(([monthKey, items]) => ({ monthKey, items }));
+}
+
 type PageProps = {
   searchParams: Promise<{
     numero?: string;
@@ -102,9 +142,9 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
   if (!isStaff && !clienteIdForCliente) {
     pedimentos = [];
   } else {
-    const result = await query.order("created_at", {
-      ascending: false,
-    });
+    const result = await query
+      .order("fecha", { ascending: false })
+      .order("numero_pedimento", { ascending: true });
     pedimentos = result.data as PedimentoRow[] | null;
     error = result.error;
   }
@@ -124,6 +164,8 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
   );
 
   const rows = (pedimentos ?? []) as PedimentoRow[];
+  const rowGroups = groupPedimentosByAperturaMonth(rows);
+  const colSpan = isStaff ? 8 : 7;
 
   return (
     <main className={DASHBOARD_PAGE_MAIN_CLASS}>
@@ -297,49 +339,61 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
                   </td>
                 </tr>
               ) : (
-                rows.map((p) => (
+                rowGroups.flatMap(({ monthKey, items }) => [
                   <tr
-                    key={p.id}
-                    className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                    key={`month-${monthKey}`}
+                    className="border-b border-slate-200 bg-slate-50/90"
                   >
-                    <td className="px-4 py-3 font-medium tracking-wide text-slate-900">
-                      {formatPedimentoNumber(p.numero_pedimento)}
+                    <td
+                      colSpan={colSpan}
+                      className="px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-600"
+                    >
+                      {formatPedimentoMonthHeading(monthKey)}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {p.fecha
-                        ? new Date(p.fecha + "T12:00:00").toLocaleDateString(
-                            "es-MX",
-                            {
+                  </tr>,
+                  ...items.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                    >
+                      <td className="px-4 py-3 font-medium tracking-wide text-slate-900">
+                        {formatPedimentoNumber(p.numero_pedimento)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {p.fecha
+                          ? new Date(p.fecha + "T12:00:00").toLocaleDateString(
+                              "es-MX",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {p.fecha_cierre
+                          ? new Date(
+                              p.fecha_cierre + "T12:00:00",
+                            ).toLocaleDateString("es-MX", {
                               day: "2-digit",
                               month: "short",
                               year: "numeric",
-                            },
-                          )
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {p.fecha_cierre
-                        ? new Date(
-                            p.fecha_cierre + "T12:00:00",
-                          ).toLocaleDateString("es-MX", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{p.aduana}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {p.cliente_id
-                        ? (clientMap.get(p.cliente_id) ?? "—")
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {p.archivo_url ? (
-                        <ArchiveFileLink href={p.archivo_url} />
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{p.aduana}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {p.cliente_id
+                          ? (clientMap.get(p.cliente_id) ?? "—")
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.archivo_url ? (
+                          <ArchiveFileLink href={p.archivo_url} />
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                     </td>
                     <td className="px-4 py-3 text-slate-500">
                       {p.created_at
@@ -364,7 +418,8 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
                       </td>
                     ) : null}
                   </tr>
-                ))
+                  )),
+                ])
               )}
             </tbody>
           </table>
