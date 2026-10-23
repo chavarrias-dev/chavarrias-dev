@@ -66,7 +66,7 @@ function groupPedimentosByAperturaMonth(
     .sort(([a], [b]) => {
       if (a === "sin-fecha") return 1;
       if (b === "sin-fecha") return -1;
-      return b.localeCompare(a);
+      return a.localeCompare(b);
     })
     .map(([monthKey, items]) => ({ monthKey, items }));
 }
@@ -143,7 +143,7 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
     pedimentos = [];
   } else {
     const result = await query
-      .order("fecha", { ascending: false })
+      .order("fecha", { ascending: true })
       .order("numero_pedimento", { ascending: true });
     pedimentos = result.data as PedimentoRow[] | null;
     error = result.error;
