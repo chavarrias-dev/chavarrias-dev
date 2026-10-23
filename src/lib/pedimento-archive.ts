@@ -64,13 +64,27 @@ export function pedimentoArchiveKindFromFile(
   return null;
 }
 
+/** Windows often reports `.rar` / `.zip` as octet-stream; trust extension when listed. */
+const PEDIMENTO_EXTENSION_TRUSTED_MIME_TYPES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+]);
+
 export function pedimentoArchiveMimeAllowed(
   file: Pick<File, "name" | "type">,
   kind: PedimentoArchiveKind,
 ): boolean {
+  const byExtension = pedimentoArchiveKindFromFilename(file.name);
+  if (byExtension === kind) {
+    const type = file.type.toLowerCase().trim();
+    if (!type || PEDIMENTO_EXTENSION_TRUSTED_MIME_TYPES.has(type)) {
+      return true;
+    }
+  }
+
   const type = file.type.toLowerCase().trim();
   if (!type) {
-    return pedimentoArchiveKindFromFilename(file.name) === kind;
+    return byExtension === kind;
   }
   if (!PEDIMENTO_MIME_SET.has(type)) return false;
   const inferred = pedimentoArchiveKindFromFile(file);
