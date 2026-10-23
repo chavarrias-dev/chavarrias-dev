@@ -3,12 +3,15 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
-  contentTypeForArchive,
-  acceptedPreuploadedUrl,
-  recordArchivePath,
-  validateArchiveFile,
-  type ArchiveKind,
-} from "@/lib/archive-file";
+  acceptedPedimentoPreuploadedUrl,
+  contentTypeForPedimentoArchive,
+  otherCrmAttachmentPaths,
+  recordCrmAttachmentPath,
+  validatePedimentoArchiveFile,
+  verifyPedimentoArchiveFileMagic,
+  verifyPedimentoPublicArchiveMagic,
+  type PedimentoArchiveKind,
+} from "@/lib/pedimento-archive";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CRM_DOCUMENTS_BUCKET,
@@ -30,13 +33,15 @@ function parseMonto(raw: unknown): string | null {
   return v.toFixed(2);
 }
 
-function readArchiveKind(
+async function readFacturaArchiveKindFromForm(
   file: FormDataEntryValue | null,
   fail: (message: string) => never,
-): ArchiveKind | null {
+): Promise<PedimentoArchiveKind | null> {
   if (!(file instanceof File) || file.size === 0) return null;
-  const validated = validateArchiveFile(file);
+  const validated = validatePedimentoArchiveFile(file);
   if (!validated.ok) fail(validated.error);
+  const magic = await verifyPedimentoArchiveFileMagic(file, validated.kind);
+  if (!magic.ok) fail(magic.error);
   return validated.kind;
 }
 
@@ -61,7 +66,7 @@ export async function saveFactura(formData: FormData) {
   }
 
   const file = formData.get("archivo");
-  const archiveKind = readArchiveKind(file, (message) => {
+  const archiveKind = await readFacturaArchiveKindFromForm(file, (message) => {
     redirect(`/dashboard/facturas/new?error=${encodeURIComponent(message)}`);
   });
 
@@ -73,11 +78,22 @@ export async function saveFactura(formData: FormData) {
     redirect("/login");
   }
 
-  const uploaded = acceptedPreuploadedUrl(formData, `facturas/${user.id}/`);
+  const uploaded = acceptedPedimentoPreuploadedUrl(
+    formData,
+    `facturas/${user.id}/`,
+  );
   if (!uploaded.ok) {
     redirect(
       `/dashboard/facturas/new?error=${encodeURIComponent(uploaded.error)}`,
     );
+  }
+  if (uploaded.url) {
+    const remoteMagic = await verifyPedimentoPublicArchiveMagic(uploaded.url);
+    if (!remoteMagic.ok) {
+      redirect(
+        `/dashboard/facturas/new?error=${encodeURIComponent(remoteMagic.error)}`,
+      );
+    }
   }
 
   const { data: row, error } = await supabase
@@ -100,12 +116,11 @@ export async function saveFactura(formData: FormData) {
   }
 
   if (!uploaded.url && file instanceof File && file.size > 0 && archiveKind) {
-    const path = recordArchivePath("facturas", user.id, row.id, archiveKind);
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = recordCrmAttachmentPath("facturas", user.id, row.id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, bytes, {
-        contentType: contentTypeForArchive(archiveKind),
+      .upload(path, file, {
+        contentType: contentTypeForPedimentoArchive(archiveKind),
         upsert: true,
       });
     if (upErr) {
@@ -169,7 +184,7 @@ export async function updateFactura(formData: FormData) {
   }
 
   const file = formData.get("archivo");
-  const archiveKind = readArchiveKind(file, (message) => {
+  const archiveKind = await readFacturaArchiveKindFromForm(file, (message) => {
     redirect(
       `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(message)}`,
     );
@@ -193,11 +208,22 @@ export async function updateFactura(formData: FormData) {
     redirect("/dashboard/facturas?error=Factura%20no%20encontrada");
   }
 
-  const uploaded = acceptedPreuploadedUrl(formData, `facturas/${user.id}/`);
+  const uploaded = acceptedPedimentoPreuploadedUrl(
+    formData,
+    `facturas/${user.id}/`,
+  );
   if (!uploaded.ok) {
     redirect(
       `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(uploaded.error)}`,
     );
+  }
+  if (uploaded.url) {
+    const remoteMagic = await verifyPedimentoPublicArchiveMagic(uploaded.url);
+    if (!remoteMagic.ok) {
+      redirect(
+        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(remoteMagic.error)}`,
+      );
+    }
   }
 
   const { error: updErr } = await supabase
@@ -227,12 +253,11 @@ export async function updateFactura(formData: FormData) {
       await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previous]);
     }
   } else if (file instanceof File && file.size > 0 && archiveKind) {
-    const path = recordArchivePath("facturas", user.id, id, archiveKind);
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = recordCrmAttachmentPath("facturas", user.id, id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, bytes, {
-        contentType: contentTypeForArchive(archiveKind),
+      .upload(path, file, {
+        contentType: contentTypeForPedimentoArchive(archiveKind),
         upsert: true,
       });
     if (upErr) {
@@ -242,14 +267,7 @@ export async function updateFactura(formData: FormData) {
     }
     await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .remove([
-        recordArchivePath(
-          "facturas",
-          user.id,
-          id,
-          archiveKind === "pdf" ? "zip" : "pdf",
-        ),
-      ]);
+      .remove(otherCrmAttachmentPaths("facturas", user.id, id, archiveKind));
     const { data: pub } = supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
       .getPublicUrl(path);
@@ -307,8 +325,9 @@ export async function deleteFactura(formData: FormData) {
   if (row.archivo_url) {
     const fromUrl = storageObjectPathFromPublicUrl(row.archivo_url);
     const paths = [
-      recordArchivePath("facturas", user.id, id, "pdf"),
-      recordArchivePath("facturas", user.id, id, "zip"),
+      recordCrmAttachmentPath("facturas", user.id, id, "pdf"),
+      recordCrmAttachmentPath("facturas", user.id, id, "zip"),
+      recordCrmAttachmentPath("facturas", user.id, id, "rar"),
     ];
     if (fromUrl) paths.push(fromUrl);
     await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove(paths);

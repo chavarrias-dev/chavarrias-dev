@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DocumentAlerts } from "@/components/dashboard/document-alerts";
+import { AppReleaseBadge } from "@/components/dashboard/app-release-badge";
 import { DashboardNotificationsBell } from "@/components/dashboard/dashboard-notifications-bell";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getUserRole } from "@/lib/supabase/profile-role";
@@ -62,8 +63,13 @@ export default async function DashboardLayout({
       alerts={
         <>
           {isStaff ? (
-            <DashboardNotificationsBell currentUserId={user.id} />
-          ) : null}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <DashboardNotificationsBell currentUserId={user.id} />
+              <AppReleaseBadge />
+            </div>
+          ) : (
+            <AppReleaseBadge />
+          )}
           <DocumentAlerts />
         </>
       }

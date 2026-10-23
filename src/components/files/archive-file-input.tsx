@@ -2,18 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ARCHIVE_UPLOAD_HINT,
-  validateArchiveFile,
-} from "@/lib/archive-file";
-import {
-  PEDIMENTO_ARCHIVE_UPLOAD_HINT,
+  CRM_ATTACHMENT_HELP_HINT,
   validatePedimentoArchiveFile,
 } from "@/lib/pedimento-archive";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import {
-  uploadArchiveFromBrowser,
-  uploadPedimentoArchiveFromBrowser,
-} from "@/lib/upload-archive-client";
+import { uploadCrmAttachmentFromBrowser } from "@/lib/upload-archive-client";
 
 const inputClass =
   "block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20";
@@ -34,6 +27,7 @@ export function ArchiveFileInput({
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const uploadingRef = useRef(false);
   const errorRef = useRef<string | null>(null);
 
@@ -68,13 +62,11 @@ export function ArchiveFileInput({
     setError(null);
     setPublicUrl("");
     setFileName("");
+    setUploadProgress(0);
     onPdfSelected?.(null);
     if (!file) return;
 
-    const isPedimento = folder === "pedimentos";
-    const validated = isPedimento
-      ? validatePedimentoArchiveFile(file)
-      : validateArchiveFile(file);
+    const validated = validatePedimentoArchiveFile(file);
     if (!validated.ok) {
       setError(validated.error);
       return;
@@ -83,6 +75,7 @@ export function ArchiveFileInput({
 
     setUploading(true);
     setFileName(file.name);
+    setUploadProgress(0);
     try {
       const supabase = createSupabaseBrowserClient();
       const {
@@ -95,19 +88,26 @@ export function ArchiveFileInput({
       }
 
       const objectPath = `${folder}/${user.id}/${crypto.randomUUID()}.${validated.kind}`;
-      const result = isPedimento
-        ? await uploadPedimentoArchiveFromBrowser(file, objectPath)
-        : await uploadArchiveFromBrowser(file, objectPath);
+      const result = await uploadCrmAttachmentFromBrowser(
+        file,
+        objectPath,
+        setUploadProgress,
+      );
       if (!result.ok) {
         setError(result.error);
         setFileName("");
+        setUploadProgress(0);
         return;
       }
       setPublicUrl(result.url);
+      setUploadProgress(100);
     } finally {
       setUploading(false);
     }
   }
+
+  const showProgress = uploading || Boolean(publicUrl);
+  const progressValue = uploading ? uploadProgress : 100;
 
   return (
     <div>
@@ -121,25 +121,43 @@ export function ArchiveFileInput({
         }}
       />
       <input type="hidden" name="archivo_public_url" value={publicUrl} />
-      {uploading ? (
-        <p className="mt-1.5 text-xs text-slate-500">Subiendo archivo…</p>
-      ) : null}
-      {publicUrl ? (
-        <p className="mt-1.5 text-xs text-emerald-700">
-          Listo para guardar: {fileName}
-        </p>
+      {showProgress ? (
+        <div className="mt-2" aria-live="polite">
+          <div
+            className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressValue}
+            aria-label={
+              uploading ? "Subiendo archivo" : "Archivo subido correctamente"
+            }
+          >
+            <div
+              className={`h-full rounded-full transition-[width] duration-300 ${
+                uploading ? "bg-[#227DE8]" : "bg-emerald-500"
+              }`}
+              style={{ width: `${progressValue}%` }}
+            />
+          </div>
+          <p
+            className={`mt-1.5 text-xs ${
+              uploading ? "text-slate-600" : "font-medium text-emerald-700"
+            }`}
+          >
+            {uploading
+              ? `Subiendo… ${uploadProgress}%`
+              : `Archivo listo: ${fileName}`}
+          </p>
+        </div>
       ) : null}
       {error ? (
         <p className="mt-1.5 text-sm text-red-700" role="alert">
           {error}
         </p>
-      ) : (
-        <p className="mt-1.5 text-xs text-slate-500">
-          {folder === "pedimentos"
-            ? PEDIMENTO_ARCHIVE_UPLOAD_HINT
-            : ARCHIVE_UPLOAD_HINT}
-        </p>
-      )}
+      ) : !showProgress ? (
+        <p className="mt-1.5 text-xs text-slate-500">{CRM_ATTACHMENT_HELP_HINT}</p>
+      ) : null}
     </div>
   );
 }

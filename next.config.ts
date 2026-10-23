@@ -1,5 +1,21 @@
+import { execSync } from "node:child_process";
 import type { NextConfig } from "next";
 import withPWAInit from "next-pwa";
+
+function gitReleaseNumber(): string {
+  if (process.env.NEXT_PUBLIC_APP_RELEASE) {
+    return process.env.NEXT_PUBLIC_APP_RELEASE;
+  }
+  try {
+    const count = execSync("git rev-list --count HEAD", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return count || "0";
+  } catch {
+    return "0";
+  }
+}
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -34,6 +50,9 @@ const dodaPuppeteerTraceIncludes = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_RELEASE: gitReleaseNumber(),
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "25mb",

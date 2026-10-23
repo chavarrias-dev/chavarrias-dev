@@ -233,7 +233,7 @@ export function NewFacturaForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Archivo (PDF o ZIP)
+            Archivo (PDF, ZIP o RAR)
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">

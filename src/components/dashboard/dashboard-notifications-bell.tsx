@@ -105,6 +105,19 @@ export function DashboardNotificationsBell({
     }
   }, [open, loadNotifications]);
 
+  async function handleMarkAllRead() {
+    const response = await fetch("/api/notifications/read-all", {
+      method: "PATCH",
+    });
+    if (!response.ok) {
+      return;
+    }
+    setUnreadCount(0);
+    setNotifications((current) =>
+      current.map((row) => ({ ...row, is_read: true })),
+    );
+  }
+
   async function handleNotificationClick(notification: NotificationRecord) {
     await fetch(`/api/notifications/${notification.id}/read`, {
       method: "PATCH",
@@ -146,10 +159,26 @@ export function DashboardNotificationsBell({
 
       <div className="absolute right-0 z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
         <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3">
-          <p className="text-sm font-medium text-slate-900">Notificaciones</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Cambios de estatus en DODAs monitoreados
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-900">Notificaciones</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Cambios de estatus en DODAs monitoreados
+              </p>
+            </div>
+            {unreadCount > 0 ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleMarkAllRead();
+                }}
+                className="shrink-0 text-xs font-medium text-[#227DE8] transition hover:text-[#1a6ed4]"
+              >
+                Marcar todas como leídas
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {loading ? (

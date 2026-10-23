@@ -18,8 +18,12 @@ export const PEDIMENTO_ARCHIVE_FILE_ERROR =
 export const PEDIMENTO_ARCHIVE_PDF_MAX_BYTES = 25 * 1024 * 1024;
 export const PEDIMENTO_ARCHIVE_COMPRESSED_MAX_BYTES = 100 * 1024 * 1024;
 
-export const PEDIMENTO_ARCHIVE_UPLOAD_HINT =
+/** Ayuda neutral (no es mensaje de error). */
+export const CRM_ATTACHMENT_HELP_HINT =
   "PDF (25 MB), ZIP o RAR (100 MB). Si no ves tu archivo, elige «Todos los archivos» en el explorador.";
+
+/** @deprecated use CRM_ATTACHMENT_HELP_HINT */
+export const PEDIMENTO_ARCHIVE_UPLOAD_HINT = CRM_ATTACHMENT_HELP_HINT;
 
 export type PedimentoArchiveKind = "pdf" | "zip" | "rar";
 
@@ -138,12 +142,32 @@ export function contentTypeForPedimentoArchive(
   }
 }
 
+export function recordCrmAttachmentPath(
+  folder: "facturas" | "pedimentos",
+  userId: string,
+  entityId: string,
+  kind: PedimentoArchiveKind,
+): string {
+  return `${folder}/${userId}/${entityId}.${kind}`;
+}
+
+export function otherCrmAttachmentPaths(
+  folder: "facturas" | "pedimentos",
+  userId: string,
+  entityId: string,
+  keep: PedimentoArchiveKind,
+): string[] {
+  return PEDIMENTO_ARCHIVE_KINDS.filter((k) => k !== keep).map((k) =>
+    recordCrmAttachmentPath(folder, userId, entityId, k),
+  );
+}
+
 export function recordPedimentoArchivePath(
   userId: string,
   pedimentoId: string,
   kind: PedimentoArchiveKind,
 ): string {
-  return `pedimentos/${userId}/${pedimentoId}.${kind}`;
+  return recordCrmAttachmentPath("pedimentos", userId, pedimentoId, kind);
 }
 
 export function otherPedimentoArchivePaths(
@@ -151,9 +175,7 @@ export function otherPedimentoArchivePaths(
   pedimentoId: string,
   keep: PedimentoArchiveKind,
 ): string[] {
-  return PEDIMENTO_ARCHIVE_KINDS.filter((k) => k !== keep).map((k) =>
-    recordPedimentoArchivePath(userId, pedimentoId, k),
-  );
+  return otherCrmAttachmentPaths("pedimentos", userId, pedimentoId, keep);
 }
 
 export function acceptedPedimentoPreuploadedUrl(

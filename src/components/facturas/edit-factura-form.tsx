@@ -160,7 +160,7 @@ export function EditFacturaForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Reemplazar archivo (PDF o ZIP, opcional)
+            Reemplazar archivo (PDF, ZIP o RAR, opcional)
           </label>
           <ArchiveFileInput id="archivo" folder="facturas" />
           <p className="mt-1.5 text-xs text-slate-500">

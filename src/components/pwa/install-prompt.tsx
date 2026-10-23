@@ -15,6 +15,22 @@ interface BeforeInstallPromptEvent extends Event {
 
 const STORAGE_KEY = "chavarrias-pwa-install-dismissed";
 
+function isInstallPromptPermanentlyHidden(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function hideInstallPromptPermanently() {
+  try {
+    localStorage.setItem(STORAGE_KEY, "true");
+  } catch {
+    /* ignore */
+  }
+}
+
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -35,9 +51,7 @@ export function InstallPrompt() {
       return;
     }
 
-    // Check if already dismissed in this session
-    const isDismissed = sessionStorage.getItem(STORAGE_KEY);
-    if (isDismissed) {
+    if (isInstallPromptPermanentlyHidden()) {
       return;
     }
 
@@ -81,9 +95,8 @@ export function InstallPrompt() {
     try {
       await deferredPrompt.prompt();
       const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === "accepted") {
-        setShowPrompt(false);
-      }
+      setShowPrompt(false);
+      hideInstallPromptPermanently();
       setDeferredPrompt(null);
     } catch (err) {
       console.error("PWA install error:", err);
@@ -92,7 +105,7 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    sessionStorage.setItem(STORAGE_KEY, "true");
+    hideInstallPromptPermanently();
   };
 
   if (!showPrompt || isStandalone) {
