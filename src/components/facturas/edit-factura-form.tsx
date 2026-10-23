@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { ArchiveFileInput } from "@/components/files/archive-file-input";
+import { MxDateInput } from "@/components/forms/mx-date-input";
 import type { ClientOption } from "@/components/clients/types";
 import { updateFactura } from "../../../app/dashboard/facturas/actions";
 
@@ -108,10 +109,9 @@ export function EditFacturaForm({
             >
               Fecha <span className="text-red-600">*</span>
             </label>
-            <input
+            <MxDateInput
               id="fecha"
               name="fecha"
-              type="date"
               required
               defaultValue={fechaInput}
               className={fieldClass}

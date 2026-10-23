@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { ClientOption } from "@/components/clients/types";
 import { ArchiveFileInput } from "@/components/files/archive-file-input";
+import { MxDateInput } from "@/components/forms/mx-date-input";
 import { saveFactura } from "../../../app/dashboard/facturas/actions";
 
 type NewFacturaFormProps = {
@@ -185,14 +186,13 @@ export function NewFacturaForm({
             >
               Fecha <span className="text-red-600">*</span>
             </label>
-            <input
+            <MxDateInput
               id="fecha"
               name="fecha"
-              type="date"
               required
               className={fieldClass}
               value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
+              onValueChange={setFecha}
             />
           </div>
           <div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { MxDateInput } from "@/components/forms/mx-date-input";
 import { DodaResultDetailModal } from "@/components/dodas/doda-result-detail-modal";
 import { DodaSatStatusBadge } from "@/components/dodas/doda-sat-status-badge";
 import {
@@ -118,18 +119,18 @@ export function DodaHistoryTable({ dodas }: DodaHistoryTableProps) {
           ))}
         </select>
         <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
+          <MxDateInput
             value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            onValueChange={setDateFrom}
             className={fieldClass}
+            showHint={false}
             aria-label="Desde"
           />
-          <input
-            type="date"
+          <MxDateInput
             value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            onValueChange={setDateTo}
             className={fieldClass}
+            showHint={false}
             aria-label="Hasta"
           />
         </div>

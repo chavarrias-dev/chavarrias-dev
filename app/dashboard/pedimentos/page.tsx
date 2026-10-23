@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
+import { MxDateInput } from "@/components/forms/mx-date-input";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
 import { formatPedimentoNumber } from "@/lib/pedimento-number";
 import { getUserRole } from "@/lib/supabase/profile-role";
@@ -8,6 +9,7 @@ import {
   DASHBOARD_PAGE_MAIN_CLASS,
   DASHBOARD_PAGE_TITLE_CLASS,
 } from "@/lib/dashboard-layout";
+import { normalizeFormDateToIso } from "@/lib/mx-date";
 
 type PedimentoRow = {
   id: string;
@@ -42,8 +44,8 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const numeroFilter = sp.numero?.trim() ?? "";
   const clienteFilter = sp.cliente_id?.trim() ?? "";
-  const fechaDesde = sp.fecha_desde?.trim() ?? "";
-  const fechaHasta = sp.fecha_hasta?.trim() ?? "";
+  const fechaDesde = normalizeFormDateToIso(sp.fecha_desde) ?? "";
+  const fechaHasta = normalizeFormDateToIso(sp.fecha_hasta) ?? "";
 
   const hasFilters = Boolean(
     numeroFilter || clienteFilter || fechaDesde || fechaHasta,
@@ -192,12 +194,12 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
               >
                 Fecha desde
               </label>
-              <input
+              <MxDateInput
                 id="fecha_desde"
                 name="fecha_desde"
-                type="date"
                 defaultValue={fechaDesde}
                 className={fieldClass}
+                showHint={false}
               />
             </div>
             <div>
@@ -207,12 +209,12 @@ export default async function PedimentosListPage({ searchParams }: PageProps) {
               >
                 Fecha hasta
               </label>
-              <input
+              <MxDateInput
                 id="fecha_hasta"
                 name="fecha_hasta"
-                type="date"
                 defaultValue={fechaHasta}
                 className={fieldClass}
+                showHint={false}
               />
             </div>
           </div>

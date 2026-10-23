@@ -12,6 +12,7 @@ import {
   verifyPedimentoPublicArchiveMagic,
   type PedimentoArchiveKind,
 } from "@/lib/pedimento-archive";
+import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { readPedimentoNumber } from "@/lib/pedimento-number";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -32,8 +33,8 @@ function readFechaCierre(
   if (typeof raw !== "string" || !raw.trim()) {
     return { ok: true, value: null };
   }
-  const cierre = raw.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(cierre)) {
+  const cierre = normalizeFormDateToIso(raw);
+  if (!cierre) {
     return { ok: false, error: "Fecha de cierre inválida" };
   }
   if (cierre < apertura) {
@@ -68,12 +69,13 @@ export async function savePedimento(formData: FormData) {
       `/dashboard/pedimentos/new?error=${encodeURIComponent(numero.error)}`,
     );
   }
-  if (typeof fecha !== "string" || !fecha.trim()) {
+  const fechaIso = normalizeFormDateToIso(fecha);
+  if (!fechaIso) {
     redirect(
       "/dashboard/pedimentos/new?error=Fecha%20de%20apertura%20requerida",
     );
   }
-  const fechaCierre = readFechaCierre(formData.get("fecha_cierre"), fecha.trim());
+  const fechaCierre = readFechaCierre(formData.get("fecha_cierre"), fechaIso);
   if (!fechaCierre.ok) {
     redirect(
       `/dashboard/pedimentos/new?error=${encodeURIComponent(fechaCierre.error)}`,
@@ -121,7 +123,7 @@ export async function savePedimento(formData: FormData) {
     .from("pedimentos")
     .insert({
       numero_pedimento: numero.value,
-      fecha: fecha.trim(),
+      fecha: fechaIso,
       fecha_cierre: fechaCierre.value,
       aduana: aduana.trim(),
       cliente_id: clienteId.trim(),
@@ -188,12 +190,13 @@ export async function updatePedimento(formData: FormData) {
       `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(numero.error)}`,
     );
   }
-  if (typeof fecha !== "string" || !fecha.trim()) {
+  const fechaIso = normalizeFormDateToIso(fecha);
+  if (!fechaIso) {
     redirect(
       `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent("Fecha de apertura requerida")}`,
     );
   }
-  const fechaCierre = readFechaCierre(formData.get("fecha_cierre"), fecha.trim());
+  const fechaCierre = readFechaCierre(formData.get("fecha_cierre"), fechaIso);
   if (!fechaCierre.ok) {
     redirect(
       `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(fechaCierre.error)}`,
@@ -257,7 +260,7 @@ export async function updatePedimento(formData: FormData) {
     .from("pedimentos")
     .update({
       numero_pedimento: numero.value,
-      fecha: fecha.trim(),
+      fecha: fechaIso,
       fecha_cierre: fechaCierre.value,
       aduana: aduana.trim(),
       cliente_id: clienteId.trim(),

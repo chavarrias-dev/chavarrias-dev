@@ -12,6 +12,7 @@ import {
   verifyPedimentoPublicArchiveMagic,
   type PedimentoArchiveKind,
 } from "@/lib/pedimento-archive";
+import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CRM_DOCUMENTS_BUCKET,
@@ -54,7 +55,8 @@ export async function saveFactura(formData: FormData) {
   if (typeof numero !== "string" || !numero.trim()) {
     redirect("/dashboard/facturas/new?error=Numero%20de%20factura%20requerido");
   }
-  if (typeof fecha !== "string" || !fecha.trim()) {
+  const fechaIso = normalizeFormDateToIso(fecha);
+  if (!fechaIso) {
     redirect("/dashboard/facturas/new?error=Fecha%20requerida");
   }
   const monto = parseMonto(montoRaw);
@@ -100,7 +102,7 @@ export async function saveFactura(formData: FormData) {
     .from("facturas")
     .insert({
       numero_factura: numero.trim(),
-      fecha: fecha.trim(),
+      fecha: fechaIso,
       monto,
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
@@ -166,7 +168,8 @@ export async function updateFactura(formData: FormData) {
       `/dashboard/facturas/${id}/edit?error=${encodeURIComponent("Número de factura requerido")}`,
     );
   }
-  if (typeof fecha !== "string" || !fecha.trim()) {
+  const fechaIso = normalizeFormDateToIso(fecha);
+  if (!fechaIso) {
     redirect(
       `/dashboard/facturas/${id}/edit?error=${encodeURIComponent("Fecha requerida")}`,
     );
@@ -230,7 +233,7 @@ export async function updateFactura(formData: FormData) {
     .from("facturas")
     .update({
       numero_factura: numero.trim(),
-      fecha: fecha.trim(),
+      fecha: fechaIso,
       monto,
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),

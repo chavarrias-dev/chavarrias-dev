@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { ArchiveFileInput } from "@/components/files/archive-file-input";
+import { MxDateInput } from "@/components/forms/mx-date-input";
 import type { ClientOption } from "@/components/clients/types";
 import { PedimentoNumberFields } from "@/components/pedimentos/pedimento-number-fields";
 import { updatePedimento } from "../../../app/dashboard/pedimentos/actions";
@@ -92,10 +93,9 @@ export function EditPedimentoForm({
             >
               Fecha de apertura <span className="text-red-600">*</span>
             </label>
-            <input
+            <MxDateInput
               id="fecha"
               name="fecha"
-              type="date"
               required
               defaultValue={fechaInput}
               className={fieldClass}
@@ -108,10 +108,9 @@ export function EditPedimentoForm({
             >
               Fecha de cierre
             </label>
-            <input
+            <MxDateInput
               id="fecha_cierre"
               name="fecha_cierre"
-              type="date"
               defaultValue={fechaCierreInput}
               className={fieldClass}
             />

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { logActivity } from "@/lib/activity-log";
 import {
   acceptedPreuploadedUrl,
@@ -83,9 +84,9 @@ function parseExpirationFromForm(
     fechaVencimiento = null;
   } else if (validoPor === "fecha_especifica") {
     fechaVencimiento =
-      emptyToNull(formData.get("fechaEspecifica")) ??
-      emptyToNull(formData.get("fecha_vencimiento_resolved")) ??
-      emptyToNull(formData.get("fecha_vencimiento"));
+      normalizeFormDateToIso(formData.get("fechaEspecifica")) ??
+      normalizeFormDateToIso(formData.get("fecha_vencimiento_resolved")) ??
+      normalizeFormDateToIso(formData.get("fecha_vencimiento"));
   } else {
     fechaVencimiento = calculateExpirationFromPeriod(fechaSubida, validoPor);
   }

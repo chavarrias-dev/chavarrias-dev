@@ -61,17 +61,13 @@ export default async function DashboardLayout({
       currentUserId={user.id}
       logoutAction={logout}
       alerts={
-        <>
+        <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
           {isStaff ? (
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <DashboardNotificationsBell currentUserId={user.id} />
-              <AppReleaseBadge />
-            </div>
-          ) : (
-            <AppReleaseBadge />
-          )}
+            <DashboardNotificationsBell currentUserId={user.id} />
+          ) : null}
+          <AppReleaseBadge />
           <DocumentAlerts />
-        </>
+        </div>
       }
     >
       {children}

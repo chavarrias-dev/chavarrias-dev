@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MxDateInput } from "@/components/forms/mx-date-input";
 import {
   calculateExpirationFromPeriod,
   VALIDITY_PERIODS,
@@ -112,12 +113,11 @@ export function DocumentExpirationFields({
           >
             Fecha de vencimiento
           </label>
-          <input
+          <MxDateInput
             id="fechaEspecifica"
             name="fechaEspecifica"
-            type="date"
             value={fechaVencimiento}
-            onChange={(e) => setFechaVencimiento(e.target.value)}
+            onValueChange={setFechaVencimiento}
             className={fieldClass}
           />
         </div>
