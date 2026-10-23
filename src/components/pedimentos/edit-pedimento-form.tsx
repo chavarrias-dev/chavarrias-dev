@@ -47,7 +47,7 @@ export function EditPedimentoForm({
           Editar pedimento
         </h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Actualiza los datos o reemplaza el PDF.
+          Actualiza los datos o reemplaza el archivo adjunto.
         </p>
       </header>
 
@@ -162,7 +162,7 @@ export function EditPedimentoForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Reemplazar archivo (PDF o ZIP, opcional)
+            Reemplazar archivo (PDF, ZIP o RAR, opcional)
           </label>
           <ArchiveFileInput id="archivo" folder="pedimentos" />
           <p className="mt-1.5 text-xs text-slate-500">

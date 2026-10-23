@@ -1,4 +1,8 @@
 import { isZipUrl } from "@/lib/archive-file";
+import {
+  pedimentoArchiveDownloadNameFromUrl,
+  pedimentoArchiveKindFromFilename,
+} from "@/lib/pedimento-archive";
 
 type ArchiveFileLinkProps = {
   href: string;
@@ -6,19 +10,39 @@ type ArchiveFileLinkProps = {
   className?: string;
 };
 
+function linkLabel(
+  href: string,
+  current: boolean,
+): { label: string; emoji: string; download?: string } {
+  const path = href.split("?")[0]?.split("#")[0] ?? href;
+  const pedimentoKind = pedimentoArchiveKindFromFilename(path);
+
+  if (pedimentoKind === "rar") {
+    return {
+      label: current ? "Descargar RAR actual" : "Descargar RAR",
+      emoji: "📦",
+      download: pedimentoArchiveDownloadNameFromUrl(href),
+    };
+  }
+  if (pedimentoKind === "zip" || isZipUrl(href)) {
+    return {
+      label: current ? "Descargar ZIP actual" : "Descargar ZIP",
+      emoji: "🗜️",
+      download: pedimentoArchiveDownloadNameFromUrl(href),
+    };
+  }
+  return {
+    label: current ? "Ver PDF actual" : "Ver PDF",
+    emoji: "📄",
+  };
+}
+
 export function ArchiveFileLink({
   href,
   current = false,
   className = "inline-flex items-center gap-1.5 font-medium text-[#227DE8] underline-offset-2 hover:underline",
 }: ArchiveFileLinkProps) {
-  const zip = isZipUrl(href);
-  const label = current
-    ? zip
-      ? "Ver ZIP actual"
-      : "Ver PDF actual"
-    : zip
-      ? "Ver ZIP"
-      : "Ver PDF";
+  const meta = linkLabel(href, current);
 
   return (
     <a
@@ -26,9 +50,10 @@ export function ArchiveFileLink({
       target="_blank"
       rel="noopener noreferrer"
       className={className}
+      download={meta.download}
     >
-      <span aria-hidden>{zip ? "🗜️" : "📄"}</span>
-      {label}
+      <span aria-hidden>{meta.emoji}</span>
+      {meta.label}
     </a>
   );
 }

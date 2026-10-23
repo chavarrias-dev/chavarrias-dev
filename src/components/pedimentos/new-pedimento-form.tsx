@@ -32,7 +32,7 @@ export function NewPedimentoForm({
           Nuevo pedimento
         </h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Registra un pedimento y adjunta el PDF si lo tienes.
+          Registra un pedimento y adjunta PDF, ZIP o RAR si lo tienes.
         </p>
       </header>
 
@@ -131,7 +131,7 @@ export function NewPedimentoForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Archivo (PDF o ZIP)
+            Archivo (PDF, ZIP o RAR)
           </label>
           <ArchiveFileInput id="archivo" folder="pedimentos" />
         </div>

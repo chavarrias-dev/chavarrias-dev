@@ -3,12 +3,15 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
-  contentTypeForArchive,
-  acceptedPreuploadedUrl,
-  recordArchivePath,
-  validateArchiveFile,
-  type ArchiveKind,
-} from "@/lib/archive-file";
+  acceptedPedimentoPreuploadedUrl,
+  contentTypeForPedimentoArchive,
+  otherPedimentoArchivePaths,
+  recordPedimentoArchivePath,
+  validatePedimentoArchiveFile,
+  verifyPedimentoArchiveFileMagic,
+  verifyPedimentoPublicArchiveMagic,
+  type PedimentoArchiveKind,
+} from "@/lib/pedimento-archive";
 import { readPedimentoNumber } from "@/lib/pedimento-number";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -42,13 +45,15 @@ function readFechaCierre(
   return { ok: true, value: cierre };
 }
 
-function readArchiveKind(
+async function readPedimentoArchiveKindFromForm(
   file: FormDataEntryValue | null,
   fail: (message: string) => never,
-): ArchiveKind | null {
+): Promise<PedimentoArchiveKind | null> {
   if (!(file instanceof File) || file.size === 0) return null;
-  const validated = validateArchiveFile(file);
+  const validated = validatePedimentoArchiveFile(file);
   if (!validated.ok) fail(validated.error);
+  const magic = await verifyPedimentoArchiveFileMagic(file, validated.kind);
+  if (!magic.ok) fail(magic.error);
   return validated.kind;
 }
 
@@ -82,7 +87,7 @@ export async function savePedimento(formData: FormData) {
   }
 
   const file = formData.get("archivo");
-  const archiveKind = readArchiveKind(file, (message) => {
+  const archiveKind = await readPedimentoArchiveKindFromForm(file, (message) => {
     redirect(`/dashboard/pedimentos/new?error=${encodeURIComponent(message)}`);
   });
 
@@ -94,11 +99,22 @@ export async function savePedimento(formData: FormData) {
     redirect("/login");
   }
 
-  const uploaded = acceptedPreuploadedUrl(formData, `pedimentos/${user.id}/`);
+  const uploaded = acceptedPedimentoPreuploadedUrl(
+    formData,
+    `pedimentos/${user.id}/`,
+  );
   if (!uploaded.ok) {
     redirect(
       `/dashboard/pedimentos/new?error=${encodeURIComponent(uploaded.error)}`,
     );
+  }
+  if (uploaded.url) {
+    const remoteMagic = await verifyPedimentoPublicArchiveMagic(uploaded.url);
+    if (!remoteMagic.ok) {
+      redirect(
+        `/dashboard/pedimentos/new?error=${encodeURIComponent(remoteMagic.error)}`,
+      );
+    }
   }
 
   const { data: row, error } = await supabase
@@ -122,12 +138,11 @@ export async function savePedimento(formData: FormData) {
   }
 
   if (!uploaded.url && file instanceof File && file.size > 0 && archiveKind) {
-    const path = recordArchivePath("pedimentos", user.id, row.id, archiveKind);
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = recordPedimentoArchivePath(user.id, row.id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, bytes, {
-        contentType: contentTypeForArchive(archiveKind),
+      .upload(path, file, {
+        contentType: contentTypeForPedimentoArchive(archiveKind),
         upsert: true,
       });
     if (upErr) {
@@ -196,7 +211,7 @@ export async function updatePedimento(formData: FormData) {
   }
 
   const file = formData.get("archivo");
-  const archiveKind = readArchiveKind(file, (message) => {
+  const archiveKind = await readPedimentoArchiveKindFromForm(file, (message) => {
     redirect(
       `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(message)}`,
     );
@@ -220,11 +235,22 @@ export async function updatePedimento(formData: FormData) {
     redirect("/dashboard/pedimentos?error=Pedimento%20no%20encontrado");
   }
 
-  const uploaded = acceptedPreuploadedUrl(formData, `pedimentos/${user.id}/`);
+  const uploaded = acceptedPedimentoPreuploadedUrl(
+    formData,
+    `pedimentos/${user.id}/`,
+  );
   if (!uploaded.ok) {
     redirect(
       `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(uploaded.error)}`,
     );
+  }
+  if (uploaded.url) {
+    const remoteMagic = await verifyPedimentoPublicArchiveMagic(uploaded.url);
+    if (!remoteMagic.ok) {
+      redirect(
+        `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(remoteMagic.error)}`,
+      );
+    }
   }
 
   const { error: updErr } = await supabase
@@ -255,12 +281,11 @@ export async function updatePedimento(formData: FormData) {
       await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previous]);
     }
   } else if (file instanceof File && file.size > 0 && archiveKind) {
-    const path = recordArchivePath("pedimentos", user.id, id, archiveKind);
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = recordPedimentoArchivePath(user.id, id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, bytes, {
-        contentType: contentTypeForArchive(archiveKind),
+      .upload(path, file, {
+        contentType: contentTypeForPedimentoArchive(archiveKind),
         upsert: true,
       });
     if (upErr) {
@@ -270,14 +295,7 @@ export async function updatePedimento(formData: FormData) {
     }
     await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
-      .remove([
-        recordArchivePath(
-          "pedimentos",
-          user.id,
-          id,
-          archiveKind === "pdf" ? "zip" : "pdf",
-        ),
-      ]);
+      .remove(otherPedimentoArchivePaths(user.id, id, archiveKind));
     const { data: pub } = supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
       .getPublicUrl(path);
@@ -335,8 +353,9 @@ export async function deletePedimento(formData: FormData) {
   if (row.archivo_url) {
     const fromUrl = storageObjectPathFromPublicUrl(row.archivo_url);
     const paths = [
-      recordArchivePath("pedimentos", user.id, id, "pdf"),
-      recordArchivePath("pedimentos", user.id, id, "zip"),
+      recordPedimentoArchivePath(user.id, id, "pdf"),
+      recordPedimentoArchivePath(user.id, id, "zip"),
+      recordPedimentoArchivePath(user.id, id, "rar"),
     ];
     if (fromUrl) paths.push(fromUrl);
     await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove(paths);

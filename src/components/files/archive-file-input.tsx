@@ -5,8 +5,15 @@ import {
   ARCHIVE_UPLOAD_HINT,
   validateArchiveFile,
 } from "@/lib/archive-file";
+import {
+  PEDIMENTO_ARCHIVE_UPLOAD_HINT,
+  validatePedimentoArchiveFile,
+} from "@/lib/pedimento-archive";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
+import {
+  uploadArchiveFromBrowser,
+  uploadPedimentoArchiveFromBrowser,
+} from "@/lib/upload-archive-client";
 
 const inputClass =
   "block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#227DE8]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#227DE8] transition-all duration-200 file:transition-colors hover:file:bg-[#227DE8]/20";
@@ -64,7 +71,10 @@ export function ArchiveFileInput({
     onPdfSelected?.(null);
     if (!file) return;
 
-    const validated = validateArchiveFile(file);
+    const isPedimento = folder === "pedimentos";
+    const validated = isPedimento
+      ? validatePedimentoArchiveFile(file)
+      : validateArchiveFile(file);
     if (!validated.ok) {
       setError(validated.error);
       return;
@@ -85,7 +95,9 @@ export function ArchiveFileInput({
       }
 
       const objectPath = `${folder}/${user.id}/${crypto.randomUUID()}.${validated.kind}`;
-      const result = await uploadArchiveFromBrowser(file, objectPath);
+      const result = isPedimento
+        ? await uploadPedimentoArchiveFromBrowser(file, objectPath)
+        : await uploadArchiveFromBrowser(file, objectPath);
       if (!result.ok) {
         setError(result.error);
         setFileName("");
@@ -122,7 +134,11 @@ export function ArchiveFileInput({
           {error}
         </p>
       ) : (
-        <p className="mt-1.5 text-xs text-slate-500">{ARCHIVE_UPLOAD_HINT}</p>
+        <p className="mt-1.5 text-xs text-slate-500">
+          {folder === "pedimentos"
+            ? PEDIMENTO_ARCHIVE_UPLOAD_HINT
+            : ARCHIVE_UPLOAD_HINT}
+        </p>
       )}
     </div>
   );
