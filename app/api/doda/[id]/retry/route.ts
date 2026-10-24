@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { performDodaRecheck } from "@/lib/doda-service";
+import { performDodaRecheck } from "@/lib/doda-perform-recheck";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

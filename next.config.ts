@@ -46,17 +46,28 @@ const pdfJsTraceIncludes = [
   "./node_modules/pdfjs-dist/cmaps/**/*",
 ] as const;
 
+/** QR + PDF lookup (sharp, pdfjs, puppeteer-min). */
 const dodaApiTraceIncludes = [
   ...sharpTraceIncludes,
   ...pdfJsTraceIncludes,
-  "./node_modules/@sparticuz/chromium/**/*",
+  "./node_modules/@sparticuz/chromium-min/**/*",
   "./node_modules/puppeteer-core/**/*",
+  "./node_modules/@puppeteer/browsers/**/*",
 ] as const;
 
-/** Cron + lookup-by-number: Puppeteer only (no sharp/pdfjs). */
+/** SAT scrape only — Chromium se descarga en runtime (pack remoto). */
 const dodaPuppeteerTraceIncludes = [
-  "./node_modules/@sparticuz/chromium/**/*",
+  "./node_modules/@sparticuz/chromium-min/**/*",
   "./node_modules/puppeteer-core/**/*",
+  "./node_modules/@puppeteer/browsers/**/*",
+] as const;
+
+const puppeteerRouteExcludes = [
+  "./node_modules/@sparticuz/chromium/**",
+  "./node_modules/sharp/**",
+  "./node_modules/@img/**",
+  "./node_modules/pdfjs-dist/**",
+  "./node_modules/@napi-rs/canvas/**",
 ] as const;
 
 const nextConfig: NextConfig = {
@@ -76,7 +87,7 @@ const nextConfig: NextConfig = {
     "@img/sharp-linuxmusl-x64",
     "@img/sharp-libvips-linux-x64",
     "@img/sharp-libvips-linuxmusl-x64",
-    "@sparticuz/chromium",
+    "@sparticuz/chromium-min",
     "puppeteer-core",
     "@napi-rs/canvas",
     "pdfjs-dist",
@@ -89,8 +100,16 @@ const nextConfig: NextConfig = {
     "/api/doda/schedule": [...dodaApiTraceIncludes],
     "/api/doda/cron": [...dodaPuppeteerTraceIncludes],
     "/api/doda/[id]/retry": [...dodaPuppeteerTraceIncludes],
+    "/api/doda/[id]/check-now": [...dodaPuppeteerTraceIncludes],
     "/api/cron/check-dodas": [...dodaPuppeteerTraceIncludes],
     "/api/whatsapp/webhook": [...dodaApiTraceIncludes],
+  },
+  outputFileTracingExcludes: {
+    "/api/doda/lookup-by-number": [...puppeteerRouteExcludes],
+    "/api/doda/cron": [...puppeteerRouteExcludes],
+    "/api/doda/[id]/retry": [...puppeteerRouteExcludes],
+    "/api/doda/[id]/check-now": [...puppeteerRouteExcludes],
+    "/api/cron/check-dodas": [...puppeteerRouteExcludes],
   },
 };
 

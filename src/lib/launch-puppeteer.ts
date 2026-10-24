@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Browser } from "puppeteer-core";
+import { resolveChromiumExecutablePath } from "@/lib/chromium-remote-pack";
 
 const LOCAL_LAUNCH_ARGS = [
   "--no-sandbox",
@@ -14,20 +15,23 @@ function isVercelRuntime(): boolean {
 }
 
 /**
- * Launches Puppeteer with @sparticuz/chromium on Vercel, or local Chrome via puppeteer-core.
+ * Vercel: @sparticuz/chromium-min + pack remoto (Functions Storage bajo).
+ * Local: Chrome instalado vía puppeteer-core channel.
  */
 export async function launchPuppeteerBrowser(): Promise<Browser> {
   const puppeteer = await import("puppeteer-core");
 
   if (isVercelRuntime()) {
-    const chromium = (await import("@sparticuz/chromium")).default;
+    const chromium = (await import("@sparticuz/chromium-min")).default;
 
     chromium.setGraphicsMode = false;
+
+    const executablePath = await resolveChromiumExecutablePath(chromium);
 
     return puppeteer.default.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath,
       headless: chromium.headless,
     });
   }
