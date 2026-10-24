@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import { readClientCompanyFields } from "@/lib/client-company";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+import { deleteProfileCompletely } from "@/lib/delete-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ProfileRole } from "@/lib/supabase/profile-role";
 import { getUserRole } from "@/lib/supabase/profile-role";
@@ -170,8 +171,7 @@ export async function createUser(formData: FormData) {
       .single<{ id: string }>();
 
     if (clientErr || !insertedClient) {
-      await admin.from("profiles").delete().eq("id", uid);
-      await admin.auth.admin.deleteUser(uid);
+      await deleteProfileCompletely(admin, uid);
       redirect(
         `/dashboard/users/new?error=${encodeURIComponent(clientErr?.message ?? "Error al crear cliente")}`,
       );
@@ -193,8 +193,7 @@ export async function createUser(formData: FormData) {
 
       if (upErr) {
         await admin.from("clients").delete().eq("id", clientId);
-        await admin.from("profiles").delete().eq("id", uid);
-        await admin.auth.admin.deleteUser(uid);
+        await deleteProfileCompletely(admin, uid);
         redirect(
           `/dashboard/users/new?error=${encodeURIComponent(upErr.message)}`,
         );
@@ -212,8 +211,7 @@ export async function createUser(formData: FormData) {
       if (urlErr) {
         await admin.storage.from(CRM_DOCUMENTS_BUCKET).remove([path]);
         await admin.from("clients").delete().eq("id", clientId);
-        await admin.from("profiles").delete().eq("id", uid);
-        await admin.auth.admin.deleteUser(uid);
+        await deleteProfileCompletely(admin, uid);
         redirect(
           `/dashboard/users/new?error=${encodeURIComponent(urlErr.message)}`,
         );
@@ -468,22 +466,10 @@ export async function deleteUser(formData: FormData) {
     }
   }
 
-  const { error: profileDelErr } = await admin
-    .from("profiles")
-    .delete()
-    .eq("id", targetId);
-
-  if (profileDelErr) {
+  const removed = await deleteProfileCompletely(admin, targetId);
+  if (!removed.ok) {
     redirect(
-      `/dashboard/users?error=${encodeURIComponent(profileDelErr.message)}`,
-    );
-  }
-
-  const { error: authDelErr } = await admin.auth.admin.deleteUser(targetId);
-
-  if (authDelErr) {
-    redirect(
-      `/dashboard/users?error=${encodeURIComponent(authDelErr.message)}`,
+      `/dashboard/users?error=${encodeURIComponent(removed.error)}`,
     );
   }
 

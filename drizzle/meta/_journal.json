@@ -92,6 +92,13 @@
       "when": 1792710000000,
       "tag": "0012_add_pedimento_fecha_cierre",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792800000000,
+      "tag": "0013_profiles_fk_on_delete",
+      "breakpoints": true
     }
   ]
 }

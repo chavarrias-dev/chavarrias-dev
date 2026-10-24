@@ -13,7 +13,11 @@ import {
   type PedimentoArchiveKind,
 } from "@/lib/pedimento-archive";
 import { normalizeFormDateToIso } from "@/lib/mx-date";
-import { readPedimentoNumber } from "@/lib/pedimento-number";
+import {
+  isPedimentoNumberTaken,
+  PEDIMENTO_DUPLICATE_ERROR,
+} from "@/lib/pedimento-duplicates";
+import { parsePedimentoNumber, readPedimentoNumber } from "@/lib/pedimento-number";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CRM_DOCUMENTS_BUCKET,
@@ -99,6 +103,13 @@ export async function savePedimento(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/login");
+  }
+
+  const parts = parsePedimentoNumber(numero.value);
+  if (await isPedimentoNumberTaken(supabase, parts)) {
+    redirect(
+      `/dashboard/pedimentos/new?error=${encodeURIComponent(PEDIMENTO_DUPLICATE_ERROR)}`,
+    );
   }
 
   const uploaded = acceptedPedimentoPreuploadedUrl(
@@ -236,6 +247,13 @@ export async function updatePedimento(formData: FormData) {
 
   if (fetchErr || !existing) {
     redirect("/dashboard/pedimentos?error=Pedimento%20no%20encontrado");
+  }
+
+  const parts = parsePedimentoNumber(numero.value);
+  if (await isPedimentoNumberTaken(supabase, parts, id)) {
+    redirect(
+      `/dashboard/pedimentos/${id}/edit?error=${encodeURIComponent(PEDIMENTO_DUPLICATE_ERROR)}`,
+    );
   }
 
   const uploaded = acceptedPedimentoPreuploadedUrl(

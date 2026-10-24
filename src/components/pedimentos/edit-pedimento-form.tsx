@@ -83,7 +83,10 @@ export function EditPedimentoForm({
           </select>
         </div>
 
-        <PedimentoNumberFields initialValue={pedimento.numero_pedimento} />
+        <PedimentoNumberFields
+          initialValue={pedimento.numero_pedimento}
+          excludePedimentoId={pedimento.id}
+        />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>

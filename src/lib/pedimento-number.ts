@@ -41,6 +41,25 @@ export function parsePedimentoNumber(value: string): PedimentoNumberParts {
   };
 }
 
+export function compactPedimentoDigits(value: string): string {
+  return digitsOnly(value);
+}
+
+export function formatPedimentoFromParts(
+  parts: PedimentoNumberParts,
+): string | null {
+  const { anio, aduana, agente, consecutivo } = parts;
+  if (
+    !/^\d{2}$/.test(anio) ||
+    !/^\d{2}$/.test(aduana) ||
+    !/^\d{4}$/.test(agente) ||
+    !/^\d{6,8}$/.test(consecutivo)
+  ) {
+    return null;
+  }
+  return `${anio} ${aduana} ${agente} ${consecutivo}`;
+}
+
 export function formatPedimentoNumber(value: string): string {
   const parts = parsePedimentoNumber(value);
   if (
