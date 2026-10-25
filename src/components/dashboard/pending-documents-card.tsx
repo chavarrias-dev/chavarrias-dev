@@ -54,7 +54,7 @@ export function PendingDocumentsCard({
 
   return (
     <>
-      <div className="card-hover-lift animate-card-in card-stagger-1 flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 font-poppins shadow-sm">
+      <div className="card-hover-lift animate-card-in card-stagger-1 flex flex-col rounded-2xl border border-slate-200 bg-white p-4 font-poppins shadow-sm">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-medium tracking-tight text-slate-900">
             Documentos pendientes
@@ -92,7 +92,7 @@ export function PendingDocumentsCard({
                 ? "cliente con documentos pendientes o vencidos"
                 : "clientes con documentos pendientes o vencidos"}
             </p>
-            <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3">
+            <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto overscroll-y-contain border-t border-slate-100 pt-3 pr-1">
               {clients.map((client) => (
                 <li key={client.clientId}>
                   <button

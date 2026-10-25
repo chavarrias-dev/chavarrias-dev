@@ -68,8 +68,8 @@ export async function sendFacturaEmail(input: {
   numeroFactura: string;
   fecha: string;
   monto: string;
-  pdfBytes: Uint8Array;
-  pdfFileName: string;
+  pdfBytes?: Uint8Array | null;
+  pdfFileName?: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
@@ -88,12 +88,16 @@ export async function sendFacturaEmail(input: {
     to: input.to,
     subject: `Factura ${numero} - Chavarrias Servicios Aduanales`,
     html,
-    attachments: [
-      {
-        filename: input.pdfFileName,
-        content: Buffer.from(input.pdfBytes),
-      },
-    ],
+    ...(input.pdfBytes && input.pdfFileName
+      ? {
+          attachments: [
+            {
+              filename: input.pdfFileName,
+              content: Buffer.from(input.pdfBytes),
+            },
+          ],
+        }
+      : {}),
   });
 
   if (error) {

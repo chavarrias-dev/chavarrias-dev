@@ -420,7 +420,7 @@ export default async function DashboardPage() {
       {resolvedRole === "admin" ? (
         <section
           data-tour="dashboard-stats"
-          className="mb-8 grid grid-cols-1 gap-3 font-poppins md:grid-cols-3 md:items-stretch"
+          className="mb-8 grid grid-cols-1 gap-3 font-poppins md:grid-cols-3 md:items-start"
           aria-label="Estadísticas de administración"
         >
           <PendingDocumentsCard
@@ -431,7 +431,7 @@ export default async function DashboardPage() {
             messages={adminInboxMessages}
             unreadCount={adminUnreadMessageCount}
           />
-          <div className="card-hover-lift animate-card-in card-stagger-3 flex h-full min-h-[220px] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="card-hover-lift animate-card-in card-stagger-3 flex min-h-[220px] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-2 text-sm font-medium tracking-tight text-slate-900">
               Almacenamiento
             </h3>

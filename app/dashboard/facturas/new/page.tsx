@@ -23,7 +23,7 @@ export default async function NewFacturaPage({ searchParams }: PageProps) {
 
   const { data: clientRows } = await supabase
     .from("clients")
-    .select("id, full_name")
+    .select("id, full_name, email, company_name")
     .order("full_name", { ascending: true });
 
   const clients = (clientRows ?? []) as ClientOption[];

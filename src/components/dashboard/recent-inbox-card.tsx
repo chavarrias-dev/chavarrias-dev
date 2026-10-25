@@ -16,7 +16,7 @@ export function RecentInboxCard({
   unreadCount,
 }: RecentInboxCardProps) {
   return (
-    <div className="card-hover-lift animate-card-in card-stagger-2 flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 font-poppins shadow-sm">
+    <div className="card-hover-lift animate-card-in card-stagger-2 flex flex-col rounded-2xl border border-slate-200 bg-white p-4 font-poppins shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="text-sm font-medium tracking-tight text-slate-900">

@@ -127,8 +127,8 @@ async function notifyFacturaClient(input: {
   numero: string;
   fecha: string;
   monto: string;
-  pdfBytes: Uint8Array;
-  pdfFileName: string;
+  pdfBytes?: Uint8Array | null;
+  pdfFileName?: string;
 }): Promise<{ sent: boolean; clientEmail: string }> {
   const { data: client } = await input.supabase
     .from("clients")
@@ -283,29 +283,37 @@ export async function saveFactura(formData: FormData) {
       );
     }
 
-    const notice = await notifyFacturaClient({
-      supabase,
-      clienteId: clienteId.trim(),
-      numero: numero.trim(),
-      fecha: fechaIso,
-      monto,
-      pdfBytes,
-      pdfFileName,
-    });
+    if (formData.get("enviar_email") !== "0") {
+      const notice = await notifyFacturaClient({
+        supabase,
+        clienteId: clienteId.trim(),
+        numero: numero.trim(),
+        fecha: fechaIso,
+        monto,
+        pdfBytes,
+        pdfFileName,
+      });
 
-    await logActivity(supabase, {
-      userId: user.id,
-      userEmail: user.email ?? "",
-      action: "creó factura",
-      entityType: "factura",
-      entityId: row.id,
-      entityName: numero.trim(),
-    });
+      await logActivity(supabase, {
+        userId: user.id,
+        userEmail: user.email ?? "",
+        action: "creó factura",
+        entityType: "factura",
+        entityId: row.id,
+        entityName: numero.trim(),
+      });
 
-    redirect(facturaListNotice(notice.sent, notice.clientEmail));
+      redirect(facturaListNotice(notice.sent, notice.clientEmail));
+    }
   }
 
-  if (!uploaded.url && file instanceof File && file.size > 0 && archiveKind) {
+  if (
+    !expectsPdf &&
+    !uploaded.url &&
+    file instanceof File &&
+    file.size > 0 &&
+    archiveKind
+  ) {
     const path = recordCrmAttachmentPath("facturas", user.id, row.id, archiveKind);
     const { error: upErr } = await supabase.storage
       .from(CRM_DOCUMENTS_BUCKET)
@@ -327,6 +335,27 @@ export async function saveFactura(formData: FormData) {
       .eq("id", row.id);
   }
 
+  if (formData.get("enviar_email") !== "0") {
+    const notice = await notifyFacturaClient({
+      supabase,
+      clienteId: clienteId.trim(),
+      numero: numero.trim(),
+      fecha: fechaIso,
+      monto,
+    });
+
+    await logActivity(supabase, {
+      userId: user.id,
+      userEmail: user.email ?? "",
+      action: "creó factura",
+      entityType: "factura",
+      entityId: row.id,
+      entityName: numero.trim(),
+    });
+
+    redirect(facturaListNotice(notice.sent, notice.clientEmail));
+  }
+
   await logActivity(supabase, {
     userId: user.id,
     userEmail: user.email ?? "",
@@ -336,7 +365,9 @@ export async function saveFactura(formData: FormData) {
     entityName: numero.trim(),
   });
 
-  redirect("/dashboard/facturas");
+  redirect(
+    `/dashboard/facturas?ok=${encodeURIComponent("Factura guardada")}`,
+  );
 }
 
 export async function updateFactura(formData: FormData) {
