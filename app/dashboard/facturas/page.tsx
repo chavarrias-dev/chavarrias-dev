@@ -29,12 +29,34 @@ type ClientOption = {
 const fieldClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
+function FacturaArchivoLink({ href }: { href: string }) {
+  const path = href.split("?")[0]?.split("#")[0] ?? href;
+  const isZip = path.toLowerCase().endsWith(".zip");
+  if (!isZip && !path.toLowerCase().endsWith(".pdf")) {
+    return <ArchiveFileLink href={href} />;
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 font-medium text-[#227DE8] underline-offset-2 hover:underline"
+    >
+      <span aria-hidden>{isZip ? "🗜️" : "📄"}</span>
+      {isZip ? "Ver ZIP" : "Ver PDF"}
+    </a>
+  );
+}
+
 type PageProps = {
   searchParams: Promise<{
     numero?: string;
     cliente_id?: string;
     fecha_desde?: string;
     fecha_hasta?: string;
+    ok?: string;
+    aviso?: string;
   }>;
 };
 
@@ -44,6 +66,8 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   const clienteFilter = sp.cliente_id?.trim() ?? "";
   const fechaDesde = normalizeFormDateToIso(sp.fecha_desde) ?? "";
   const fechaHasta = normalizeFormDateToIso(sp.fecha_hasta) ?? "";
+  const savedNotice = sp.ok?.trim() ?? "";
+  const emailNotice = sp.aviso?.trim() ?? "";
 
   const hasFilters = Boolean(
     numeroFilter || clienteFilter || fechaDesde || fechaHasta,
@@ -137,6 +161,17 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
           </Link>
         ) : null}
       </div>
+
+      {savedNotice ? (
+        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {savedNotice}
+        </p>
+      ) : null}
+      {emailNotice ? (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          {emailNotice}
+        </p>
+      ) : null}
 
       <section className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="mb-4 text-sm font-medium text-slate-700">Filtros</h2>
@@ -321,7 +356,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-4 py-3">
                       {f.archivo_url ? (
-                        <ArchiveFileLink href={f.archivo_url} />
+                        <FacturaArchivoLink href={f.archivo_url} />
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
