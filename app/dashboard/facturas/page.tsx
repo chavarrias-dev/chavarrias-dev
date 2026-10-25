@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
@@ -8,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   DASHBOARD_PAGE_MAIN_CLASS,
   DASHBOARD_PAGE_TITLE_CLASS,
+  DASHBOARD_TABLE_SCROLL_CLASS,
 } from "@/lib/dashboard-layout";
 
 type FacturaRow = {
@@ -144,9 +146,17 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   const rows = (facturas ?? []) as FacturaRow[];
 
   return (
-    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
+    <main className={`${DASHBOARD_PAGE_MAIN_CLASS} !pt-0`}>
+      <div
+        className="factura-testing-banner font-poppins sticky top-0 z-20 -mx-4 mb-5 sm:-mx-6 lg:-mx-10"
+        role="status"
+      >
+        ⚠️ Módulo en modo de pruebas — El envío de emails puede no funcionar
+        correctamente
+      </div>
+
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Facturas</h1>
           <p className="mt-1.5 text-sm text-slate-500">
             Listado de facturas registradas.
@@ -177,7 +187,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
         <h2 className="mb-4 text-sm font-medium text-slate-700">Filtros</h2>
         <form method="GET" action="/dashboard/facturas" className="space-y-4">
           <div
-            className={`grid grid-cols-1 gap-4 ${isStaff ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3"}`}
+            className={`grid grid-cols-1 gap-4 ${isStaff ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-2 lg:grid-cols-3"}`}
           >
             <div>
               <label
@@ -250,7 +260,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
           <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:w-auto"
             >
               Buscar
             </button>
@@ -270,9 +280,9 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-left text-sm">
+      <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
+          <table className="w-full min-w-[720px] text-left text-sm sm:min-w-[880px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-4 py-3 font-medium text-slate-700">Número</th>
@@ -371,15 +381,17 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                         : "—"}
                     </td>
                     {isStaff ? (
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3">
+                        <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
                           <Link
                             href={`/dashboard/facturas/${f.id}/edit`}
-                            className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
+                            aria-label="Editar"
+                            className="inline-flex size-8 items-center justify-center rounded-md border border-[#227DE8]/30 text-[#227DE8] transition-colors duration-200 hover:bg-[#227DE8]/5 sm:size-auto sm:border-0 sm:bg-transparent sm:font-medium sm:underline-offset-2 sm:hover:underline"
                           >
-                            Editar
+                            <Pencil className="size-3.5 sm:hidden" aria-hidden />
+                            <span className="hidden sm:inline">Editar</span>
                           </Link>
-                          <DeleteFacturaForm facturaId={f.id} />
+                          <DeleteFacturaForm facturaId={f.id} compact />
                         </div>
                       </td>
                     ) : null}
