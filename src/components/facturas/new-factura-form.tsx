@@ -135,7 +135,7 @@ export function NewFacturaForm({
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl font-poppins">
+    <div className="mx-auto w-full max-w-xl font-poppins lg:max-w-6xl">
       <header className="mb-6">
         <h1 className="text-xl font-medium tracking-tight text-slate-900 sm:text-2xl">
           Nueva factura
@@ -145,10 +145,11 @@ export function NewFacturaForm({
         </p>
       </header>
 
-      <form action={saveFactura} className="space-y-8 pb-36 sm:pb-0">
+      <form action={saveFactura} className="flex flex-col gap-8 pb-36 sm:pb-0">
         <input type="hidden" name="enviar_email" value={sendEmail ? "1" : "0"} />
 
-        <section className="space-y-5 border-b border-slate-200 pb-8">
+        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-10 lg:gap-y-8">
+        <section className="min-w-0 space-y-5 border-b border-slate-200 pb-8">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               1
@@ -234,6 +235,7 @@ export function NewFacturaForm({
           </div>
         </section>
 
+        <div className="flex min-w-0 flex-col gap-8">
         <section className="space-y-4 border-b border-slate-200 pb-8">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
@@ -347,6 +349,8 @@ export function NewFacturaForm({
             </p>
           ) : null}
         </section>
+        </div>
+        </div>
 
         <section className="space-y-3">
           <div>
@@ -397,7 +401,7 @@ export function NewFacturaForm({
         ) : null}
 
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:z-auto sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-          <div className="mx-auto flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
             <Link
               href="/dashboard/facturas"
               className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50"
