@@ -41,10 +41,16 @@ function parseMonto(raw: unknown): string | null {
 
 type FacturaSupabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
-function facturaListNotice(sent: boolean, clientEmail: string): string {
-  return sent
-    ? `/dashboard/facturas?ok=${encodeURIComponent(`Factura guardada y enviada a ${clientEmail}`)}`
-    : `/dashboard/facturas?aviso=${encodeURIComponent(`Factura guardada. No se pudo enviar el email a ${clientEmail}`)}`;
+function facturaListNotice(
+  sent: boolean,
+  clientEmail: string,
+  detail?: string,
+): string {
+  if (sent) {
+    return `/dashboard/facturas?ok=${encodeURIComponent(`Factura guardada y enviada a ${clientEmail}`)}`;
+  }
+  const reason = detail?.trim() ? ` ${detail.trim()}` : "";
+  return `/dashboard/facturas?aviso=${encodeURIComponent(`Factura guardada. No se pudo enviar el email a ${clientEmail}.${reason}`)}`;
 }
 
 async function readPdfBytes(
@@ -129,7 +135,7 @@ async function notifyFacturaClient(input: {
   monto: string;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
-}): Promise<{ sent: boolean; clientEmail: string }> {
+}): Promise<{ sent: boolean; clientEmail: string; detail?: string }> {
   const { data: client } = await input.supabase
     .from("clients")
     .select("full_name, email")
@@ -158,8 +164,10 @@ async function notifyFacturaClient(input: {
     });
     return { sent: true, clientEmail };
   } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : "Error desconocido al enviar";
     console.error("[factura-email]", error);
-    return { sent: false, clientEmail };
+    return { sent: false, clientEmail, detail };
   }
 }
 
@@ -303,7 +311,9 @@ export async function saveFactura(formData: FormData) {
         entityName: numero.trim(),
       });
 
-      redirect(facturaListNotice(notice.sent, notice.clientEmail));
+      redirect(
+        facturaListNotice(notice.sent, notice.clientEmail, notice.detail),
+      );
     }
   }
 
@@ -353,7 +363,7 @@ export async function saveFactura(formData: FormData) {
       entityName: numero.trim(),
     });
 
-    redirect(facturaListNotice(notice.sent, notice.clientEmail));
+    redirect(facturaListNotice(notice.sent, notice.clientEmail, notice.detail));
   }
 
   await logActivity(supabase, {
@@ -527,7 +537,7 @@ export async function updateFactura(formData: FormData) {
       entityName: numero.trim(),
     });
 
-    redirect(facturaListNotice(notice.sent, notice.clientEmail));
+    redirect(facturaListNotice(notice.sent, notice.clientEmail, notice.detail));
   }
 
   if (uploaded.url) {

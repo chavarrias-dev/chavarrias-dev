@@ -22,21 +22,26 @@ export function facturaPdfFileName(numeroFactura: string): string {
   return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
 }
 
+const VERIFIED_FACTURA_FROM =
+  "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
+
 function facturaFromAddress(): string {
   const configured = process.env.RESEND_FROM_EMAIL?.trim();
-  if (!configured) {
-    return "Chavarrias Servicios Aduanales <onboarding@resend.dev>";
-  }
+  if (!configured) return VERIFIED_FACTURA_FROM;
 
   const address = configured.match(/<([^>]+)>/)?.[1] ?? configured;
-  const domain = address.split("@")[1]?.trim().toLowerCase();
-  if (!domain || domain === "resend.dev") {
+  const domain = address.split("@")[1]?.trim().toLowerCase() ?? "";
+  if (domain === "chavarrias.com.mx") {
     return configured.includes("<")
       ? configured
       : `Chavarrias Servicios Aduanales <${configured}>`;
   }
 
-  return `Chavarrias Servicios Aduanales <notificaciones@${domain}>`;
+  console.warn(
+    "[factura-email] RESEND_FROM_EMAIL no usa chavarrias.com.mx; se usa el remitente verificado",
+    { configuredDomain: domain || null },
+  );
+  return VERIFIED_FACTURA_FROM;
 }
 
 function escapeHtml(value: string): string {
@@ -71,8 +76,17 @@ export async function sendFacturaEmail(input: {
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
 }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const apiKey = process.env.RESEND_API_KEY?.trim() ?? "";
+  const from = facturaFromAddress();
+  console.info("[factura-email] config", {
+    resendApiKeyLoaded: apiKey.length > 0,
+    from,
+    to: input.to,
+  });
   if (!apiKey) {
+    console.error(
+      "[factura-email] RESEND_API_KEY no está en process.env. Agrégala en .env.local y en el entorno de producción.",
+    );
     throw new Error("RESEND_API_KEY is not configured");
   }
 
@@ -83,8 +97,8 @@ export async function sendFacturaEmail(input: {
   const html = `<p>Estimado ${escapeHtml(clientName)}, le enviamos adjunta su factura ${escapeHtml(numero)} con fecha ${escapeHtml(fecha)} por un monto de ${escapeHtml(monto)}. Cualquier duda estamos a sus órdenes. Chavarrias Servicios Aduanales</p>`;
 
   const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from: facturaFromAddress(),
+  const { data, error } = await resend.emails.send({
+    from,
     to: input.to,
     subject: `Factura ${numero} - Chavarrias Servicios Aduanales`,
     html,
@@ -101,6 +115,9 @@ export async function sendFacturaEmail(input: {
   });
 
   if (error) {
+    console.error("[factura-email] resend.emails.send error", error);
     throw new Error(error.message);
   }
+
+  console.info("[factura-email] sent", { id: data?.id ?? null });
 }
