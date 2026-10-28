@@ -31,6 +31,46 @@ type ClientOption = {
 const fieldClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
+function facturaMonthKey(fecha: string | null | undefined): string {
+  if (!fecha) return "sin-fecha";
+  const d = fecha.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(0, 7) : "sin-fecha";
+}
+
+function formatFacturaMonthHeading(monthKey: string): string {
+  if (monthKey === "sin-fecha") return "Sin fecha";
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) return monthKey;
+  const label = new Date(year, month - 1, 1).toLocaleDateString("es-MX", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function groupFacturasByMonth(
+  rows: FacturaRow[],
+): { monthKey: string; items: FacturaRow[] }[] {
+  const map = new Map<string, FacturaRow[]>();
+  for (const row of rows) {
+    const key = facturaMonthKey(row.fecha);
+    const list = map.get(key);
+    if (list) {
+      list.push(row);
+    } else {
+      map.set(key, [row]);
+    }
+  }
+
+  return [...map.entries()]
+    .sort(([a], [b]) => {
+      if (a === "sin-fecha") return 1;
+      if (b === "sin-fecha") return -1;
+      return a.localeCompare(b);
+    })
+    .map(([monthKey, items]) => ({ monthKey, items }));
+}
+
 function FacturaArchivoLink({ href }: { href: string }) {
   const path = href.split("?")[0]?.split("#")[0] ?? href;
   const isZip = path.toLowerCase().endsWith(".zip");
@@ -122,9 +162,9 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   if (!isStaff && !clienteIdForCliente) {
     facturas = [];
   } else {
-    const result = await query.order("created_at", {
-      ascending: false,
-    });
+    const result = await query
+      .order("fecha", { ascending: true })
+      .order("numero_factura", { ascending: true });
     facturas = result.data as FacturaRow[] | null;
     error = result.error;
   }
@@ -144,6 +184,8 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   );
 
   const rows = (facturas ?? []) as FacturaRow[];
+  const rowGroups = groupFacturasByMonth(rows);
+  const colSpan = isStaff ? 7 : 6;
 
   return (
     <main className={`${DASHBOARD_PAGE_MAIN_CLASS} !pt-0`}>
@@ -334,68 +376,81 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
                   </td>
                 </tr>
               ) : (
-                rows.map((f) => (
+                rowGroups.flatMap(({ monthKey, items }) => [
                   <tr
-                    key={f.id}
-                    className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                    key={`month-${monthKey}`}
+                    className="border-b border-slate-200 bg-slate-50/90"
                   >
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {f.numero_factura}
+                    <td
+                      colSpan={colSpan}
+                      className="px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-600"
+                    >
+                      {formatFacturaMonthHeading(monthKey)}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {f.fecha
-                        ? new Date(f.fecha + "T12:00:00").toLocaleDateString(
-                            "es-MX",
-                            {
+                  </tr>,
+                  ...items.map((f) => (
+                    <tr
+                      key={f.id}
+                      className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {f.numero_factura}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {f.fecha
+                          ? new Date(f.fecha + "T12:00:00").toLocaleDateString(
+                              "es-MX",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {clientMap.get(f.cliente_id) ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-800">
+                        {Number(f.monto).toLocaleString("es-MX", {
+                          style: "currency",
+                          currency: "MXN",
+                        })}
+                      </td>
+                      <td className="px-4 py-3">
+                        {f.archivo_url ? (
+                          <FacturaArchivoLink href={f.archivo_url} />
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {f.created_at
+                          ? new Date(f.created_at).toLocaleDateString("es-MX", {
                               day: "2-digit",
                               month: "short",
                               year: "numeric",
-                            },
-                          )
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {clientMap.get(f.cliente_id) ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-800">
-                      {Number(f.monto).toLocaleString("es-MX", {
-                        style: "currency",
-                        currency: "MXN",
-                      })}
-                    </td>
-                    <td className="px-4 py-3">
-                      {f.archivo_url ? (
-                        <FacturaArchivoLink href={f.archivo_url} />
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {f.created_at
-                        ? new Date(f.created_at).toLocaleDateString("es-MX", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </td>
-                    {isStaff ? (
-                      <td className="px-3 py-2.5 sm:px-4 sm:py-3">
-                        <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-                          <Link
-                            href={`/dashboard/facturas/${f.id}/edit`}
-                            aria-label="Editar"
-                            className="inline-flex size-8 items-center justify-center rounded-md border border-[#227DE8]/30 text-[#227DE8] transition-colors duration-200 hover:bg-[#227DE8]/5 sm:size-auto sm:border-0 sm:bg-transparent sm:font-medium sm:underline-offset-2 sm:hover:underline"
-                          >
-                            <Pencil className="size-3.5 sm:hidden" aria-hidden />
-                            <span className="hidden sm:inline">Editar</span>
-                          </Link>
-                          <DeleteFacturaForm facturaId={f.id} compact />
-                        </div>
+                            })
+                          : "—"}
                       </td>
-                    ) : null}
-                  </tr>
-                ))
+                      {isStaff ? (
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3">
+                          <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                            <Link
+                              href={`/dashboard/facturas/${f.id}/edit`}
+                              aria-label="Editar"
+                              className="inline-flex size-8 items-center justify-center rounded-md border border-[#227DE8]/30 text-[#227DE8] transition-colors duration-200 hover:bg-[#227DE8]/5 sm:size-auto sm:border-0 sm:bg-transparent sm:font-medium sm:underline-offset-2 sm:hover:underline"
+                            >
+                              <Pencil className="size-3.5 sm:hidden" aria-hidden />
+                              <span className="hidden sm:inline">Editar</span>
+                            </Link>
+                            <DeleteFacturaForm facturaId={f.id} compact />
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  )),
+                ])
               )}
             </tbody>
           </table>

@@ -18,7 +18,6 @@ const PREVIEW_VARS = {
   tramite: "$900.00",
   referencia: "55250505515",
   tipo_cliente: "PYME",
-  descripcion_correo: "",
   nombre: "Arturo González",
   numero: "55250505515",
   fecha: "08/08/2026",
@@ -157,7 +156,7 @@ export function FacturaEmailTemplateSection() {
   return (
     <SettingsCard
       title="Correo de facturas"
-      description="Texto y firma del correo que reciben los clientes. Solo visible para administradores."
+      description="Plantilla inicial al crear facturas y firma del email. El mensaje se edita en cada factura."
     >
       {message ? (
         <SettingsAlert tone={message.tone} message={message.text} />
@@ -169,7 +168,7 @@ export function FacturaEmailTemplateSection() {
           className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700"
         >
           <FileText className="size-4 text-slate-400" aria-hidden />
-          Texto del correo
+            Plantilla inicial (nuevas facturas)
         </label>
         <textarea
           id="factura_body_template"
@@ -179,8 +178,8 @@ export function FacturaEmailTemplateSection() {
           onChange={(e) => setBodyTemplate(e.target.value)}
         />
         <p className="mt-2 text-xs text-slate-500">
-          Respeta los saltos de línea (Enter). Los datos bancarios van aquí o en
-          cada factura (descripción para correo). Variables:{" "}
+          Se copia al campo «Descripción para correo» al crear una factura. El
+          usuario edita el mensaje final ahí. Variables:{" "}
           {placeholders.map((p) => (
             <code
               key={p}

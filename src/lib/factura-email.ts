@@ -4,9 +4,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { facturaPdfFileName } from "@/lib/factura-pdf-delivery";
 import {
-  applyFacturaEmailBodyTemplate,
   buildFacturaEmailTemplateVars,
   loadFacturaEmailTemplateSettings,
+  resolveFacturaEmailBodyText,
 } from "@/lib/factura-email-settings";
 
 const COMPANY_NAME = "Chavarrias Servicios Aduanales";
@@ -22,7 +22,8 @@ export type SendFacturaInvoiceEmailInput = {
   numeroFactura: string;
   fechaIso: string;
   monto: string;
-  descripcionCorreo?: string | null;
+  /** Texto completo del correo guardado en la factura. */
+  emailBody?: string | null;
   archivoUrl?: string | null;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
@@ -144,9 +145,12 @@ export async function sendFacturaInvoiceEmail(
     numeroFactura: input.numeroFactura,
     fechaIso: input.fechaIso,
     monto: input.monto,
-    descripcionCorreo: input.descripcionCorreo,
   });
-  const bodyText = applyFacturaEmailBodyTemplate(settings.bodyTemplate, vars);
+  const bodyText = resolveFacturaEmailBodyText(
+    input.emailBody,
+    settings.bodyTemplate,
+    vars,
+  );
 
   const attachments: { filename: string; content: Buffer }[] = [];
   if (input.pdfBytes && input.pdfBytes.length > 0) {

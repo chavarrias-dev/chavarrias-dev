@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { NewFacturaForm } from "@/components/facturas/new-factura-form";
 import type { ClientOption } from "@/components/clients/types";
+import { loadFacturaEmailTemplateSettings } from "@/lib/factura-email-settings";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -21,10 +22,13 @@ export default async function NewFacturaPage({ searchParams }: PageProps) {
     redirect("/dashboard");
   }
 
-  const { data: clientRows } = await supabase
-    .from("clients")
-    .select("id, full_name, email, company_name")
-    .order("full_name", { ascending: true });
+  const [{ data: clientRows }, emailTemplateSettings] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, full_name, email, company_name, tipo_razon_social")
+      .order("full_name", { ascending: true }),
+    loadFacturaEmailTemplateSettings(supabase),
+  ]);
 
   const clients = (clientRows ?? []) as ClientOption[];
   const params = await searchParams;
@@ -63,6 +67,7 @@ export default async function NewFacturaPage({ searchParams }: PageProps) {
         clients={clients}
         errorMessage={errorMessage}
         defaultClienteId={defaultClienteId}
+        initialEmailBody={emailTemplateSettings.bodyTemplate}
       />
     </main>
   );

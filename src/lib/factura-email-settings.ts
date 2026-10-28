@@ -5,8 +5,12 @@ import {
   DEFAULT_FACTURA_BODY_TEMPLATE,
   DEFAULT_FACTURA_SIGNATURE_URL,
   FACTURA_EMAIL_TEMPLATE_PLACEHOLDERS,
+  applyFacturaEmailBodyTemplate,
+  buildFacturaEmailTemplateVars,
+  resolveFacturaEmailBodyText,
+  type BuildFacturaEmailTemplateVarsInput,
+  type FacturaEmailTemplateVars,
 } from "@/lib/factura-email-template-defaults";
-import { isoDateToMxDisplay } from "@/lib/mx-date";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
@@ -14,6 +18,11 @@ export {
   DEFAULT_FACTURA_BODY_TEMPLATE,
   DEFAULT_FACTURA_SIGNATURE_URL,
   FACTURA_EMAIL_TEMPLATE_PLACEHOLDERS,
+  applyFacturaEmailBodyTemplate,
+  buildFacturaEmailTemplateVars,
+  resolveFacturaEmailBodyText,
+  type BuildFacturaEmailTemplateVarsInput,
+  type FacturaEmailTemplateVars,
 };
 
 export const FACTURA_EMAIL_SETTINGS_ID = "default";
@@ -29,29 +38,6 @@ export type FacturaEmailTemplateSettings = {
   bodyTemplate: string;
   signatureUrl: string;
   updatedAt: string | null;
-};
-
-export type FacturaEmailTemplateVars = {
-  empresa: string;
-  monto: string;
-  tramite: string;
-  referencia: string;
-  tipo_cliente: string;
-  descripcion_correo: string;
-  nombre: string;
-  numero: string;
-  fecha: string;
-};
-
-export type BuildFacturaEmailTemplateVarsInput = {
-  recipientName: string;
-  companyName?: string | null;
-  tipoRazonSocial?: string | null;
-  numeroFactura: string;
-  fechaIso: string;
-  monto: string;
-  /** Texto libre por factura (campo descripción para correo). */
-  descripcionCorreo?: string | null;
 };
 
 type FacturaEmailSettingsRow = {
@@ -150,54 +136,6 @@ async function saveFacturaEmailTemplateSettingsToStorage(
   if (error) {
     throw new Error(error.message);
   }
-}
-
-function formatMontoMx(monto: string): string {
-  const n = Number.parseFloat(monto.replace(",", ".").trim());
-  if (!Number.isFinite(n)) return monto;
-  return n.toLocaleString("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-export function buildFacturaEmailTemplateVars(
-  input: BuildFacturaEmailTemplateVarsInput,
-): FacturaEmailTemplateVars {
-  const montoFormatted = formatMontoMx(input.monto);
-  const empresa =
-    input.companyName?.trim() ||
-    input.recipientName.trim() ||
-    "Cliente";
-  return {
-    empresa,
-    monto: montoFormatted,
-    tramite: montoFormatted,
-    referencia: input.numeroFactura.trim(),
-    tipo_cliente: input.tipoRazonSocial?.trim() || "Cliente",
-    descripcion_correo: input.descripcionCorreo?.trim() ?? "",
-    nombre: input.recipientName.trim(),
-    numero: input.numeroFactura.trim(),
-    fecha: isoDateToMxDisplay(input.fechaIso),
-  };
-}
-
-export function applyFacturaEmailBodyTemplate(
-  template: string,
-  vars: FacturaEmailTemplateVars,
-): string {
-  return template
-    .replaceAll("{{empresa}}", vars.empresa)
-    .replaceAll("{{monto}}", vars.monto)
-    .replaceAll("{{tramite}}", vars.tramite)
-    .replaceAll("{{referencia}}", vars.referencia)
-    .replaceAll("{{tipo_cliente}}", vars.tipo_cliente)
-    .replaceAll("{{descripcion_correo}}", vars.descripcion_correo)
-    .replaceAll("{{nombre}}", vars.nombre)
-    .replaceAll("{{numero}}", vars.numero)
-    .replaceAll("{{fecha}}", vars.fecha);
 }
 
 export function validateFacturaEmailBodyTemplate(raw: string): string | null {

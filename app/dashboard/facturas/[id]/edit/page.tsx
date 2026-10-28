@@ -2,6 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ClientOption } from "@/components/clients/types";
 import { EditFacturaForm } from "@/components/facturas/edit-factura-form";
+import {
+  applyFacturaEmailBodyTemplate,
+  buildFacturaEmailTemplateVars,
+} from "@/lib/factura-email-template-defaults";
+import {
+  loadFacturaEmailTemplateSettings,
+} from "@/lib/factura-email-settings";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -51,10 +58,19 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
 
   const f = factura as FacturaRecord;
 
-  const { data: clientRows } = await supabase
-    .from("clients")
-    .select("id, full_name")
-    .order("full_name", { ascending: true });
+  const [{ data: clientRows }, { data: linkedClient }, emailTemplateSettings] =
+    await Promise.all([
+      supabase
+        .from("clients")
+        .select("id, full_name, company_name, tipo_razon_social")
+        .order("full_name", { ascending: true }),
+      supabase
+        .from("clients")
+        .select("full_name, company_name, tipo_razon_social")
+        .eq("id", f.cliente_id)
+        .maybeSingle(),
+      loadFacturaEmailTemplateSettings(supabase),
+    ]);
 
   let clients = (clientRows ?? []) as ClientOption[];
   if (!clients.some((c) => c.id === f.cliente_id)) {
@@ -100,6 +116,27 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
   const noticeMessage = sp.ok?.trim() || sp.aviso?.trim() || undefined;
   const noticeError = Boolean(sp.aviso?.trim() && !sp.ok?.trim());
 
+  let emailBodyForForm = f.notas?.trim() ?? "";
+  if (!emailBodyForForm) {
+    const client = linkedClient as {
+      full_name?: string | null;
+      company_name?: string | null;
+      tipo_razon_social?: string | null;
+    } | null;
+    const vars = buildFacturaEmailTemplateVars({
+      recipientName: client?.full_name?.trim() ?? "Cliente",
+      companyName: client?.company_name,
+      tipoRazonSocial: client?.tipo_razon_social,
+      numeroFactura: f.numero_factura,
+      fechaIso: f.fecha,
+      monto: String(f.monto),
+    });
+    emailBodyForForm = applyFacturaEmailBodyTemplate(
+      emailTemplateSettings.bodyTemplate,
+      vars,
+    );
+  }
+
   return (
     <main className="w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <EditFacturaForm
@@ -109,7 +146,7 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
           numero_factura: f.numero_factura,
           fecha: f.fecha,
           monto: String(f.monto),
-          notas: f.notas,
+          notas: emailBodyForForm,
           archivo_url: f.archivo_url,
         }}
         clients={clients}

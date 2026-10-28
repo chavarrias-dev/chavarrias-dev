@@ -35,11 +35,8 @@ export async function GET() {
   }
 
   const role = await getUserRole(supabase, user.id);
-  if (role !== "admin") {
-    return NextResponse.json(
-      { ok: false, error: "Solo administradores pueden ver esta configuración" },
-      { status: 403 },
-    );
+  if (role !== "admin" && role !== "empleado") {
+    return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 403 });
   }
 
   const settings = await loadFacturaEmailTemplateSettings(supabase);

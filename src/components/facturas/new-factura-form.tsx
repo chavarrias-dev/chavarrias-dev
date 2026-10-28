@@ -5,6 +5,11 @@ import { useState } from "react";
 import type { ClientOption } from "@/components/clients/types";
 import { ArchiveFileInput } from "@/components/files/archive-file-input";
 import { MxDateInput } from "@/components/forms/mx-date-input";
+import {
+  applyFacturaEmailBodyTemplate,
+  buildFacturaEmailTemplateVars,
+  DEFAULT_FACTURA_BODY_TEMPLATE,
+} from "@/lib/factura-email-template-defaults";
 import { saveFactura } from "../../../app/dashboard/facturas/actions";
 
 type NewFacturaFormProps = {
@@ -12,6 +17,8 @@ type NewFacturaFormProps = {
   errorMessage?: string;
   /** Pre-select cliente when linked from client profile (?cliente_id=…) */
   defaultClienteId?: string;
+  /** Plantilla inicial copiada al campo mensaje del correo. */
+  initialEmailBody?: string;
 };
 
 type ExtractApiPayload = {
@@ -70,6 +77,7 @@ export function NewFacturaForm({
   clients,
   errorMessage,
   defaultClienteId,
+  initialEmailBody,
 }: NewFacturaFormProps) {
   const clienteDefault =
     defaultClienteId && clients.some((c) => c.id === defaultClienteId)
@@ -80,7 +88,9 @@ export function NewFacturaForm({
   const [numeroFactura, setNumeroFactura] = useState("");
   const [fecha, setFecha] = useState("");
   const [monto, setMonto] = useState("");
-  const [notas, setNotas] = useState("");
+  const [notas, setNotas] = useState(
+    () => initialEmailBody?.trim() || DEFAULT_FACTURA_BODY_TEMPLATE,
+  );
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -121,9 +131,6 @@ export function NewFacturaForm({
       if (fe) setFecha(fe);
       const mo = normalizeMonto(ex.monto);
       if (mo) setMonto(mo);
-      if (ex.notas != null && String(ex.notas).trim()) {
-        setNotas(String(ex.notas).trim());
-      }
       setScanMessage("Datos extraídos, revisa y confirma");
     } catch (e) {
       setScanError(
@@ -132,6 +139,26 @@ export function NewFacturaForm({
     } finally {
       setIsScanning(false);
     }
+  }
+
+  function buildVarsFromForm() {
+    return buildFacturaEmailTemplateVars({
+      recipientName: selectedClient?.full_name ?? "",
+      companyName: selectedClient?.company_name,
+      tipoRazonSocial: selectedClient?.tipo_razon_social,
+      numeroFactura: numeroFactura.trim() || "—",
+      fechaIso: fecha.trim() || new Date().toISOString().slice(0, 10),
+      monto: monto.trim() || "0",
+    });
+  }
+
+  function handleApplyVariablesToEmailBody() {
+    const template = notas.trim() || DEFAULT_FACTURA_BODY_TEMPLATE;
+    setNotas(applyFacturaEmailBodyTemplate(template, buildVarsFromForm()));
+  }
+
+  function handleRestoreEmailTemplate() {
+    setNotas(initialEmailBody?.trim() || DEFAULT_FACTURA_BODY_TEMPLATE);
   }
 
   return (
@@ -216,29 +243,6 @@ export function NewFacturaForm({
             </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="notas"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Descripción para correo{" "}
-              <span className="font-normal text-slate-400">(opcional)</span>
-            </label>
-            <textarea
-              id="notas"
-              name="notas"
-              rows={4}
-              className={`${fieldClass} min-h-[96px] resize-y font-mono text-[13px]`}
-              placeholder={"Datos para pago, banco, CLABE u otras líneas extra.\nDeja vacío si no aplica."}
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-            />
-            <p className="mt-1.5 text-xs text-slate-500">
-              Se inserta en el correo donde va{" "}
-              <code className="rounded bg-slate-100 px-1">{`{{descripcion_correo}}`}</code>
-              . La referencia de factura usa el número de factura.
-            </p>
-          </div>
         </section>
 
         <div className="flex min-w-0 flex-col gap-8">
@@ -358,14 +362,52 @@ export function NewFacturaForm({
         </div>
         </div>
 
-        <section className="space-y-3">
+        <section className="space-y-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               4
             </p>
             <h2 className="mt-1 text-base font-medium text-slate-900">
-              Notificación por email
+              Mensaje del correo al cliente
             </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Edita aquí el texto completo que recibirá el cliente. Se guarda con
+              la factura.
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="notas"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Descripción para correo
+            </label>
+            <textarea
+              id="notas"
+              name="notas"
+              rows={14}
+              required={sendEmail}
+              className={`${fieldClass} min-h-[280px] resize-y font-mono text-[13px] leading-relaxed`}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleApplyVariablesToEmailBody}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[#227DE8]/40 bg-white px-3 text-sm font-medium text-[#227DE8] hover:bg-[#227DE8]/5"
+              >
+                Rellenar empresa, montos y referencia
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreEmailTemplate}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Restaurar plantilla inicial
+              </button>
+            </div>
           </div>
 
           <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
