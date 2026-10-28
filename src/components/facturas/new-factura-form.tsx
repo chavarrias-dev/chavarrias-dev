@@ -163,7 +163,7 @@ export function NewFacturaForm({
 
   return (
     <div className="mx-auto w-full max-w-xl font-poppins lg:max-w-6xl">
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="text-xl font-medium tracking-tight text-slate-900 sm:text-2xl">
           Nueva factura
         </h1>
@@ -172,11 +172,11 @@ export function NewFacturaForm({
         </p>
       </header>
 
-      <form action={saveFactura} className="flex flex-col gap-8 pb-36 sm:pb-0">
+      <form action={saveFactura} className="flex flex-col gap-5 pb-28 sm:pb-0">
         <input type="hidden" name="enviar_email" value={sendEmail ? "1" : "0"} />
 
-        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-10 lg:gap-y-8">
-        <section className="min-w-0 space-y-5 border-b border-slate-200 pb-8">
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-start lg:gap-x-8">
+        <section className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               1
@@ -205,7 +205,7 @@ export function NewFacturaForm({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label
                 htmlFor="fecha"
@@ -245,8 +245,7 @@ export function NewFacturaForm({
 
         </section>
 
-        <div className="flex min-w-0 flex-col gap-8">
-        <section className="space-y-4 border-b border-slate-200 pb-8">
+        <section className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-1">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               2
@@ -295,7 +294,7 @@ export function NewFacturaForm({
           ) : null}
         </section>
 
-        <section className="space-y-4 border-b border-slate-200 pb-8">
+        <section className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               3
@@ -359,10 +358,8 @@ export function NewFacturaForm({
             </p>
           ) : null}
         </section>
-        </div>
-        </div>
 
-        <section className="space-y-4">
+        <section className="min-w-0 space-y-3 lg:col-start-1 lg:row-start-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               4
@@ -370,9 +367,8 @@ export function NewFacturaForm({
             <h2 className="mt-1 text-base font-medium text-slate-900">
               Mensaje del correo al cliente
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Edita aquí el texto completo que recibirá el cliente. Se guarda con
-              la factura.
+            <p className="mt-0.5 text-sm text-slate-500">
+              Edita el texto que recibirá el cliente. Se guarda con la factura.
             </p>
           </div>
 
@@ -386,9 +382,9 @@ export function NewFacturaForm({
             <textarea
               id="notas"
               name="notas"
-              rows={14}
+              rows={10}
               required={sendEmail}
-              className={`${fieldClass} min-h-[280px] resize-y font-mono text-[13px] leading-relaxed`}
+              className={`${fieldClass} min-h-[220px] resize-y font-mono text-[13px] leading-relaxed`}
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
             />
@@ -410,7 +406,7 @@ export function NewFacturaForm({
             </div>
           </div>
 
-          <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-2.5">
             <input
               type="checkbox"
               checked={sendEmail}
@@ -438,6 +434,7 @@ export function NewFacturaForm({
             </p>
           )}
         </section>
+        </div>
 
         {errorMessage ? (
           <p
