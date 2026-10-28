@@ -142,20 +142,25 @@ async function notifyFacturaClient(input: {
   numero: string;
   fecha: string;
   monto: string;
+  referencia?: string | null;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
 }): Promise<{ sent: boolean; clientEmail: string; detail?: string }> {
   const { data: client } = await input.supabase
     .from("clients")
-    .select("full_name, email")
+    .select("full_name, email, company_name, tipo_razon_social")
     .eq("id", input.clienteId)
     .maybeSingle();
 
-  const clientEmail =
-    (client as { email?: string | null } | null)?.email?.trim() ?? "";
-  const clientName =
-    (client as { full_name?: string | null } | null)?.full_name?.trim() ||
-    "cliente";
+  const row = client as {
+    email?: string | null;
+    full_name?: string | null;
+    company_name?: string | null;
+    tipo_razon_social?: string | null;
+  } | null;
+
+  const clientEmail = row?.email?.trim() ?? "";
+  const clientName = row?.full_name?.trim() || "cliente";
 
   if (!clientEmail) {
     return { sent: false, clientEmail: "el cliente" };
@@ -165,9 +170,12 @@ async function notifyFacturaClient(input: {
     await sendFacturaInvoiceEmail(input.supabase, {
       toEmail: clientEmail,
       recipientName: clientName,
+      companyName: row?.company_name,
+      tipoRazonSocial: row?.tipo_razon_social,
       numeroFactura: input.numero,
       fechaIso: input.fecha,
       monto: input.monto,
+      referencia: input.referencia,
       pdfBytes: input.pdfBytes,
       pdfFileName: input.pdfFileName,
     });
@@ -337,6 +345,7 @@ export async function saveFactura(formData: FormData) {
       numero: numero.trim(),
       fecha: fechaIso,
       monto,
+      referencia: emptyToNull(formData.get("notas")),
       pdfBytes: pdfBytes ?? undefined,
       pdfFileName: pdfBytes
         ? facturaPdfFileName(numero.trim())
@@ -386,7 +395,9 @@ export async function resendFacturaEmail(formData: FormData) {
 
   const { data: row, error } = await supabase
     .from("facturas")
-    .select("id, numero_factura, fecha, monto, cliente_id, archivo_url")
+    .select(
+      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -400,6 +411,7 @@ export async function resendFacturaEmail(formData: FormData) {
     monto: string;
     cliente_id: string;
     archivo_url: string | null;
+    notas: string | null;
   };
 
   const pdfBytes = await readPdfBytes(
@@ -415,6 +427,7 @@ export async function resendFacturaEmail(formData: FormData) {
     numero: f.numero_factura.trim(),
     fecha: f.fecha,
     monto: String(f.monto),
+    referencia: f.notas,
     pdfBytes,
     pdfFileName: pdfBytes
       ? facturaPdfFileName(f.numero_factura.trim())
@@ -616,6 +629,7 @@ export async function updateFactura(formData: FormData) {
       numero: numero.trim(),
       fecha: fechaIso,
       monto,
+      referencia: emptyToNull(formData.get("notas")),
       pdfBytes: pdfBytes ?? undefined,
       pdfFileName: pdfBytes
         ? facturaPdfFileName(numero.trim())

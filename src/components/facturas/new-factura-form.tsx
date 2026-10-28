@@ -228,7 +228,7 @@ export function NewFacturaForm({
               name="notas"
               rows={3}
               className={`${fieldClass} min-h-[88px] resize-y`}
-              placeholder="Opcional"
+              placeholder="Ej. referencia: 5129/ 919CEAC4/ B9A01326238 (aparece en el correo)"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
             />

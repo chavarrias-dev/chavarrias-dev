@@ -4,23 +4,31 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { SettingsAlert } from "@/components/settings/settings-alert";
 import { SettingsCard } from "@/components/settings/settings-card";
+import {
+  DEFAULT_FACTURA_BODY_TEMPLATE,
+  FACTURA_EMAIL_TEMPLATE_PLACEHOLDERS,
+} from "@/lib/factura-email-template-defaults";
 
 const fieldClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
 const PREVIEW_VARS = {
+  empresa: "FRUTAS ESMERALDAS",
+  monto: "$900.00",
+  tramite: "$900.00",
+  referencia: "5129/ 919CEAC4/ B9A01326238",
+  tipo_cliente: "PYME",
   nombre: "Arturo González",
   numero: "55250505515",
   fecha: "08/08/2026",
-  monto: "$50,000.00",
 };
 
 function applyPreview(template: string): string {
-  return template
-    .replaceAll("{{nombre}}", PREVIEW_VARS.nombre)
-    .replaceAll("{{numero}}", PREVIEW_VARS.numero)
-    .replaceAll("{{fecha}}", PREVIEW_VARS.fecha)
-    .replaceAll("{{monto}}", PREVIEW_VARS.monto);
+  let text = template;
+  for (const [key, value] of Object.entries(PREVIEW_VARS)) {
+    text = text.replaceAll(`{{${key}}}`, value);
+  }
+  return text;
 }
 
 export function FacturaEmailTemplateSection() {
@@ -29,10 +37,7 @@ export function FacturaEmailTemplateSection() {
   const [bodyTemplate, setBodyTemplate] = useState("");
   const [signatureUrl, setSignatureUrl] = useState("");
   const [placeholders, setPlaceholders] = useState<string[]>([
-    "{{nombre}}",
-    "{{numero}}",
-    "{{fecha}}",
-    "{{monto}}",
+    ...FACTURA_EMAIL_TEMPLATE_PLACEHOLDERS,
   ]);
   const [message, setMessage] = useState<{
     tone: "success" | "error";
@@ -106,6 +111,7 @@ export function FacturaEmailTemplateSection() {
       const payload = (await response.json()) as {
         ok?: boolean;
         error?: string;
+        storage_fallback?: boolean;
         settings?: {
           body_template: string;
           signature_url: string;
@@ -116,7 +122,12 @@ export function FacturaEmailTemplateSection() {
         throw new Error(payload.error ?? "No se pudo guardar");
       }
       applySettings(payload.settings);
-      setMessage({ tone: "success", text: "Plantilla de facturas guardada." });
+      setMessage({
+        tone: "success",
+        text: payload.storage_fallback
+          ? "Plantilla guardada. (Archivo en Storage: ejecuta la migración SQL cuando puedas para usar la tabla en base de datos.)"
+          : "Plantilla de facturas guardada.",
+      });
     } catch (error) {
       setMessage({
         tone: "error",
@@ -167,7 +178,8 @@ export function FacturaEmailTemplateSection() {
           onChange={(e) => setBodyTemplate(e.target.value)}
         />
         <p className="mt-2 text-xs text-slate-500">
-          Variables disponibles:{" "}
+          Respeta los saltos de línea (Enter) tal como quieras que se vea el
+          correo. Variables:{" "}
           {placeholders.map((p) => (
             <code
               key={p}
@@ -177,6 +189,13 @@ export function FacturaEmailTemplateSection() {
             </code>
           ))}
         </p>
+        <button
+          type="button"
+          className="mt-2 text-sm font-medium text-[#227DE8] hover:underline"
+          onClick={() => setBodyTemplate(DEFAULT_FACTURA_BODY_TEMPLATE)}
+        >
+          Restaurar texto de ejemplo (con saltos de línea)
+        </button>
       </div>
 
       <div>

@@ -17,9 +17,12 @@ const VERIFIED_FACTURA_FROM =
 export type SendFacturaInvoiceEmailInput = {
   toEmail: string;
   recipientName: string;
+  companyName?: string | null;
+  tipoRazonSocial?: string | null;
   numeroFactura: string;
   fechaIso: string;
   monto: string;
+  referencia?: string | null;
   archivoUrl?: string | null;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
@@ -58,10 +61,8 @@ export function buildFacturaEmailSubject(numeroFactura: string): string {
   return `Factura ${numeroFactura.trim()} - ${COMPANY_NAME}`;
 }
 
-export function buildFacturaEmailPlainText(
-  bodyText: string,
-): string {
-  return bodyText.trim();
+export function buildFacturaEmailPlainText(bodyText: string): string {
+  return bodyText.replace(/\r\n/g, "\n").trimEnd();
 }
 
 export function buildFacturaEmailHtml(
@@ -138,9 +139,12 @@ export async function sendFacturaInvoiceEmail(
   const settings = await loadFacturaEmailTemplateSettings(supabase);
   const vars = buildFacturaEmailTemplateVars({
     recipientName: input.recipientName,
+    companyName: input.companyName,
+    tipoRazonSocial: input.tipoRazonSocial,
     numeroFactura: input.numeroFactura,
     fechaIso: input.fechaIso,
     monto: input.monto,
+    referencia: input.referencia,
   });
   const bodyText = applyFacturaEmailBodyTemplate(settings.bodyTemplate, vars);
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import {
-  DEFAULT_FACTURA_BODY_TEMPLATE,
-  DEFAULT_FACTURA_SIGNATURE_URL,
-  FACTURA_EMAIL_SETTINGS_ID,
+  FACTURA_EMAIL_TEMPLATE_PLACEHOLDERS,
+  loadFacturaEmailTemplateSettings,
+  saveFacturaEmailTemplateSettings,
   validateFacturaEmailBodyTemplate,
   validateFacturaEmailSignatureUrl,
 } from "@/lib/factura-email-settings";
@@ -11,18 +11,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-type SettingsRow = {
-  body_template: string;
-  signature_url: string;
-  updated_at: string | null;
-};
-
-function serialize(row: SettingsRow | null) {
+function serialize(settings: {
+  bodyTemplate: string;
+  signatureUrl: string;
+  updatedAt: string | null;
+}) {
   return {
-    body_template: row?.body_template?.trim() || DEFAULT_FACTURA_BODY_TEMPLATE,
-    signature_url: row?.signature_url?.trim() || DEFAULT_FACTURA_SIGNATURE_URL,
-    updated_at: row?.updated_at ?? null,
-    placeholders: ["{{nombre}}", "{{numero}}", "{{fecha}}", "{{monto}}"],
+    body_template: settings.bodyTemplate,
+    signature_url: settings.signatureUrl,
+    updated_at: settings.updatedAt,
+    placeholders: [...FACTURA_EMAIL_TEMPLATE_PLACEHOLDERS],
   };
 }
 
@@ -44,23 +42,11 @@ export async function GET() {
     );
   }
 
-  const { data, error } = await supabase
-    .from("factura_email_settings")
-    .select("body_template, signature_url, updated_at")
-    .eq("id", FACTURA_EMAIL_SETTINGS_ID)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[factura-email-template] GET", error);
-    return NextResponse.json(
-      { ok: false, error: error.message },
-      { status: 500 },
-    );
-  }
+  const settings = await loadFacturaEmailTemplateSettings(supabase);
 
   return NextResponse.json({
     ok: true,
-    settings: serialize((data as SettingsRow | null) ?? null),
+    settings: serialize(settings),
   });
 }
 
@@ -103,30 +89,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: urlErr }, { status: 400 });
   }
 
-  const payload = {
-    id: FACTURA_EMAIL_SETTINGS_ID,
-    body_template: bodyTemplate.trim(),
-    signature_url: signatureUrl.trim(),
-    updated_at: new Date().toISOString(),
-    updated_by: user.id,
-  };
+  try {
+    const result = await saveFacturaEmailTemplateSettings(supabase, {
+      bodyTemplate,
+      signatureUrl,
+      updatedBy: user.id,
+    });
 
-  const { data, error } = await supabase
-    .from("factura_email_settings")
-    .upsert(payload, { onConflict: "id" })
-    .select("body_template, signature_url, updated_at")
-    .single();
-
-  if (error) {
+    return NextResponse.json({
+      ok: true,
+      settings: serialize(result.settings),
+      storage_fallback: result.usedStorageFallback,
+    });
+  } catch (error) {
     console.error("[factura-email-template] POST", error);
     return NextResponse.json(
-      { ok: false, error: error.message },
+      {
+        ok: false,
+        error:
+          error instanceof Error ? error.message : "No se pudo guardar la plantilla",
+      },
       { status: 500 },
     );
   }
-
-  return NextResponse.json({
-    ok: true,
-    settings: serialize(data as SettingsRow),
-  });
 }

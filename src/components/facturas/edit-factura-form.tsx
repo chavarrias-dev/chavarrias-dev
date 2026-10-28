@@ -154,7 +154,7 @@ export function EditFacturaForm({
             rows={3}
             defaultValue={factura.notas ?? ""}
             className={`${fieldClass} min-h-[88px] resize-y`}
-            placeholder="Opcional"
+            placeholder="Referencia para el correo (ej. 5129/ 919CEAC4/ …)"
           />
         </div>
 
