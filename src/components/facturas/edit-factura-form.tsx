@@ -22,8 +22,8 @@ type EditFacturaFormProps = {
   factura: EditFacturaInitial;
   clients: ClientOption[];
   errorMessage?: string;
-  correoMessage?: string;
-  correoError?: boolean;
+  noticeMessage?: string;
+  noticeError?: boolean;
 };
 
 const fieldClass =
@@ -45,8 +45,8 @@ export function EditFacturaForm({
   factura,
   clients,
   errorMessage,
-  correoMessage,
-  correoError,
+  noticeMessage,
+  noticeError,
 }: EditFacturaFormProps) {
   const fechaInput = formatDateForInput(factura.fecha);
   const montoInput = formatMontoForInput(factura.monto);
@@ -175,16 +175,16 @@ export function EditFacturaForm({
           </p>
         </div>
 
-        {correoMessage ? (
+        {noticeMessage ? (
           <p
             className={`rounded-lg border px-3.5 py-2.5 text-sm ${
-              correoError
-                ? "border-red-200/80 bg-red-50/90 text-red-800"
+              noticeError
+                ? "border-amber-200/90 bg-amber-50/90 text-amber-950"
                 : "border-emerald-200/90 bg-emerald-50/90 text-emerald-900"
             }`}
-            role={correoError ? "alert" : "status"}
+            role={noticeError ? "alert" : "status"}
           >
-            {correoMessage}
+            {noticeMessage}
           </p>
         ) : null}
 

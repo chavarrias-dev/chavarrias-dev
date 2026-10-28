@@ -16,12 +16,14 @@ type ArchiveFileInputProps = {
   id: string;
   folder: "facturas" | "pedimentos";
   onPdfSelected?: (file: File | null) => void;
+  onFileSelected?: (file: File | null) => void;
 };
 
 export function ArchiveFileInput({
   id,
   folder,
   onPdfSelected,
+  onFileSelected,
 }: ArchiveFileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [publicUrl, setPublicUrl] = useState("");
@@ -65,6 +67,7 @@ export function ArchiveFileInput({
     setFileName("");
     setUploadProgress(0);
     onPdfSelected?.(null);
+    onFileSelected?.(null);
     if (!file) return;
 
     const validated = validatePedimentoArchiveFile(file);
@@ -72,6 +75,7 @@ export function ArchiveFileInput({
       setError(validated.error);
       return;
     }
+    onFileSelected?.(file);
     if (validated.kind === "pdf") onPdfSelected?.(file);
 
     setFileName(file.name);

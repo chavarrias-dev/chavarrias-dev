@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { facturaPdfFileName } from "@/lib/factura-pdf-delivery";
 import {
   applyFacturaEmailBodyTemplate,
   buildFacturaEmailTemplateVars,
@@ -10,6 +11,9 @@ import {
 
 const COMPANY_NAME = "Chavarrias Servicios Aduanales";
 
+const VERIFIED_FACTURA_FROM =
+  "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
+
 export type SendFacturaInvoiceEmailInput = {
   toEmail: string;
   recipientName: string;
@@ -17,6 +21,8 @@ export type SendFacturaInvoiceEmailInput = {
   fechaIso: string;
   monto: string;
   archivoUrl?: string | null;
+  pdfBytes?: Uint8Array | null;
+  pdfFileName?: string;
 };
 
 function escapeHtml(value: string): string {
@@ -28,11 +34,24 @@ function escapeHtml(value: string): string {
 }
 
 function getFacturaEmailFrom(): string {
-  return (
+  const configured =
     process.env.FACTURA_RESEND_FROM_EMAIL?.trim() ||
-    process.env.RESEND_FROM_EMAIL?.trim() ||
-    `${COMPANY_NAME} <no-reply@chavarrias.com.mx>`
+    process.env.RESEND_FROM_EMAIL?.trim();
+  if (!configured) return VERIFIED_FACTURA_FROM;
+
+  const address = configured.match(/<([^>]+)>/)?.[1] ?? configured;
+  const domain = address.split("@")[1]?.trim().toLowerCase() ?? "";
+  if (domain === "chavarrias.com.mx") {
+    return configured.includes("<")
+      ? configured
+      : `${COMPANY_NAME} <${configured}>`;
+  }
+
+  console.warn(
+    "[factura-email] remitente no usa chavarrias.com.mx; se usa el verificado",
+    { configuredDomain: domain || null },
   );
+  return VERIFIED_FACTURA_FROM;
 }
 
 export function buildFacturaEmailSubject(numeroFactura: string): string {
@@ -126,7 +145,14 @@ export async function sendFacturaInvoiceEmail(
   const bodyText = applyFacturaEmailBodyTemplate(settings.bodyTemplate, vars);
 
   const attachments: { filename: string; content: Buffer }[] = [];
-  if (input.archivoUrl?.trim()) {
+  if (input.pdfBytes && input.pdfBytes.length > 0) {
+    attachments.push({
+      filename:
+        input.pdfFileName?.trim() ||
+        facturaPdfFileName(input.numeroFactura),
+      content: Buffer.from(input.pdfBytes),
+    });
+  } else if (input.archivoUrl?.trim()) {
     const pdf = await loadPdfAttachment(
       input.archivoUrl.trim(),
       input.numeroFactura,
