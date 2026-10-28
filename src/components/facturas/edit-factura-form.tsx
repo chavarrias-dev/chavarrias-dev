@@ -146,16 +146,22 @@ export function EditFacturaForm({
 
         <div>
           <label htmlFor="notas" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Notas
+            Descripción para correo{" "}
+            <span className="font-normal text-slate-400">(opcional)</span>
           </label>
           <textarea
             id="notas"
             name="notas"
-            rows={3}
+            rows={4}
             defaultValue={factura.notas ?? ""}
-            className={`${fieldClass} min-h-[88px] resize-y`}
-            placeholder="Referencia para el correo (ej. 5129/ 919CEAC4/ …)"
+            className={`${fieldClass} min-h-[96px] resize-y font-mono text-[13px]`}
+            placeholder={"Datos para pago, banco, CLABE u otras líneas extra.\nDeja vacío si no aplica."}
           />
+          <p className="mt-1.5 text-xs text-slate-500">
+            Texto libre que aparece en el email del cliente (variable{" "}
+            <code className="rounded bg-slate-100 px-1">{`{{descripcion_correo}}`}</code>
+            ).
+          </p>
         </div>
 
         {factura.archivo_url ? (

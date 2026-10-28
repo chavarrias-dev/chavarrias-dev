@@ -22,7 +22,7 @@ export type SendFacturaInvoiceEmailInput = {
   numeroFactura: string;
   fechaIso: string;
   monto: string;
-  referencia?: string | null;
+  descripcionCorreo?: string | null;
   archivoUrl?: string | null;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
@@ -144,7 +144,7 @@ export async function sendFacturaInvoiceEmail(
     numeroFactura: input.numeroFactura,
     fechaIso: input.fechaIso,
     monto: input.monto,
-    referencia: input.referencia,
+    descripcionCorreo: input.descripcionCorreo,
   });
   const bodyText = applyFacturaEmailBodyTemplate(settings.bodyTemplate, vars);
 

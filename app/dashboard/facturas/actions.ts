@@ -142,7 +142,7 @@ async function notifyFacturaClient(input: {
   numero: string;
   fecha: string;
   monto: string;
-  referencia?: string | null;
+  descripcionCorreo?: string | null;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
 }): Promise<{ sent: boolean; clientEmail: string; detail?: string }> {
@@ -175,7 +175,7 @@ async function notifyFacturaClient(input: {
       numeroFactura: input.numero,
       fechaIso: input.fecha,
       monto: input.monto,
-      referencia: input.referencia,
+      descripcionCorreo: input.descripcionCorreo,
       pdfBytes: input.pdfBytes,
       pdfFileName: input.pdfFileName,
     });
@@ -345,7 +345,7 @@ export async function saveFactura(formData: FormData) {
       numero: numero.trim(),
       fecha: fechaIso,
       monto,
-      referencia: emptyToNull(formData.get("notas")),
+      descripcionCorreo: emptyToNull(formData.get("notas")),
       pdfBytes: pdfBytes ?? undefined,
       pdfFileName: pdfBytes
         ? facturaPdfFileName(numero.trim())
@@ -427,7 +427,7 @@ export async function resendFacturaEmail(formData: FormData) {
     numero: f.numero_factura.trim(),
     fecha: f.fecha,
     monto: String(f.monto),
-    referencia: f.notas,
+    descripcionCorreo: f.notas,
     pdfBytes,
     pdfFileName: pdfBytes
       ? facturaPdfFileName(f.numero_factura.trim())
@@ -629,7 +629,7 @@ export async function updateFactura(formData: FormData) {
       numero: numero.trim(),
       fecha: fechaIso,
       monto,
-      referencia: emptyToNull(formData.get("notas")),
+      descripcionCorreo: emptyToNull(formData.get("notas")),
       pdfBytes: pdfBytes ?? undefined,
       pdfFileName: pdfBytes
         ? facturaPdfFileName(numero.trim())

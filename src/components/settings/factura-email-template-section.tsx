@@ -16,8 +16,9 @@ const PREVIEW_VARS = {
   empresa: "FRUTAS ESMERALDAS",
   monto: "$900.00",
   tramite: "$900.00",
-  referencia: "5129/ 919CEAC4/ B9A01326238",
+  referencia: "55250505515",
   tipo_cliente: "PYME",
+  descripcion_correo: "",
   nombre: "Arturo González",
   numero: "55250505515",
   fecha: "08/08/2026",
@@ -178,8 +179,8 @@ export function FacturaEmailTemplateSection() {
           onChange={(e) => setBodyTemplate(e.target.value)}
         />
         <p className="mt-2 text-xs text-slate-500">
-          Respeta los saltos de línea (Enter) tal como quieras que se vea el
-          correo. Variables:{" "}
+          Respeta los saltos de línea (Enter). Los datos bancarios van aquí o en
+          cada factura (descripción para correo). Variables:{" "}
           {placeholders.map((p) => (
             <code
               key={p}

@@ -37,6 +37,7 @@ export type FacturaEmailTemplateVars = {
   tramite: string;
   referencia: string;
   tipo_cliente: string;
+  descripcion_correo: string;
   nombre: string;
   numero: string;
   fecha: string;
@@ -49,7 +50,8 @@ export type BuildFacturaEmailTemplateVarsInput = {
   numeroFactura: string;
   fechaIso: string;
   monto: string;
-  referencia?: string | null;
+  /** Texto libre por factura (campo descripción para correo). */
+  descripcionCorreo?: string | null;
 };
 
 type FacturaEmailSettingsRow = {
@@ -169,15 +171,13 @@ export function buildFacturaEmailTemplateVars(
     input.companyName?.trim() ||
     input.recipientName.trim() ||
     "Cliente";
-  const referencia =
-    input.referencia?.trim() || input.numeroFactura.trim();
-
   return {
     empresa,
     monto: montoFormatted,
     tramite: montoFormatted,
-    referencia,
+    referencia: input.numeroFactura.trim(),
     tipo_cliente: input.tipoRazonSocial?.trim() || "Cliente",
+    descripcion_correo: input.descripcionCorreo?.trim() ?? "",
     nombre: input.recipientName.trim(),
     numero: input.numeroFactura.trim(),
     fecha: isoDateToMxDisplay(input.fechaIso),
@@ -194,6 +194,7 @@ export function applyFacturaEmailBodyTemplate(
     .replaceAll("{{tramite}}", vars.tramite)
     .replaceAll("{{referencia}}", vars.referencia)
     .replaceAll("{{tipo_cliente}}", vars.tipo_cliente)
+    .replaceAll("{{descripcion_correo}}", vars.descripcion_correo)
     .replaceAll("{{nombre}}", vars.nombre)
     .replaceAll("{{numero}}", vars.numero)
     .replaceAll("{{fecha}}", vars.fecha);

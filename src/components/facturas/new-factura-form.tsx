@@ -221,17 +221,23 @@ export function NewFacturaForm({
               htmlFor="notas"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Notas <span className="font-normal text-slate-400">(opcional)</span>
+              Descripción para correo{" "}
+              <span className="font-normal text-slate-400">(opcional)</span>
             </label>
             <textarea
               id="notas"
               name="notas"
-              rows={3}
-              className={`${fieldClass} min-h-[88px] resize-y`}
-              placeholder="Ej. referencia: 5129/ 919CEAC4/ B9A01326238 (aparece en el correo)"
+              rows={4}
+              className={`${fieldClass} min-h-[96px] resize-y font-mono text-[13px]`}
+              placeholder={"Datos para pago, banco, CLABE u otras líneas extra.\nDeja vacío si no aplica."}
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
             />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Se inserta en el correo donde va{" "}
+              <code className="rounded bg-slate-100 px-1">{`{{descripcion_correo}}`}</code>
+              . La referencia de factura usa el número de factura.
+            </p>
           </div>
         </section>
 
