@@ -314,6 +314,20 @@ export function NewFacturaForm({
           </p>
         ) : null}
 
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+          <input
+            type="checkbox"
+            name="enviar_correo"
+            value="1"
+            defaultChecked
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
+          />
+          <span className="text-sm text-slate-700">
+            Enviar factura por correo al cliente (con PDF adjunto si está
+            disponible)
+          </span>
+        </label>
+
         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
           <Link
             href="/dashboard/facturas"

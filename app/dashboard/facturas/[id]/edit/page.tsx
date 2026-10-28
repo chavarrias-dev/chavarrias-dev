@@ -17,7 +17,7 @@ type FacturaRecord = {
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; correo?: string; correo_msg?: string }>;
 };
 
 export default async function EditFacturaPage({ params, searchParams }: PageProps) {
@@ -97,6 +97,17 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
     ? decodeURIComponent(sp.error)
     : undefined;
 
+  let correoMessage: string | undefined;
+  let correoError = false;
+  if (sp.correo === "enviado") {
+    correoMessage = "Correo enviado al cliente.";
+  } else if (sp.correo === "error") {
+    correoError = true;
+    correoMessage = sp.correo_msg
+      ? decodeURIComponent(sp.correo_msg)
+      : "No se pudo enviar el correo.";
+  }
+
   return (
     <main className="w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <EditFacturaForm
@@ -111,6 +122,8 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
         }}
         clients={clients}
         errorMessage={errorMessage}
+        correoMessage={correoMessage}
+        correoError={correoError}
       />
     </main>
   );

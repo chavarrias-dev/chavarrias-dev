@@ -3,7 +3,10 @@ import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { ArchiveFileInput } from "@/components/files/archive-file-input";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import type { ClientOption } from "@/components/clients/types";
-import { updateFactura } from "../../../app/dashboard/facturas/actions";
+import {
+  resendFacturaEmail,
+  updateFactura,
+} from "../../../app/dashboard/facturas/actions";
 
 export type EditFacturaInitial = {
   id: string;
@@ -19,6 +22,8 @@ type EditFacturaFormProps = {
   factura: EditFacturaInitial;
   clients: ClientOption[];
   errorMessage?: string;
+  correoMessage?: string;
+  correoError?: boolean;
 };
 
 const fieldClass =
@@ -40,6 +45,8 @@ export function EditFacturaForm({
   factura,
   clients,
   errorMessage,
+  correoMessage,
+  correoError,
 }: EditFacturaFormProps) {
   const fechaInput = formatDateForInput(factura.fecha);
   const montoInput = formatMontoForInput(factura.monto);
@@ -168,6 +175,19 @@ export function EditFacturaForm({
           </p>
         </div>
 
+        {correoMessage ? (
+          <p
+            className={`rounded-lg border px-3.5 py-2.5 text-sm ${
+              correoError
+                ? "border-red-200/80 bg-red-50/90 text-red-800"
+                : "border-emerald-200/90 bg-emerald-50/90 text-emerald-900"
+            }`}
+            role={correoError ? "alert" : "status"}
+          >
+            {correoMessage}
+          </p>
+        ) : null}
+
         {errorMessage ? (
           <p
             className="rounded-lg border border-red-200/80 bg-red-50/90 px-3.5 py-2.5 text-sm text-red-800"
@@ -177,7 +197,19 @@ export function EditFacturaForm({
           </p>
         ) : null}
 
-        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+          <input
+            type="checkbox"
+            name="enviar_correo"
+            value="1"
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
+          />
+          <span className="text-sm text-slate-700">
+            Enviar correo al guardar (misma plantilla con firma de facturación)
+          </span>
+        </label>
+
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Link
             href="/dashboard/facturas"
             className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50"
@@ -191,6 +223,19 @@ export function EditFacturaForm({
             Guardar cambios
           </button>
         </div>
+      </form>
+
+      <form action={resendFacturaEmail} className="mt-6 border-t border-slate-200 pt-6">
+        <input type="hidden" name="factura_id" value={factura.id} />
+        <p className="mb-3 text-sm text-slate-600">
+          Reenvía el correo con la factura actual sin modificar los datos.
+        </p>
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+        >
+          Reenviar correo al cliente
+        </button>
       </form>
     </div>
   );

@@ -14,10 +14,67 @@ import {
 } from "@/lib/pedimento-archive";
 import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { sendFacturaInvoiceEmail } from "@/lib/factura-email";
 import {
   CRM_DOCUMENTS_BUCKET,
   storageObjectPathFromPublicUrl,
 } from "@/lib/supabase-storage";
+
+function wantsSendFacturaEmail(formData: FormData): boolean {
+  const raw = formData.get("enviar_correo");
+  if (raw == null) return true;
+  if (typeof raw !== "string") return false;
+  const v = raw.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
+async function sendFacturaEmailForRecord(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  input: {
+    facturaId: string;
+    clienteId: string;
+    numeroFactura: string;
+    fechaIso: string;
+    monto: string;
+  },
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data: client, error: clientErr } = await supabase
+    .from("clients")
+    .select("full_name, email")
+    .eq("id", input.clienteId)
+    .maybeSingle();
+
+  if (clientErr || !client?.email?.trim()) {
+    return {
+      ok: false,
+      message: clientErr?.message ?? "El cliente no tiene correo electrónico",
+    };
+  }
+
+  const { data: facturaRow } = await supabase
+    .from("facturas")
+    .select("archivo_url")
+    .eq("id", input.facturaId)
+    .maybeSingle();
+
+  try {
+    await sendFacturaInvoiceEmail(supabase, {
+      toEmail: client.email.trim(),
+      recipientName: client.full_name?.trim() || "Cliente",
+      numeroFactura: input.numeroFactura,
+      fechaIso: input.fechaIso,
+      monto: input.monto,
+      archivoUrl: (facturaRow as { archivo_url?: string | null } | null)
+        ?.archivo_url,
+    });
+    return { ok: true };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Error al enviar el correo";
+    console.error("[factura-email]", error);
+    return { ok: false, message };
+  }
+}
 
 function emptyToNull(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -148,7 +205,71 @@ export async function saveFactura(formData: FormData) {
     entityName: numero.trim(),
   });
 
-  redirect("/dashboard/facturas");
+  let redirectUrl = "/dashboard/facturas";
+  if (wantsSendFacturaEmail(formData)) {
+    const mail = await sendFacturaEmailForRecord(supabase, {
+      facturaId: row.id,
+      clienteId: clienteId.trim(),
+      numeroFactura: numero.trim(),
+      fechaIso,
+      monto,
+    });
+    if (mail.ok) {
+      redirectUrl = "/dashboard/facturas?correo=enviado";
+    } else {
+      redirectUrl = `/dashboard/facturas?correo=error&correo_msg=${encodeURIComponent(mail.message)}`;
+    }
+  }
+
+  redirect(redirectUrl);
+}
+
+export async function resendFacturaEmail(formData: FormData) {
+  const facturaId = formData.get("factura_id");
+  if (typeof facturaId !== "string" || !facturaId.trim()) {
+    redirect("/dashboard/facturas?error=Identificador%20invalido");
+  }
+  const id = facturaId.trim();
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: row, error } = await supabase
+    .from("facturas")
+    .select("id, numero_factura, fecha, monto, cliente_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !row) {
+    redirect("/dashboard/facturas?error=Factura%20no%20encontrada");
+  }
+
+  const f = row as {
+    numero_factura: string;
+    fecha: string;
+    monto: string;
+    cliente_id: string;
+  };
+
+  const mail = await sendFacturaEmailForRecord(supabase, {
+    facturaId: id,
+    clienteId: f.cliente_id,
+    numeroFactura: f.numero_factura.trim(),
+    fechaIso: f.fecha,
+    monto: String(f.monto),
+  });
+
+  if (mail.ok) {
+    redirect(`/dashboard/facturas/${id}/edit?correo=enviado`);
+  }
+  redirect(
+    `/dashboard/facturas/${id}/edit?correo=error&correo_msg=${encodeURIComponent(mail.message)}`,
+  );
 }
 
 export async function updateFactura(formData: FormData) {
@@ -294,7 +415,23 @@ export async function updateFactura(formData: FormData) {
     entityName: numero.trim(),
   });
 
-  redirect("/dashboard/facturas");
+  let redirectUrl = "/dashboard/facturas";
+  if (wantsSendFacturaEmail(formData)) {
+    const mail = await sendFacturaEmailForRecord(supabase, {
+      facturaId: id,
+      clienteId: clienteId.trim(),
+      numeroFactura: numero.trim(),
+      fechaIso,
+      monto,
+    });
+    if (mail.ok) {
+      redirectUrl = "/dashboard/facturas?correo=enviado";
+    } else {
+      redirectUrl = `/dashboard/facturas?correo=error&correo_msg=${encodeURIComponent(mail.message)}`;
+    }
+  }
+
+  redirect(redirectUrl);
 }
 
 export async function deleteFactura(formData: FormData) {

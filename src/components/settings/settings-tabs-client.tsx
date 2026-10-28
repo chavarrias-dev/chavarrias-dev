@@ -2,14 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bell, Palette, Shield, User } from "lucide-react";
+import { Bell, Mail, Palette, Shield, User } from "lucide-react";
 import { AppearanceSection } from "@/components/settings/appearance-section";
+import { FacturaEmailTemplateSection } from "@/components/settings/factura-email-template-section";
 import { DodaWhatsappNotificationsSection } from "@/components/settings/doda-whatsapp-notifications-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { SecuritySection } from "@/components/settings/security-section";
 
-type SettingsTabId = "perfil" | "seguridad" | "notificaciones" | "apariencia";
+type SettingsTabId =
+  | "perfil"
+  | "seguridad"
+  | "notificaciones"
+  | "apariencia"
+  | "correo-facturas";
 
 type SettingsTabsClientProps = {
   isAdmin: boolean;
@@ -26,7 +32,8 @@ function parseTab(value: string | null): SettingsTabId | null {
     value === "perfil" ||
     value === "seguridad" ||
     value === "notificaciones" ||
-    value === "apariencia"
+    value === "apariencia" ||
+    value === "correo-facturas"
   ) {
     return value;
   }
@@ -68,7 +75,14 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
     { id: "seguridad", label: "Seguridad", icon: Shield },
     { id: "notificaciones", label: "Notificaciones", icon: Bell },
     ...(props.isAdmin
-      ? [{ id: "apariencia" as const, label: "Apariencia", icon: Palette }]
+      ? [
+          {
+            id: "correo-facturas" as const,
+            label: "Correo facturas",
+            icon: Mail,
+          },
+          { id: "apariencia" as const, label: "Apariencia", icon: Palette },
+        ]
       : []),
   ];
 
@@ -114,6 +128,9 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
             />
             <DodaWhatsappNotificationsSection isAdmin={props.isAdmin} />
           </>
+        ) : null}
+        {activeTab === "correo-facturas" && props.isAdmin ? (
+          <FacturaEmailTemplateSection />
         ) : null}
         {activeTab === "apariencia" && props.isAdmin ? <AppearanceSection /> : null}
       </div>

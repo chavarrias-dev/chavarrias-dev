@@ -35,6 +35,8 @@ type PageProps = {
     cliente_id?: string;
     fecha_desde?: string;
     fecha_hasta?: string;
+    correo?: string;
+    correo_msg?: string;
   }>;
 };
 
@@ -119,8 +121,35 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
 
   const rows = (facturas ?? []) as FacturaRow[];
 
+  let correoBanner: { text: string; error: boolean } | null = null;
+  if (sp.correo === "enviado") {
+    correoBanner = {
+      text: "Correo de factura enviado al cliente.",
+      error: false,
+    };
+  } else if (sp.correo === "error") {
+    correoBanner = {
+      text: sp.correo_msg
+        ? decodeURIComponent(sp.correo_msg)
+        : "No se pudo enviar el correo de factura.",
+      error: true,
+    };
+  }
+
   return (
     <main className={DASHBOARD_PAGE_MAIN_CLASS}>
+      {correoBanner ? (
+        <p
+          className={`mb-4 rounded-lg border px-3.5 py-2.5 text-sm ${
+            correoBanner.error
+              ? "border-red-200/80 bg-red-50/90 text-red-800"
+              : "border-emerald-200/90 bg-emerald-50/90 text-emerald-900"
+          }`}
+          role={correoBanner.error ? "alert" : "status"}
+        >
+          {correoBanner.text}
+        </p>
+      ) : null}
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Facturas</h1>
