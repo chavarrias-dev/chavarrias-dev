@@ -404,6 +404,26 @@ export function NewFacturaForm({
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="min-w-0 space-y-3 lg:col-start-2 lg:row-start-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
+              5
+            </p>
+            <h2 className="mt-1 text-base font-medium text-slate-900">
+              Destinatarios del correo
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              El cliente siempre recibe copia; agrega otros correos si hace falta.
+            </p>
+          </div>
+
+          <FacturaCorreosAdicionalesField
+            clientEmail={clientEmail}
+            value={correosAdicionales}
+            onValueChange={setCorreosAdicionales}
+          />
 
           <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-2.5">
             <input
@@ -413,39 +433,25 @@ export function NewFacturaForm({
               className="size-5 shrink-0 accent-[#227DE8]"
             />
             <span className="text-sm font-medium text-slate-800">
-              Enviar factura por email al cliente
+              Enviar factura por email al guardar
             </span>
           </label>
 
           {sendEmail ? (
-            <>
-              <FacturaCorreosAdicionalesField
-                clientEmail={clientEmail}
-                value={correosAdicionales}
-                onValueChange={setCorreosAdicionales}
-              />
-              <p className="text-sm text-slate-600">
-                Destinatarios:{" "}
-                <span className="font-medium text-slate-900">
-                  {recipientPreview ||
-                    (selectedClient
-                      ? "el cliente debe tener correo"
-                      : "selecciona un cliente")}
-                </span>
-              </p>
-            </>
+            <p className="text-sm text-slate-600">
+              Se enviará a:{" "}
+              <span className="font-medium text-slate-900">
+                {recipientPreview ||
+                  (selectedClient
+                    ? "el cliente debe tener correo"
+                    : "selecciona un cliente")}
+              </span>
+            </p>
           ) : (
-            <>
-              <FacturaCorreosAdicionalesField
-                clientEmail={clientEmail}
-                value={correosAdicionales}
-                onValueChange={setCorreosAdicionales}
-              />
-              <p className="text-sm text-slate-500">
-                La factura se guardará sin enviar correo (los correos
-                adicionales quedan guardados para un reenvío).
-              </p>
-            </>
+            <p className="text-sm text-slate-500">
+              No se enviará correo al guardar; los destinatarios quedan
+              guardados para un reenvío.
+            </p>
           )}
         </section>
         </div>
