@@ -58,6 +58,7 @@ export const facturas = pgTable("facturas", {
     .references(() => clients.id),
   archivoUrl: text("archivo_url"),
   notas: text("notas"),
+  correosAdicionales: text("correos_adicionales"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

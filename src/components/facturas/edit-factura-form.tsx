@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
-import { ArchiveFileInput } from "@/components/files/archive-file-input";
+import { FacturaArchiveFilesInput } from "@/components/files/factura-archive-files-input";
+import { FacturaCorreosAdicionalesField } from "@/components/facturas/factura-correos-adicionales-field";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import type { ClientOption } from "@/components/clients/types";
 import {
@@ -15,6 +16,7 @@ export type EditFacturaInitial = {
   fecha: string;
   monto: string;
   notas: string | null;
+  correos_adicionales: string | null;
   archivo_url: string | null;
 };
 
@@ -50,6 +52,9 @@ export function EditFacturaForm({
 }: EditFacturaFormProps) {
   const fechaInput = formatDateForInput(factura.fecha);
   const montoInput = formatMontoForInput(factura.monto);
+  const selectedClient =
+    clients.find((client) => client.id === factura.cliente_id) ?? null;
+  const clientEmail = selectedClient?.email?.trim() ?? "";
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -170,11 +175,12 @@ export function EditFacturaForm({
 
         <div>
           <label htmlFor="archivo" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Reemplazar archivo (PDF, ZIP o RAR, opcional)
+            Reemplazar archivos (opcional)
           </label>
-          <ArchiveFileInput id="archivo" folder="facturas" />
+          <FacturaArchiveFilesInput id="archivo" />
           <p className="mt-1.5 text-xs text-slate-500">
-            Si subes un archivo nuevo, sustituye al archivo anterior en el almacenamiento.
+            Puedes subir hasta 10 archivos. Se comprimen en un solo ZIP en el
+            sistema y se envían todos por correo.
           </p>
         </div>
 
@@ -200,6 +206,11 @@ export function EditFacturaForm({
           </p>
         ) : null}
 
+        <FacturaCorreosAdicionalesField
+          clientEmail={clientEmail}
+          defaultValue={factura.correos_adicionales ?? ""}
+        />
+
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
           <input
             type="checkbox"
@@ -208,7 +219,7 @@ export function EditFacturaForm({
             className="mt-1 h-4 w-4 rounded border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
           />
           <span className="text-sm text-slate-700">
-            Enviar correo al guardar (misma plantilla con firma de facturación)
+            Enviar correo al guardar (cliente + correos adicionales)
           </span>
         </label>
 
@@ -231,13 +242,14 @@ export function EditFacturaForm({
       <form action={resendFacturaEmail} className="mt-6 border-t border-slate-200 pt-6">
         <input type="hidden" name="factura_id" value={factura.id} />
         <p className="mb-3 text-sm text-slate-600">
-          Reenvía el correo con la factura actual sin modificar los datos.
+          Reenvía el correo con la factura actual al cliente y a los correos
+          adicionales guardados.
         </p>
         <button
           type="submit"
           className="inline-flex h-10 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
         >
-          Reenviar correo al cliente
+          Reenviar correo
         </button>
       </form>
     </div>

@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ClientOption } from "@/components/clients/types";
-import { ArchiveFileInput } from "@/components/files/archive-file-input";
+import { FacturaArchiveFilesInput } from "@/components/files/factura-archive-files-input";
+import { FacturaCorreosAdicionalesField } from "@/components/facturas/factura-correos-adicionales-field";
+import {
+  buildFacturaEmailRecipients,
+  formatFacturaRecipientsForDisplay,
+  parseFacturaExtraEmails,
+} from "@/lib/factura-email-recipients";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import {
   applyFacturaEmailBodyTemplate,
@@ -52,12 +58,6 @@ function normalizeMonto(raw: unknown): string {
   return "";
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function pickExtractedFields(json: ExtractApiPayload): {
   numero_factura?: unknown;
   fecha?: unknown;
@@ -93,8 +93,8 @@ export function NewFacturaForm({
   );
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [sendEmail, setSendEmail] = useState(true);
+  const [correosAdicionales, setCorreosAdicionales] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -103,6 +103,16 @@ export function NewFacturaForm({
   const submitLabel = sendEmail
     ? "Guardar y enviar por email"
     : "Guardar factura";
+
+  const recipientPreview = useMemo(() => {
+    if (!sendEmail) return "";
+    return formatFacturaRecipientsForDisplay(
+      buildFacturaEmailRecipients(
+        clientEmail,
+        parseFacturaExtraEmails(correosAdicionales),
+      ),
+    );
+  }, [sendEmail, clientEmail, correosAdicionales]);
 
   async function handleScanPdf() {
     if (!selectedFile) return;
@@ -299,7 +309,7 @@ export function NewFacturaForm({
             <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
               3
             </p>
-            <h2 className="mt-1 text-base font-medium text-slate-900">Archivo</h2>
+            <h2 className="mt-1 text-base font-medium text-slate-900">Archivos</h2>
           </div>
 
           <div>
@@ -307,27 +317,16 @@ export function NewFacturaForm({
               htmlFor="archivo"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Archivo (PDF, ZIP o RAR)
+              Archivos (PDF, ZIP o RAR)
             </label>
-            <ArchiveFileInput
+            <FacturaArchiveFilesInput
               id="archivo"
-              folder="facturas"
-              onFileSelected={setAttachedFile}
               onPdfSelected={(file) => {
                 setSelectedFile(file);
                 setScanMessage(null);
                 setScanError(null);
               }}
             />
-            {attachedFile ? (
-              <p className="mt-2 text-sm text-slate-700">
-                <span className="font-medium">{attachedFile.name}</span>
-                <span className="text-slate-500">
-                  {" "}
-                  · {formatFileSize(attachedFile.size)}
-                </span>
-              </p>
-            ) : null}
           </div>
 
           {selectedFile ? (
@@ -419,19 +418,34 @@ export function NewFacturaForm({
           </label>
 
           {sendEmail ? (
-            <p className="text-sm text-slate-600">
-              Se enviará a:{" "}
-              <span className="font-medium text-slate-900">
-                {clientEmail ||
-                  (selectedClient
-                    ? "este cliente no tiene correo"
-                    : "selecciona un cliente")}
-              </span>
-            </p>
+            <>
+              <FacturaCorreosAdicionalesField
+                clientEmail={clientEmail}
+                value={correosAdicionales}
+                onValueChange={setCorreosAdicionales}
+              />
+              <p className="text-sm text-slate-600">
+                Destinatarios:{" "}
+                <span className="font-medium text-slate-900">
+                  {recipientPreview ||
+                    (selectedClient
+                      ? "el cliente debe tener correo"
+                      : "selecciona un cliente")}
+                </span>
+              </p>
+            </>
           ) : (
-            <p className="text-sm text-slate-500">
-              La factura se guardará sin enviar correo.
-            </p>
+            <>
+              <FacturaCorreosAdicionalesField
+                clientEmail={clientEmail}
+                value={correosAdicionales}
+                onValueChange={setCorreosAdicionales}
+              />
+              <p className="text-sm text-slate-500">
+                La factura se guardará sin enviar correo (los correos
+                adicionales quedan guardados para un reenvío).
+              </p>
+            </>
           )}
         </section>
         </div>

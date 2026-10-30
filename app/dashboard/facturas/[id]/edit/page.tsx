@@ -20,6 +20,7 @@ type FacturaRecord = {
   cliente_id: string;
   archivo_url: string | null;
   notas: string | null;
+  correos_adicionales: string | null;
 };
 
 type PageProps = {
@@ -47,7 +48,7 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
   const { data: factura, error } = await supabase
     .from("facturas")
     .select(
-      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas",
+      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas, correos_adicionales",
     )
     .eq("id", id)
     .maybeSingle();
@@ -62,7 +63,7 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
     await Promise.all([
       supabase
         .from("clients")
-        .select("id, full_name, company_name, tipo_razon_social")
+        .select("id, full_name, email, company_name, tipo_razon_social")
         .order("full_name", { ascending: true }),
       supabase
         .from("clients")
@@ -76,7 +77,7 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
   if (!clients.some((c) => c.id === f.cliente_id)) {
     const { data: linked } = await supabase
       .from("clients")
-      .select("id, full_name")
+      .select("id, full_name, email")
       .eq("id", f.cliente_id)
       .maybeSingle();
     if (linked) {
@@ -147,6 +148,7 @@ export default async function EditFacturaPage({ params, searchParams }: PageProp
           fecha: f.fecha,
           monto: String(f.monto),
           notas: emailBodyForForm,
+          correos_adicionales: f.correos_adicionales,
           archivo_url: f.archivo_url,
         }}
         clients={clients}

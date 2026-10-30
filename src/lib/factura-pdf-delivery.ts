@@ -3,17 +3,39 @@ import "server-only";
 import JSZip from "jszip";
 import { Resend } from "resend";
 
-export async function zipPdfBytes(
-  pdfBytes: Uint8Array,
-  innerFileName: string,
+export type ZipArchiveEntry = {
+  name: string;
+  bytes: Uint8Array;
+};
+
+export async function zipArchiveEntries(
+  entries: ZipArchiveEntry[],
 ): Promise<Uint8Array> {
   const zip = new JSZip();
-  zip.file(innerFileName, pdfBytes);
+  for (const entry of entries) {
+    zip.file(entry.name, entry.bytes);
+  }
   return zip.generateAsync({
     type: "uint8array",
     compression: "DEFLATE",
     compressionOptions: { level: 9 },
   });
+}
+
+export async function zipPdfBytes(
+  pdfBytes: Uint8Array,
+  innerFileName: string,
+): Promise<Uint8Array> {
+  return zipArchiveEntries([{ name: innerFileName, bytes: pdfBytes }]);
+}
+
+export function facturaZipFileName(numeroFactura: string): string {
+  const safe = numeroFactura
+    .replace(/[^\w.\- ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const base = safe || "factura";
+  return base.toLowerCase().endsWith(".zip") ? base : `${base}.zip`;
 }
 
 export function facturaPdfFileName(numeroFactura: string): string {

@@ -3,19 +3,25 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
 import {
-  acceptedPedimentoPreuploadedUrl,
+  collectFacturaArchiveEntries,
+  type FacturaArchiveEntry,
+} from "@/lib/factura-archive";
+import {
   contentTypeForPedimentoArchive,
   otherCrmAttachmentPaths,
   recordCrmAttachmentPath,
-  validatePedimentoArchiveFile,
-  verifyPedimentoArchiveFileMagic,
-  verifyPedimentoPublicArchiveMagic,
-  type PedimentoArchiveKind,
 } from "@/lib/pedimento-archive";
-import { facturaPdfFileName, zipPdfBytes } from "@/lib/factura-pdf-delivery";
+import { zipArchiveEntries } from "@/lib/factura-pdf-delivery";
 import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sendFacturaInvoiceEmail } from "@/lib/factura-email";
+import {
+  buildFacturaEmailRecipients,
+  formatFacturaRecipientsForDisplay,
+  parseFacturaExtraEmails,
+  serializeFacturaExtraEmails,
+  validateFacturaExtraEmails,
+} from "@/lib/factura-email-recipients";
 import {
   CRM_DOCUMENTS_BUCKET,
   storageObjectPathFromPublicUrl,
@@ -62,34 +68,28 @@ function facturaListNotice(
   return `/dashboard/facturas?aviso=${encodeURIComponent(`Factura guardada. No se pudo enviar el email a ${clientEmail}.${reason}`)}`;
 }
 
-async function readPdfBytes(
+async function removeStagingPaths(
   supabase: FacturaSupabase,
-  file: FormDataEntryValue | null,
-  archiveKind: PedimentoArchiveKind | null,
-  publicUrl: string | null,
-): Promise<Uint8Array | null> {
-  if (file instanceof File && file.size > 0 && archiveKind === "pdf") {
-    return new Uint8Array(await file.arrayBuffer());
-  }
-  if (!publicUrl) return null;
-  const path = storageObjectPathFromPublicUrl(publicUrl);
-  if (!path?.toLowerCase().endsWith(".pdf")) return null;
-  const { data, error } = await supabase.storage
-    .from(CRM_DOCUMENTS_BUCKET)
-    .download(path);
-  if (error || !data) return null;
-  return new Uint8Array(await data.arrayBuffer());
+  paths: string[],
+): Promise<void> {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (unique.length === 0) return;
+  await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove(unique);
 }
 
-async function storeFacturaZip(input: {
+async function storeFacturaZipBundle(input: {
   supabase: FacturaSupabase;
   userId: string;
   facturaId: string;
-  pdfBytes: Uint8Array;
-  pdfFileName: string;
+  entries: FacturaArchiveEntry[];
   removePaths: string[];
 }): Promise<string> {
-  const zipBytes = await zipPdfBytes(input.pdfBytes, input.pdfFileName);
+  const zipBytes = await zipArchiveEntries(
+    input.entries.map((entry) => ({
+      name: entry.name,
+      bytes: entry.bytes,
+    })),
+  );
   const path = recordCrmAttachmentPath(
     "facturas",
     input.userId,
@@ -136,6 +136,35 @@ async function storeFacturaZip(input: {
   return pub.publicUrl;
 }
 
+function emailAttachmentsFromEntries(
+  entries: FacturaArchiveEntry[],
+): { filename: string; bytes: Uint8Array }[] {
+  return entries.map((entry) => ({
+    filename: entry.name,
+    bytes: entry.bytes,
+  }));
+}
+
+function parseCorreosAdicionalesField(
+  formData: FormData,
+  fail: (message: string) => never,
+): string[] {
+  const extras = parseFacturaExtraEmails(formData.get("correos_adicionales"));
+  const validated = validateFacturaExtraEmails(extras);
+  if (!validated.ok) {
+    fail(validated.error);
+  }
+  return extras;
+}
+
+function parseStoredCorreosAdicionales(raw: unknown): string[] {
+  const extras = parseFacturaExtraEmails(
+    typeof raw === "string" ? raw : "",
+  );
+  const validated = validateFacturaExtraEmails(extras);
+  return validated.ok ? extras : [];
+}
+
 async function notifyFacturaClient(input: {
   supabase: FacturaSupabase;
   clienteId: string;
@@ -143,8 +172,9 @@ async function notifyFacturaClient(input: {
   fecha: string;
   monto: string;
   emailBody?: string | null;
-  pdfBytes?: Uint8Array | null;
-  pdfFileName?: string;
+  extraEmails?: string[];
+  attachmentFiles?: { filename: string; bytes: Uint8Array }[];
+  archivoUrl?: string | null;
 }): Promise<{ sent: boolean; clientEmail: string; detail?: string }> {
   const { data: client } = await input.supabase
     .from("clients")
@@ -161,14 +191,20 @@ async function notifyFacturaClient(input: {
 
   const clientEmail = row?.email?.trim() ?? "";
   const clientName = row?.full_name?.trim() || "cliente";
+  const recipients = buildFacturaEmailRecipients(
+    clientEmail,
+    input.extraEmails ?? [],
+  );
 
   if (!clientEmail) {
     return { sent: false, clientEmail: "el cliente" };
   }
 
+  const recipientsLabel = formatFacturaRecipientsForDisplay(recipients);
+
   try {
     await sendFacturaInvoiceEmail(input.supabase, {
-      toEmail: clientEmail,
+      toEmails: recipients,
       recipientName: clientName,
       companyName: row?.company_name,
       tipoRazonSocial: row?.tipo_razon_social,
@@ -176,28 +212,16 @@ async function notifyFacturaClient(input: {
       fechaIso: input.fecha,
       monto: input.monto,
       emailBody: input.emailBody,
-      pdfBytes: input.pdfBytes,
-      pdfFileName: input.pdfFileName,
+      attachmentFiles: input.attachmentFiles,
+      archivoUrl: input.archivoUrl,
     });
-    return { sent: true, clientEmail };
+    return { sent: true, clientEmail: recipientsLabel };
   } catch (error) {
     const detail =
       error instanceof Error ? error.message : "Error desconocido al enviar";
     console.error("[factura-email]", error);
     return { sent: false, clientEmail, detail };
   }
-}
-
-async function readFacturaArchiveKindFromForm(
-  file: FormDataEntryValue | null,
-  fail: (message: string) => never,
-): Promise<PedimentoArchiveKind | null> {
-  if (!(file instanceof File) || file.size === 0) return null;
-  const validated = validatePedimentoArchiveFile(file);
-  if (!validated.ok) fail(validated.error);
-  const magic = await verifyPedimentoArchiveFileMagic(file, validated.kind);
-  if (!magic.ok) fail(magic.error);
-  return validated.kind;
 }
 
 export async function saveFactura(formData: FormData) {
@@ -221,11 +245,6 @@ export async function saveFactura(formData: FormData) {
     redirect("/dashboard/facturas/new?error=Cliente%20requerido");
   }
 
-  const file = formData.get("archivo");
-  const archiveKind = await readFacturaArchiveKindFromForm(file, (message) => {
-    redirect(`/dashboard/facturas/new?error=${encodeURIComponent(message)}`);
-  });
-
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -234,23 +253,20 @@ export async function saveFactura(formData: FormData) {
     redirect("/login");
   }
 
-  const uploaded = acceptedPedimentoPreuploadedUrl(
+  const collected = await collectFacturaArchiveEntries({
+    supabase,
     formData,
-    `facturas/${user.id}/`,
-  );
-  if (!uploaded.ok) {
+    storagePrefix: `facturas/${user.id}/`,
+  });
+  if (!collected.ok) {
     redirect(
-      `/dashboard/facturas/new?error=${encodeURIComponent(uploaded.error)}`,
+      `/dashboard/facturas/new?error=${encodeURIComponent(collected.error)}`,
     );
   }
-  if (uploaded.url) {
-    const remoteMagic = await verifyPedimentoPublicArchiveMagic(uploaded.url);
-    if (!remoteMagic.ok) {
-      redirect(
-        `/dashboard/facturas/new?error=${encodeURIComponent(remoteMagic.error)}`,
-      );
-    }
-  }
+
+  const correosAdicionales = parseCorreosAdicionalesField(formData, (message) => {
+    redirect(`/dashboard/facturas/new?error=${encodeURIComponent(message)}`);
+  });
 
   const { data: row, error } = await supabase
     .from("facturas")
@@ -260,7 +276,8 @@ export async function saveFactura(formData: FormData) {
       monto,
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
-      archivo_url: uploaded.url,
+      correos_adicionales: serializeFacturaExtraEmails(correosAdicionales),
+      archivo_url: null,
     })
     .select("id")
     .single();
@@ -271,71 +288,26 @@ export async function saveFactura(formData: FormData) {
     );
   }
 
-  const pdfBytes = await readPdfBytes(
-    supabase,
-    file,
-    archiveKind,
-    uploaded.url,
-  );
-  const uploadedPath = uploaded.url
-    ? storageObjectPathFromPublicUrl(uploaded.url)
-    : null;
-  const expectsPdf =
-    archiveKind === "pdf" ||
-    Boolean(uploadedPath?.toLowerCase().endsWith(".pdf"));
-
-  if (expectsPdf) {
-    if (!pdfBytes) {
-      redirect(
-        `/dashboard/facturas/${row.id}/edit?error=${encodeURIComponent("No se pudo leer el PDF para comprimirlo")}`,
-      );
-    }
-    const pdfFileName = facturaPdfFileName(numero.trim());
+  let archivoUrl: string | null = null;
+  if (collected.entries.length > 0) {
     try {
-      await storeFacturaZip({
+      archivoUrl = await storeFacturaZipBundle({
         supabase,
         userId: user.id,
         facturaId: row.id,
-        pdfBytes,
-        pdfFileName,
-        removePaths: uploadedPath ? [uploadedPath] : [],
+        entries: collected.entries,
+        removePaths: collected.stagingPaths,
       });
-    } catch (error) {
+      await removeStagingPaths(supabase, collected.stagingPaths);
+    } catch (zipError) {
       const message =
-        error instanceof Error ? error.message : "Error al comprimir el PDF";
+        zipError instanceof Error
+          ? zipError.message
+          : "Error al comprimir los archivos";
       redirect(
         `/dashboard/facturas/${row.id}/edit?error=${encodeURIComponent(message)}`,
       );
     }
-
-  }
-
-  if (
-    !expectsPdf &&
-    !uploaded.url &&
-    file instanceof File &&
-    file.size > 0 &&
-    archiveKind
-  ) {
-    const path = recordCrmAttachmentPath("facturas", user.id, row.id, archiveKind);
-    const { error: upErr } = await supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
-        contentType: contentTypeForPedimentoArchive(archiveKind),
-        upsert: true,
-      });
-    if (upErr) {
-      redirect(
-        `/dashboard/facturas/${row.id}/edit?error=${encodeURIComponent(`Error al subir el archivo: ${upErr.message}`)}`,
-      );
-    }
-    const { data: pub } = supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .getPublicUrl(path);
-    await supabase
-      .from("facturas")
-      .update({ archivo_url: pub.publicUrl })
-      .eq("id", row.id);
   }
 
   if (wantsSendFacturaEmail(formData)) {
@@ -346,10 +318,9 @@ export async function saveFactura(formData: FormData) {
       fecha: fechaIso,
       monto,
       emailBody: emptyToNull(formData.get("notas")),
-      pdfBytes: pdfBytes ?? undefined,
-      pdfFileName: pdfBytes
-        ? facturaPdfFileName(numero.trim())
-        : undefined,
+      extraEmails: correosAdicionales,
+      attachmentFiles: emailAttachmentsFromEntries(collected.entries),
+      archivoUrl,
     });
 
     await logActivity(supabase, {
@@ -396,7 +367,7 @@ export async function resendFacturaEmail(formData: FormData) {
   const { data: row, error } = await supabase
     .from("facturas")
     .select(
-      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas",
+      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas, correos_adicionales",
     )
     .eq("id", id)
     .maybeSingle();
@@ -412,14 +383,8 @@ export async function resendFacturaEmail(formData: FormData) {
     cliente_id: string;
     archivo_url: string | null;
     notas: string | null;
+    correos_adicionales: string | null;
   };
-
-  const pdfBytes = await readPdfBytes(
-    supabase,
-    null,
-    null,
-    f.archivo_url,
-  );
 
   const notice = await notifyFacturaClient({
     supabase,
@@ -428,10 +393,8 @@ export async function resendFacturaEmail(formData: FormData) {
     fecha: f.fecha,
     monto: String(f.monto),
     emailBody: f.notas,
-    pdfBytes,
-    pdfFileName: pdfBytes
-      ? facturaPdfFileName(f.numero_factura.trim())
-      : undefined,
+    extraEmails: parseStoredCorreosAdicionales(f.correos_adicionales),
+    archivoUrl: f.archivo_url,
   });
 
   if (notice.sent) {
@@ -479,13 +442,6 @@ export async function updateFactura(formData: FormData) {
     );
   }
 
-  const file = formData.get("archivo");
-  const archiveKind = await readFacturaArchiveKindFromForm(file, (message) => {
-    redirect(
-      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(message)}`,
-    );
-  });
-
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -504,23 +460,22 @@ export async function updateFactura(formData: FormData) {
     redirect("/dashboard/facturas?error=Factura%20no%20encontrada");
   }
 
-  const uploaded = acceptedPedimentoPreuploadedUrl(
+  const collected = await collectFacturaArchiveEntries({
+    supabase,
     formData,
-    `facturas/${user.id}/`,
-  );
-  if (!uploaded.ok) {
+    storagePrefix: `facturas/${user.id}/`,
+  });
+  if (!collected.ok) {
     redirect(
-      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(uploaded.error)}`,
+      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(collected.error)}`,
     );
   }
-  if (uploaded.url) {
-    const remoteMagic = await verifyPedimentoPublicArchiveMagic(uploaded.url);
-    if (!remoteMagic.ok) {
-      redirect(
-        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(remoteMagic.error)}`,
-      );
-    }
-  }
+
+  const correosAdicionales = parseCorreosAdicionalesField(formData, (message) => {
+    redirect(
+      `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(message)}`,
+    );
+  });
 
   const { error: updErr } = await supabase
     .from("facturas")
@@ -530,7 +485,7 @@ export async function updateFactura(formData: FormData) {
       monto,
       cliente_id: clienteId.trim(),
       notas: emptyToNull(formData.get("notas")),
-      ...(uploaded.url ? { archivo_url: uploaded.url } : {}),
+      correos_adicionales: serializeFacturaExtraEmails(correosAdicionales),
     })
     .eq("id", id);
 
@@ -540,84 +495,32 @@ export async function updateFactura(formData: FormData) {
     );
   }
 
-  const pdfBytes = await readPdfBytes(
-    supabase,
-    file,
-    archiveKind,
-    uploaded.url,
+  const previousPath = storageObjectPathFromPublicUrl(
+    (existing as { archivo_url?: string | null }).archivo_url ?? "",
   );
-  const uploadedPath = uploaded.url
-    ? storageObjectPathFromPublicUrl(uploaded.url)
-    : null;
-  const expectsPdf =
-    archiveKind === "pdf" ||
-    Boolean(uploadedPath?.toLowerCase().endsWith(".pdf"));
 
-  if (expectsPdf) {
-    if (!pdfBytes) {
-      redirect(
-        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent("No se pudo leer el PDF para comprimirlo")}`,
-      );
-    }
-    const pdfFileName = facturaPdfFileName(numero.trim());
-    const previous = storageObjectPathFromPublicUrl(
-      (existing as { archivo_url?: string | null }).archivo_url ?? "",
-    );
+  let archivoUrl =
+    (existing as { archivo_url?: string | null }).archivo_url ?? null;
+
+  if (collected.entries.length > 0) {
     try {
-      await storeFacturaZip({
+      archivoUrl = await storeFacturaZipBundle({
         supabase,
         userId: user.id,
         facturaId: id,
-        pdfBytes,
-        pdfFileName,
-        removePaths: [previous, uploadedPath].filter(
+        entries: collected.entries,
+        removePaths: [previousPath, ...collected.stagingPaths].filter(
           (item): item is string => Boolean(item),
         ),
       });
-    } catch (error) {
+      await removeStagingPaths(supabase, collected.stagingPaths);
+    } catch (zipError) {
       const message =
-        error instanceof Error ? error.message : "Error al comprimir el PDF";
+        zipError instanceof Error
+          ? zipError.message
+          : "Error al comprimir los archivos";
       redirect(
         `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(message)}`,
-      );
-    }
-
-  }
-
-  if (uploaded.url) {
-    const previous = storageObjectPathFromPublicUrl(
-      (existing as { archivo_url?: string | null }).archivo_url ?? "",
-    );
-    const next = storageObjectPathFromPublicUrl(uploaded.url);
-    if (previous && next && previous !== next) {
-      await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previous]);
-    }
-  } else if (file instanceof File && file.size > 0 && archiveKind) {
-    const path = recordCrmAttachmentPath("facturas", user.id, id, archiveKind);
-    const { error: upErr } = await supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .upload(path, file, {
-        contentType: contentTypeForPedimentoArchive(archiveKind),
-        upsert: true,
-      });
-    if (upErr) {
-      redirect(
-        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(`Error al subir el archivo: ${upErr.message}`)}`,
-      );
-    }
-    await supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .remove(otherCrmAttachmentPaths("facturas", user.id, id, archiveKind));
-    const { data: pub } = supabase.storage
-      .from(CRM_DOCUMENTS_BUCKET)
-      .getPublicUrl(path);
-    const { error: urlErr } = await supabase
-      .from("facturas")
-      .update({ archivo_url: pub.publicUrl })
-      .eq("id", id);
-    if (urlErr) {
-      redirect(
-        `/dashboard/facturas/${id}/edit?error=${encodeURIComponent(urlErr.message)}`,
       );
     }
   }
@@ -630,10 +533,12 @@ export async function updateFactura(formData: FormData) {
       fecha: fechaIso,
       monto,
       emailBody: emptyToNull(formData.get("notas")),
-      pdfBytes: pdfBytes ?? undefined,
-      pdfFileName: pdfBytes
-        ? facturaPdfFileName(numero.trim())
-        : undefined,
+      extraEmails: correosAdicionales,
+      attachmentFiles:
+        collected.entries.length > 0
+          ? emailAttachmentsFromEntries(collected.entries)
+          : undefined,
+      archivoUrl,
     });
 
     await logActivity(supabase, {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import JSZip from "jszip";
 import { Resend } from "resend";
 import { facturaPdfFileName } from "@/lib/factura-pdf-delivery";
 import {
@@ -15,7 +16,8 @@ const VERIFIED_FACTURA_FROM =
   "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
 
 export type SendFacturaInvoiceEmailInput = {
-  toEmail: string;
+  /** Destinatarios (siempre incluye el correo del cliente). */
+  toEmails: string[];
   recipientName: string;
   companyName?: string | null;
   tipoRazonSocial?: string | null;
@@ -27,6 +29,8 @@ export type SendFacturaInvoiceEmailInput = {
   archivoUrl?: string | null;
   pdfBytes?: Uint8Array | null;
   pdfFileName?: string;
+  /** Archivos individuales adjuntos al correo (hasta 10). */
+  attachmentFiles?: { filename: string; bytes: Uint8Array }[];
 };
 
 function escapeHtml(value: string): string {
@@ -91,36 +95,70 @@ function sanitizeAttachmentFilename(numeroFactura: string): string {
   return `${base}.pdf`;
 }
 
-function isPdfArchiveUrl(url: string): boolean {
+function archiveKindFromUrl(url: string): "pdf" | "zip" | "rar" | null {
   try {
-    return new URL(url).pathname.toLowerCase().endsWith(".pdf");
+    const path = new URL(url).pathname.toLowerCase();
+    if (path.endsWith(".pdf")) return "pdf";
+    if (path.endsWith(".zip")) return "zip";
+    if (path.endsWith(".rar")) return "rar";
+    return null;
   } catch {
-    return url.toLowerCase().includes(".pdf");
+    const lower = url.toLowerCase();
+    if (lower.includes(".pdf")) return "pdf";
+    if (lower.includes(".zip")) return "zip";
+    if (lower.includes(".rar")) return "rar";
+    return null;
   }
 }
 
-async function loadPdfAttachment(
+async function loadAttachmentsFromStoredUrl(
   archivoUrl: string,
   numeroFactura: string,
-): Promise<{ filename: string; content: Buffer } | null> {
-  if (!isPdfArchiveUrl(archivoUrl)) {
-    return null;
-  }
+): Promise<{ filename: string; content: Buffer }[]> {
+  const kind = archiveKindFromUrl(archivoUrl);
+  if (!kind) return [];
 
   const res = await fetch(archivoUrl);
   if (!res.ok) {
-    throw new Error(`No se pudo descargar el PDF adjunto (${res.status})`);
+    throw new Error(`No se pudo descargar el archivo adjunto (${res.status})`);
   }
 
   const buffer = Buffer.from(await res.arrayBuffer());
   if (buffer.length === 0) {
-    return null;
+    return [];
   }
 
-  return {
-    filename: sanitizeAttachmentFilename(numeroFactura),
-    content: buffer,
-  };
+  if (kind === "pdf") {
+    return [
+      {
+        filename: sanitizeAttachmentFilename(numeroFactura),
+        content: buffer,
+      },
+    ];
+  }
+
+  if (kind === "zip") {
+    const zip = await JSZip.loadAsync(buffer);
+    const attachments: { filename: string; content: Buffer }[] = [];
+    for (const [path, entry] of Object.entries(zip.files)) {
+      if (entry.dir) continue;
+      const name =
+        path.split("/").pop()?.trim() ||
+        `archivo-${attachments.length + 1}`;
+      const bytes = await entry.async("uint8array");
+      if (bytes.length === 0) continue;
+      attachments.push({ filename: name, content: Buffer.from(bytes) });
+    }
+    return attachments;
+  }
+
+  const segment = archivoUrl.split("?")[0]?.split("/").pop() ?? "";
+  const filename =
+    segment && segment.endsWith(".rar")
+      ? segment
+      : `${numeroFactura.trim().replace(/[^\w.-]+/g, "_") || "factura"}.rar`;
+
+  return [{ filename, content: buffer }];
 }
 
 export async function sendFacturaInvoiceEmail(
@@ -132,8 +170,8 @@ export async function sendFacturaInvoiceEmail(
     throw new Error("RESEND_API_KEY is not configured");
   }
 
-  const to = input.toEmail.trim();
-  if (!to) {
+  const to = input.toEmails.map((email) => email.trim()).filter(Boolean);
+  if (to.length === 0) {
     throw new Error("El cliente no tiene correo electrónico");
   }
 
@@ -153,7 +191,15 @@ export async function sendFacturaInvoiceEmail(
   );
 
   const attachments: { filename: string; content: Buffer }[] = [];
-  if (input.pdfBytes && input.pdfBytes.length > 0) {
+  if (input.attachmentFiles?.length) {
+    for (const file of input.attachmentFiles) {
+      if (!file.bytes.length) continue;
+      attachments.push({
+        filename: file.filename,
+        content: Buffer.from(file.bytes),
+      });
+    }
+  } else if (input.pdfBytes && input.pdfBytes.length > 0) {
     attachments.push({
       filename:
         input.pdfFileName?.trim() ||
@@ -161,13 +207,11 @@ export async function sendFacturaInvoiceEmail(
       content: Buffer.from(input.pdfBytes),
     });
   } else if (input.archivoUrl?.trim()) {
-    const pdf = await loadPdfAttachment(
+    const stored = await loadAttachmentsFromStoredUrl(
       input.archivoUrl.trim(),
       input.numeroFactura,
     );
-    if (pdf) {
-      attachments.push(pdf);
-    }
+    attachments.push(...stored);
   }
 
   const resend = new Resend(apiKey);
