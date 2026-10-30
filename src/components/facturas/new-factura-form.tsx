@@ -39,6 +39,28 @@ type ExtractApiPayload = {
 const fieldClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
 
+const panelClass =
+  "rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-5";
+
+function PanelHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-4 border-b border-slate-100 pb-3">
+      <h2 className="text-[15px] font-semibold text-slate-900">{title}</h2>
+      {description ? (
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function normalizeFecha(raw: unknown): string {
   if (raw == null || typeof raw !== "string") return "";
   const t = raw.trim();
@@ -178,7 +200,8 @@ export function NewFacturaForm({
           Nueva factura
         </h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Completa los datos, confirma el cliente y adjunta el archivo.
+          Registra la factura, redacta el correo y configura cliente, archivos y
+          destinatarios.
         </p>
       </header>
 
@@ -186,15 +209,12 @@ export function NewFacturaForm({
         <input type="hidden" name="enviar_email" value={sendEmail ? "1" : "0"} />
 
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start lg:gap-x-8">
-        <section className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
-              1
-            </p>
-            <h2 className="mt-1 text-base font-medium text-slate-900">
-              Datos de la factura
-            </h2>
-          </div>
+        <div className="flex min-w-0 flex-col gap-5 lg:col-start-1">
+        <section className={`${panelClass} space-y-4`}>
+          <PanelHeading
+            title="Factura"
+            description="Número, fecha y monto registrados en el sistema."
+          />
 
           <div>
             <label
@@ -255,128 +275,18 @@ export function NewFacturaForm({
 
         </section>
 
-        <section className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-1">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
-              2
-            </p>
-            <h2 className="mt-1 text-base font-medium text-slate-900">Cliente</h2>
-          </div>
-
-          <div>
-            <label
-              htmlFor="cliente_id"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Cliente <span className="text-red-600">*</span>
-            </label>
-            <select
-              id="cliente_id"
-              name="cliente_id"
-              required
-              className={`${fieldClass} min-h-12`}
-              value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
-            >
-              <option value="" disabled>
-                Selecciona un cliente
-              </option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedClient ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-sm font-medium text-slate-900">
-                {selectedClient.full_name}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                {clientEmail || "Sin correo"}
-              </p>
-              <p className="mt-0.5 text-sm text-slate-600">
-                {selectedClient.company_name?.trim() || "Sin empresa"}
-              </p>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
-              3
-            </p>
-            <h2 className="mt-1 text-base font-medium text-slate-900">Archivos</h2>
-          </div>
-
-          <div>
-            <label
-              htmlFor="archivo"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
-            >
-              Archivos (PDF, ZIP o RAR)
-            </label>
-            <FacturaArchiveFilesInput
-              id="archivo"
-              onPdfSelected={(file) => {
-                setSelectedFile(file);
-                setScanMessage(null);
-                setScanError(null);
-              }}
-            />
-          </div>
-
-          {selectedFile ? (
-            <button
-              type="button"
-              disabled={isScanning}
-              onClick={() => void handleScanPdf()}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5 disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
-            >
-              {isScanning ? "Extrayendo…" : "Escanear con IA"}
-            </button>
-          ) : null}
-
-          {scanMessage ? (
-            <p
-              className="rounded-lg border border-emerald-200/90 bg-emerald-50/90 px-3.5 py-2.5 text-sm text-emerald-900"
-              role="status"
-            >
-              {scanMessage}
-            </p>
-          ) : null}
-          {scanError ? (
-            <p
-              className="rounded-lg border border-red-200/80 bg-red-50/90 px-3.5 py-2.5 text-sm text-red-800"
-              role="alert"
-            >
-              {scanError}
-            </p>
-          ) : null}
-        </section>
-
-        <section className="min-w-0 space-y-3 lg:col-start-1 lg:row-start-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
-              4
-            </p>
-            <h2 className="mt-1 text-base font-medium text-slate-900">
-              Mensaje del correo al cliente
-            </h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Edita el texto que recibirá el cliente. Se guarda con la factura.
-            </p>
-          </div>
+        <section className={`${panelClass} space-y-3`}>
+          <PanelHeading
+            title="Mensaje del correo"
+            description="Texto que verá el cliente. Se guarda con la factura."
+          />
 
           <div>
             <label
               htmlFor="notas"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Descripción para correo
+              Cuerpo del email
             </label>
             <textarea
               id="notas"
@@ -405,55 +315,159 @@ export function NewFacturaForm({
             </div>
           </div>
         </section>
+        </div>
 
-        <section className="min-w-0 space-y-3 lg:col-start-2 lg:row-start-3">
+        <div className="flex min-w-0 flex-col gap-5 lg:col-start-2">
+        <section className={`${panelClass} space-y-4`}>
+          <PanelHeading
+            title="Cliente"
+            description="Quién recibe la factura y el correo principal."
+          />
+
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#227DE8]">
-              5
-            </p>
-            <h2 className="mt-1 text-base font-medium text-slate-900">
-              Destinatarios del correo
-            </h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              El cliente siempre recibe copia; agrega otros correos si hace falta.
-            </p>
+            <label
+              htmlFor="cliente_id"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Seleccionar cliente <span className="text-red-600">*</span>
+            </label>
+            <select
+              id="cliente_id"
+              name="cliente_id"
+              required
+              className={`${fieldClass} min-h-12`}
+              value={clienteId}
+              onChange={(e) => setClienteId(e.target.value)}
+            >
+              <option value="" disabled>
+                Elige un cliente
+              </option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.full_name}
+                </option>
+              ))}
+            </select>
           </div>
 
+          {selectedClient ? (
+            <dl className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-sm">
+              <div>
+                <dt className="text-xs text-slate-500">Empresa</dt>
+                <dd className="font-medium text-slate-900">
+                  {selectedClient.company_name?.trim() || "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">Correo</dt>
+                <dd className="font-medium text-slate-900">
+                  {clientEmail || "Sin correo registrado"}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+        </section>
+
+        <section className={`${panelClass} space-y-4`}>
+          <PanelHeading
+            title="Archivos adjuntos"
+            description="Hasta 10 archivos; en el sistema se guardan en un solo ZIP."
+          />
+
+          <FacturaArchiveFilesInput
+            id="archivo"
+            onPdfSelected={(file) => {
+              setSelectedFile(file);
+              setScanMessage(null);
+              setScanError(null);
+            }}
+          />
+
+          {selectedFile ? (
+            <button
+              type="button"
+              disabled={isScanning}
+              onClick={() => void handleScanPdf()}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#227DE8]/50 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] transition-colors hover:bg-[#227DE8]/10 disabled:opacity-60 sm:w-auto"
+            >
+              {isScanning ? "Extrayendo…" : "Escanear primer PDF con IA"}
+            </button>
+          ) : null}
+
+          {scanMessage ? (
+            <p
+              className="rounded-lg border border-emerald-200/90 bg-emerald-50/90 px-3.5 py-2.5 text-sm text-emerald-900"
+              role="status"
+            >
+              {scanMessage}
+            </p>
+          ) : null}
+          {scanError ? (
+            <p
+              className="rounded-lg border border-red-200/80 bg-red-50/90 px-3.5 py-2.5 text-sm text-red-800"
+              role="alert"
+            >
+              {scanError}
+            </p>
+          ) : null}
+        </section>
+
+        <section className={`${panelClass} space-y-4`}>
+          <PanelHeading
+            title="Envío por correo"
+            description="El cliente siempre va en copia; puedes sumar más destinatarios."
+          />
+
           <FacturaCorreosAdicionalesField
+            hidePrimaryEmail
             clientEmail={clientEmail}
             value={correosAdicionales}
             onValueChange={setCorreosAdicionales}
           />
 
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-2.5">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 transition-colors hover:bg-slate-50">
             <input
               type="checkbox"
               checked={sendEmail}
               onChange={(event) => setSendEmail(event.target.checked)}
-              className="size-5 shrink-0 accent-[#227DE8]"
+              className="mt-0.5 size-4 shrink-0 rounded border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
             />
-            <span className="text-sm font-medium text-slate-800">
-              Enviar factura por email al guardar
+            <span className="text-sm leading-snug text-slate-800">
+              <span className="font-medium">Enviar al guardar</span>
+              <span className="mt-0.5 block text-xs text-slate-500">
+                Incluye adjuntos y el mensaje configurado a la izquierda.
+              </span>
             </span>
           </label>
 
-          {sendEmail ? (
-            <p className="text-sm text-slate-600">
-              Se enviará a:{" "}
-              <span className="font-medium text-slate-900">
-                {recipientPreview ||
-                  (selectedClient
-                    ? "el cliente debe tener correo"
-                    : "selecciona un cliente")}
-              </span>
-            </p>
-          ) : (
-            <p className="text-sm text-slate-500">
-              No se enviará correo al guardar; los destinatarios quedan
-              guardados para un reenvío.
-            </p>
-          )}
+          <div
+            className={`rounded-lg px-3.5 py-2.5 text-sm ${
+              sendEmail
+                ? "border border-[#227DE8]/20 bg-[#227DE8]/5 text-slate-800"
+                : "border border-slate-200 bg-slate-50 text-slate-600"
+            }`}
+          >
+            {sendEmail ? (
+              <>
+                <span className="text-xs font-medium uppercase tracking-wide text-[#227DE8]">
+                  Para
+                </span>
+                <p className="mt-1 font-medium text-slate-900">
+                  {recipientPreview ||
+                    (selectedClient
+                      ? "Agrega correo al cliente"
+                      : "Selecciona un cliente")}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs leading-relaxed">
+                Solo se guardará la factura. Los destinatarios extra quedan
+                registrados para reenviar después.
+              </p>
+            )}
+          </div>
         </section>
+        </div>
         </div>
 
         {errorMessage ? (

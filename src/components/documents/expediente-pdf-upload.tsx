@@ -4,26 +4,19 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import {
-  ARCHIVE_UPLOAD_HINT,
-  validateArchiveFile,
-} from "@/lib/archive-file";
+  documentAcceptsPhotoUpload,
+  expedienteUploadHint,
+  prepareExpedienteUploadFile,
+} from "@/lib/expediente-upload";
+import { documentStoragePath, type DocumentType } from "@/lib/documents-config";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
-import {
-  calculateDocumentStatusFromRow,
-} from "@/lib/document-status";
-import {
-  documentStoragePath,
-  type DocumentType,
-} from "@/lib/documents-config";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
+import { quickUploadClientDocument } from "../../../app/dashboard/clients/[id]/documents/actions";
 
 type ExpedientePdfUploadProps = {
   clientId: string;
-  documentId: string;
+  documentId: string | null;
   documentType: DocumentType;
   initialArchivoUrl: string | null;
-  isConfigured: boolean;
   fechaVencimiento: string | null;
   sinVencimiento: boolean;
   validoManualmente: boolean;
@@ -31,13 +24,8 @@ type ExpedientePdfUploadProps = {
 
 export function ExpedientePdfUpload({
   clientId,
-  documentId,
   documentType,
   initialArchivoUrl,
-  isConfigured,
-  fechaVencimiento,
-  sinVencimiento,
-  validoManualmente,
 }: ExpedientePdfUploadProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,89 +33,55 @@ export function ExpedientePdfUpload({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isConfigured) {
-    return <span className="text-slate-400">—</span>;
-  }
-
   if (archivoUrl) {
-    return (
-      <ArchiveFileLink href={archivoUrl} />
-    );
+    return <ArchiveFileLink href={archivoUrl} />;
   }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const fileList = event.target.files;
     event.target.value = "";
 
-    if (!file) {
+    if (!fileList?.length) {
       return;
     }
 
-    const validated = validateArchiveFile(file);
-    if (!validated.ok) {
-      setError(validated.error);
+    const files = [...fileList];
+    const prepared = await prepareExpedienteUploadFile(files, documentType);
+    if (!prepared.ok) {
+      setError(prepared.error);
       return;
     }
-    const { kind } = validated;
 
     setLoading(true);
     setError(null);
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setError("Sesión no válida");
-        return;
-      }
-
-      const path = documentStoragePath(clientId, documentType, kind);
-      const previousPath = documentStoragePath(
-        clientId,
-        documentType,
-        kind === "pdf" ? "zip" : "pdf",
-      );
-      const uploaded = await uploadArchiveFromBrowser(file, path);
+      const path = documentStoragePath(clientId, documentType, prepared.kind);
+      const uploaded = await uploadArchiveFromBrowser(prepared.file, path);
       if (!uploaded.ok) {
         setError(uploaded.error);
         return;
       }
 
-      await supabase.storage.from(CRM_DOCUMENTS_BUCKET).remove([previousPath]);
+      const formData = new FormData();
+      formData.append("clientId", clientId);
+      formData.append("documentType", documentType);
+      formData.append("archivo_public_url", uploaded.url);
 
-      const nextArchivoUrl = uploaded.url;
-      const status = calculateDocumentStatusFromRow({
-        archivoUrl: nextArchivoUrl,
-        fechaVencimiento,
-        sinVencimiento,
-        validoManualmente,
-      });
-
-      const { error: updateError } = await supabase
-        .from("client_documents")
-        .update({
-          archivo_url: nextArchivoUrl,
-          fecha_subida: new Date().toISOString(),
-          subido_por: user.id,
-          status,
-        })
-        .eq("id", documentId)
-        .eq("client_id", clientId);
-
-      if (updateError) {
-        setError(`Error al guardar: ${updateError.message}`);
+      const result = await quickUploadClientDocument(formData);
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
-      setArchivoUrl(nextArchivoUrl);
+      setArchivoUrl(uploaded.url);
       router.refresh();
     } finally {
       setLoading(false);
     }
   };
+
+  const allowsMultiple = documentAcceptsPhotoUpload(documentType);
 
   return (
     <div className="flex flex-col gap-1">
@@ -135,6 +89,12 @@ export function ExpedientePdfUpload({
         ref={inputRef}
         type="file"
         className="hidden"
+        multiple={allowsMultiple}
+        accept={
+          allowsMultiple
+            ? "image/*,.pdf,.zip,application/zip,application/pdf"
+            : undefined
+        }
         onChange={handleFileChange}
       />
       <button
@@ -147,7 +107,7 @@ export function ExpedientePdfUpload({
       </button>
       {!error ? (
         <span className="text-[10px] leading-snug text-slate-500">
-          {ARCHIVE_UPLOAD_HINT}
+          {expedienteUploadHint(documentType)}
         </span>
       ) : null}
       {error ? (

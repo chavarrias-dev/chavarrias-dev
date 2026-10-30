@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { validateArchiveFile } from "@/lib/archive-file";
+import {
+  documentAcceptsPhotoUpload,
+  expedienteUploadHint,
+  prepareExpedienteUploadFile,
+} from "@/lib/expediente-upload";
 import { documentStoragePath } from "@/lib/documents-config";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 
@@ -60,24 +64,27 @@ export function DocumentFileInput({
     return () => form.removeEventListener("submit", onSubmit, true);
   }, [required]);
 
-  async function onChange(file: File | undefined) {
+  async function onChange(files: FileList | null) {
     setError(null);
     setPublicUrl("");
     setFileName("");
-    if (!file) return;
+    if (!files?.length) return;
 
-    const validated = validateArchiveFile(file);
-    if (!validated.ok) {
-      setError(validated.error);
+    const prepared = await prepareExpedienteUploadFile(
+      [...files],
+      documentType,
+    );
+    if (!prepared.ok) {
+      setError(prepared.error);
       return;
     }
 
     setUploading(true);
-    setFileName(file.name);
+    setFileName(prepared.file.name);
     try {
       const result = await uploadArchiveFromBrowser(
-        file,
-        documentStoragePath(clientId, documentType, validated.kind),
+        prepared.file,
+        documentStoragePath(clientId, documentType, prepared.kind),
       );
       if (!result.ok) {
         setError(result.error);
@@ -96,9 +103,15 @@ export function DocumentFileInput({
         ref={inputRef}
         id={id}
         type="file"
+        multiple={documentAcceptsPhotoUpload(documentType)}
+        accept={
+          documentAcceptsPhotoUpload(documentType)
+            ? "image/*,.pdf,.zip,application/zip,application/pdf"
+            : undefined
+        }
         className={inputClass}
         onChange={(event) => {
-          void onChange(event.target.files?.[0]);
+          void onChange(event.target.files);
         }}
       />
       <input type="hidden" name="archivo_public_url" value={publicUrl} />
@@ -113,6 +126,10 @@ export function DocumentFileInput({
       {error ? (
         <p className="mt-1.5 text-sm text-red-700" role="alert">
           {error}
+        </p>
+      ) : !uploading && !publicUrl ? (
+        <p className="mt-1.5 text-xs text-slate-500">
+          {expedienteUploadHint(documentType)}
         </p>
       ) : null}
     </div>

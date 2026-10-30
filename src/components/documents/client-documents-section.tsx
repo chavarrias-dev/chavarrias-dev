@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
-import { validateArchiveFile } from "@/lib/archive-file";
+import {
+  documentAcceptsPhotoUpload,
+  prepareExpedienteUploadFile,
+} from "@/lib/expediente-upload";
 import { uploadArchiveFromBrowser } from "@/lib/upload-archive-client";
 import {
   ConfigureDocumentModal,
@@ -117,35 +120,39 @@ export function ClientDocumentsSection({
 
   const handleSubirClick = (documentType: DocumentType) => {
     setPendingUploadType(documentType);
-    fileInputRef.current?.click();
+    const input = fileInputRef.current;
+    if (input) {
+      input.multiple = documentAcceptsPhotoUpload(documentType);
+      input.click();
+    }
   };
 
   const handleQuickFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0];
     const documentType = pendingUploadType;
+    const files = event.target.files ? [...event.target.files] : [];
     event.target.value = "";
 
-    if (!file || !documentType) {
+    if (!files.length || !documentType) {
       return;
     }
-
-    const validated = validateArchiveFile(file);
-    if (!validated.ok) {
-      setErrorMessage(validated.error);
-      setPendingUploadType(null);
-      return;
-    }
-    const { kind } = validated;
 
     setUploadingType(documentType);
     setErrorMessage(null);
 
     startUploadTransition(async () => {
+      const prepared = await prepareExpedienteUploadFile(files, documentType);
+      if (!prepared.ok) {
+        setUploadingType(null);
+        setPendingUploadType(null);
+        setErrorMessage(prepared.error);
+        return;
+      }
+
       const uploaded = await uploadArchiveFromBrowser(
-        file,
-        documentStoragePath(clientId, documentType, kind),
+        prepared.file,
+        documentStoragePath(clientId, documentType, prepared.kind),
       );
       if (!uploaded.ok) {
         setUploadingType(null);

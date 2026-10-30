@@ -10,6 +10,8 @@ type FacturaCorreosAdicionalesFieldProps = {
   onValueChange?: (value: string) => void;
   clientEmail?: string;
   disabled?: boolean;
+  /** Oculta el bloque del correo del cliente (si ya se muestra arriba). */
+  hidePrimaryEmail?: boolean;
 };
 
 export function FacturaCorreosAdicionalesField({
@@ -19,21 +21,22 @@ export function FacturaCorreosAdicionalesField({
   onValueChange,
   clientEmail,
   disabled = false,
+  hidePrimaryEmail = false,
 }: FacturaCorreosAdicionalesFieldProps) {
   return (
-    <div className="space-y-2">
-      <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Correo principal (cliente)
-        </p>
-        <p className="mt-0.5 text-sm font-medium text-slate-900">
-          {clientEmail?.trim() || "Selecciona un cliente con correo"}
-        </p>
-      </div>
+    <div className="space-y-3">
+      {!hidePrimaryEmail ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3.5 py-2.5">
+          <p className="text-xs font-medium text-slate-500">Correo del cliente</p>
+          <p className="mt-0.5 text-sm font-medium text-slate-900">
+            {clientEmail?.trim() || "Selecciona un cliente con correo"}
+          </p>
+        </div>
+      ) : null}
 
       <div>
         <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
-          Correos adicionales{" "}
+          Otros destinatarios{" "}
           <span className="font-normal text-slate-400">(opcional)</span>
         </label>
         <textarea
@@ -51,8 +54,7 @@ export function FacturaCorreosAdicionalesField({
           className={`${fieldClass} min-h-[88px] resize-y font-mono text-[13px]`}
         />
         <p className="mt-1.5 text-xs text-slate-500">
-          Un correo por línea (máximo {FACTURA_MAX_EXTRA_EMAILS}). Siempre se
-          envía también al correo del cliente.
+          Un correo por línea, máximo {FACTURA_MAX_EXTRA_EMAILS}.
         </p>
       </div>
     </div>

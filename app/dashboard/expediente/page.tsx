@@ -254,20 +254,15 @@ export default async function ExpedientePage() {
                     {formatVencimiento(doc)}
                   </td>
                   <td className="px-4 py-3">
-                    {doc.documentId ? (
-                      <ExpedientePdfUpload
-                        clientId={client.id}
-                        documentId={doc.documentId}
-                        documentType={doc.documentType}
-                        initialArchivoUrl={doc.archivoUrl}
-                        isConfigured={doc.isConfigured}
-                        fechaVencimiento={doc.fechaVencimiento}
-                        sinVencimiento={doc.sinVencimiento}
-                        validoManualmente={doc.validoManualmente}
-                      />
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
+                    <ExpedientePdfUpload
+                      clientId={client.id}
+                      documentId={doc.documentId}
+                      documentType={doc.documentType}
+                      initialArchivoUrl={doc.archivoUrl}
+                      fechaVencimiento={doc.fechaVencimiento}
+                      sinVencimiento={doc.sinVencimiento}
+                      validoManualmente={doc.validoManualmente}
+                    />
                   </td>
                 </tr>
               ))}

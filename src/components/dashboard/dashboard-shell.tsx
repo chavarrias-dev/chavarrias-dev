@@ -23,6 +23,10 @@ import {
   X,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import {
+  ClientTutorialButton,
+  TutorialButton,
+} from "@/components/dashboard/onboarding-tour";
 import { RoleBadge } from "@/components/dashboard/role-badge";
 import { SidebarMessagesLink } from "@/components/dashboard/sidebar-messages-link";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
@@ -336,6 +340,18 @@ export function DashboardShell({
       </nav>
 
       <div className="shrink-0 space-y-2 border-t border-slate-100 p-2">
+        {isAdmin ? (
+          <TutorialButton
+            userId={currentUserId}
+            collapsed={collapsed && !mobileOpen}
+          />
+        ) : role === "cliente" ? (
+          <ClientTutorialButton
+            userId={currentUserId}
+            collapsed={collapsed && !mobileOpen}
+          />
+        ) : null}
+
         <button
           type="button"
           onClick={toggleCollapsed}

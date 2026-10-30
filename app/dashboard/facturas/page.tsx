@@ -3,6 +3,7 @@ import { Pencil } from "lucide-react";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
+import { FacturasClientExportButton } from "@/components/facturas/facturas-client-export-button";
 import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -20,6 +21,7 @@ type FacturaRow = {
   cliente_id: string;
   archivo_url: string | null;
   notas: string | null;
+  correos_adicionales: string | null;
   created_at: string | null;
 };
 
@@ -140,7 +142,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   let query = supabase
     .from("facturas")
     .select(
-      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas, created_at",
+      "id, numero_factura, fecha, monto, cliente_id, archivo_url, notas, correos_adicionales, created_at",
     );
 
   if (numeroFilter) {
@@ -182,6 +184,35 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   const clientMap = new Map(
     clientsList.map((c) => [c.id, c.full_name]),
   );
+
+  let exportClientMeta: {
+    fullName: string;
+    companyName: string | null;
+    email: string | null;
+    rfc: string | null;
+  } | null = null;
+
+  if (clienteFilterScoped) {
+    const { data: clientDetail } = await supabase
+      .from("clients")
+      .select("full_name, company_name, email, rfc")
+      .eq("id", clienteFilterScoped)
+      .maybeSingle();
+    if (clientDetail) {
+      const c = clientDetail as {
+        full_name: string;
+        company_name: string | null;
+        email: string | null;
+        rfc: string | null;
+      };
+      exportClientMeta = {
+        fullName: c.full_name,
+        companyName: c.company_name,
+        email: c.email,
+        rfc: c.rfc,
+      };
+    }
+  }
 
   const rows = (facturas ?? []) as FacturaRow[];
   const rowGroups = groupFacturasByMonth(rows);
@@ -298,19 +329,35 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="submit"
-              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:w-auto"
-            >
-              Buscar
-            </button>
-            <Link
-              href="/dashboard/facturas"
-              className="inline-flex h-10 items-center justify-center text-center text-sm font-medium text-[#227DE8] underline-offset-2 transition-all duration-200 hover:underline sm:justify-end"
-            >
-              Limpiar
-            </Link>
+          <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="submit"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#227DE8] px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:w-auto"
+              >
+                Buscar
+              </button>
+              <Link
+                href="/dashboard/facturas"
+                className="inline-flex h-10 items-center justify-center text-center text-sm font-medium text-[#227DE8] underline-offset-2 transition-all duration-200 hover:underline"
+              >
+                Limpiar
+              </Link>
+            </div>
+            {isStaff || clienteIdForCliente ? (
+              <FacturasClientExportButton
+                client={exportClientMeta}
+                facturas={rows.map((f) => ({
+                  numero_factura: f.numero_factura,
+                  fecha: f.fecha,
+                  monto: f.monto,
+                  created_at: f.created_at,
+                  archivo_url: f.archivo_url,
+                  notas: f.notas,
+                  correos_adicionales: f.correos_adicionales,
+                }))}
+              />
+            ) : null}
           </div>
         </form>
       </section>

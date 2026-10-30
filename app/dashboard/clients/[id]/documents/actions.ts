@@ -6,8 +6,8 @@ import { logActivity } from "@/lib/activity-log";
 import {
   acceptedPreuploadedUrl,
   contentTypeForArchive,
-  validateArchiveFile,
 } from "@/lib/archive-file";
+import { prepareExpedienteUploadFile } from "@/lib/expediente-upload";
 import {
   calculateDocumentStatus,
   recalculateDocumentStatuses,
@@ -190,11 +190,12 @@ async function uploadClientArchive(
   documentType: string,
   file: File,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const validated = validateArchiveFile(file);
-  if (!validated.ok) {
-    return { ok: false, error: validated.error };
+  const prepared = await prepareExpedienteUploadFile([file], documentType);
+  if (!prepared.ok) {
+    return { ok: false, error: prepared.error };
   }
-  const { kind } = validated;
+  const { kind } = prepared;
+  const uploadFile = prepared.file;
 
   const path = documentStoragePath(clientId, documentType, kind);
   const previousPath = documentStoragePath(
@@ -204,7 +205,7 @@ async function uploadClientArchive(
   );
   const { error: upErr } = await supabase.storage
     .from(CRM_DOCUMENTS_BUCKET)
-    .upload(path, file, {
+    .upload(path, uploadFile, {
       contentType: contentTypeForArchive(kind),
       upsert: true,
     });

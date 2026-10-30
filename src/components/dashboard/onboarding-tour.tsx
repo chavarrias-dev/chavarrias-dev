@@ -18,23 +18,27 @@ function clientStorageKey(userId: string): string {
   return `tour_completed_client_${userId}`;
 }
 
-function markAdminTourCompleted(userId: string): void {
+function markAdminTourDismissed(userId: string): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(adminStorageKey(userId), "true");
 }
 
-function isAdminTourCompleted(userId: string): boolean {
+function isAdminTourDismissed(userId: string): boolean {
+  if (typeof window === "undefined") return true;
   return localStorage.getItem(adminStorageKey(userId)) === "true";
 }
 
-function markClientTourCompleted(userId: string): void {
+function markClientTourDismissed(userId: string): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(clientStorageKey(userId), "true");
 }
 
-function isClientTourCompleted(userId: string): boolean {
+function isClientTourDismissed(userId: string): boolean {
+  if (typeof window === "undefined") return true;
   return localStorage.getItem(clientStorageKey(userId)) === "true";
 }
 
-function createTourConfig(userId: string, onComplete: () => void) {
+function createTourConfig(markDismissed: () => void) {
   return {
     showProgress: true,
     animate: true,
@@ -49,7 +53,14 @@ function createTourConfig(userId: string, onComplete: () => void) {
     nextBtnText: "Siguiente",
     prevBtnText: "Anterior",
     doneBtnText: "Finalizar",
-    onDestroyed: onComplete,
+    onDestroyStarted: (
+      _element: Element | undefined,
+      _step: DriveStep,
+      { driver: driverInstance }: { driver: { destroy: () => void } },
+    ) => {
+      markDismissed();
+      driverInstance.destroy();
+    },
   } as const;
 }
 
@@ -239,14 +250,14 @@ function buildClientTourSteps(): DriveStep[] {
 
 function createAdminTour(userId: string) {
   return driver({
-    ...createTourConfig(userId, () => markAdminTourCompleted(userId)),
+    ...createTourConfig(() => markAdminTourDismissed(userId)),
     steps: buildAdminTourSteps(),
   });
 }
 
 function createClientTour(userId: string) {
   return driver({
-    ...createTourConfig(userId, () => markClientTourCompleted(userId)),
+    ...createTourConfig(() => markClientTourDismissed(userId)),
     steps: buildClientTourSteps(),
   });
 }
@@ -266,7 +277,7 @@ export function OnboardingTour({
   const hasAutoStarted = useRef(false);
 
   const tryAutoStart = useCallback(() => {
-    if (!autoStart || hasAutoStarted.current || isAdminTourCompleted(userId)) {
+    if (!autoStart || hasAutoStarted.current || isAdminTourDismissed(userId)) {
       return;
     }
 
@@ -288,15 +299,39 @@ export function OnboardingTour({
   return null;
 }
 
-export function TutorialButton({ userId }: { userId: string }) {
+type TutorialButtonProps = {
+  userId: string;
+  collapsed?: boolean;
+  className?: string;
+};
+
+function tutorialButtonClassName(className?: string): string {
+  return [
+    "inline-flex items-center gap-1.5 rounded-lg border border-[#227DE8] bg-white text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5",
+    className ?? "h-9 px-3",
+  ].join(" ");
+}
+
+export function TutorialButton({
+  userId,
+  collapsed = false,
+  className,
+}: TutorialButtonProps) {
   return (
     <button
       type="button"
+      title="Ver tutorial del CRM"
       onClick={() => startAdminTour(userId)}
-      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#227DE8] bg-white px-3 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+      className={`${tutorialButtonClassName(className)} ${
+        collapsed ? "size-9 justify-center px-0" : "w-full justify-center"
+      }`}
     >
       <CircleHelp className="size-4 shrink-0" aria-hidden />
-      Ver tutorial
+      {collapsed ? (
+        <span className="sr-only">Ver tutorial</span>
+      ) : (
+        <span>Ver tutorial</span>
+      )}
     </button>
   );
 }
@@ -308,7 +343,7 @@ export function ClientOnboardingTour({
   const hasAutoStarted = useRef(false);
 
   const tryAutoStart = useCallback(() => {
-    if (!autoStart || hasAutoStarted.current || isClientTourCompleted(userId)) {
+    if (!autoStart || hasAutoStarted.current || isClientTourDismissed(userId)) {
       return;
     }
 
@@ -330,15 +365,26 @@ export function ClientOnboardingTour({
   return null;
 }
 
-export function ClientTutorialButton({ userId }: { userId: string }) {
+export function ClientTutorialButton({
+  userId,
+  collapsed = false,
+  className,
+}: TutorialButtonProps) {
   return (
     <button
       type="button"
+      title="Ver tutorial del CRM"
       onClick={() => startClientTour(userId)}
-      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#227DE8] bg-white px-3 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5"
+      className={`${tutorialButtonClassName(className)} ${
+        collapsed ? "size-9 justify-center px-0" : "w-full justify-center"
+      }`}
     >
       <CircleHelp className="size-4 shrink-0" aria-hidden />
-      Ver tutorial
+      {collapsed ? (
+        <span className="sr-only">Ver tutorial</span>
+      ) : (
+        <span>Ver tutorial</span>
+      )}
     </button>
   );
 }
