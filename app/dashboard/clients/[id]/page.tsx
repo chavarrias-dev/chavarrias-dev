@@ -22,6 +22,10 @@ import {
   calculateDocumentStatusFromRow,
   recalculateDocumentStatuses,
 } from "@/lib/document-status";
+import {
+  assertClientRecordAccess,
+  resolveOwnClientId,
+} from "@/lib/client-own-record";
 import { fetchClientByIdWithSpreadsheetFallback } from "@/lib/client-google-spreadsheet-db";
 import { formatShortDate } from "@/lib/format-short-date";
 import { getUserRole } from "@/lib/supabase/profile-role";
@@ -107,24 +111,19 @@ export default async function ClientProfilePage({
   const role = await getUserRole(supabase, user.id);
   const isStaff = role === "admin" || role === "empleado";
 
-  if (role === "cliente") {
-    const email = user.email?.trim();
-    if (!email) {
-      redirect("/dashboard");
+  const access = await assertClientRecordAccess(
+    supabase,
+    role,
+    user.email,
+    id,
+  );
+  if (!access.allowed) {
+    if (role === "cliente") {
+      const ownClientId = await resolveOwnClientId(supabase, user.email);
+      if (ownClientId) {
+        redirect(`/dashboard/clients/${ownClientId}`);
+      }
     }
-    const { data: ownRow } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-    const ownClientId = (ownRow as { id: string } | null)?.id;
-    if (!ownClientId) {
-      redirect("/dashboard");
-    }
-    if (id !== ownClientId) {
-      redirect(`/dashboard/clients/${ownClientId}`);
-    }
-  } else if (!isStaff) {
     redirect("/dashboard");
   }
 

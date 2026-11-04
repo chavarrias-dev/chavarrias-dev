@@ -210,7 +210,7 @@ export function DashboardShell({
     },
     {
       href: "/dashboard/estados-de-cuenta",
-      label: "Estados de cuenta",
+      label: role === "cliente" ? "Mi estado de cuenta" : "Estados de cuenta",
       icon: Sheet,
       show: isStaff || role === "cliente",
     },

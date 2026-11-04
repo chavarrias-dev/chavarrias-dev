@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ExternalLink, Sheet } from "lucide-react";
+import { spreadsheetViewUrlFromStoredUrl } from "@/lib/google-sheets/spreadsheet-url";
 
 type FacturasClientEstadoDeCuentaLinkProps = {
   clientId: string | null;
@@ -14,11 +15,16 @@ export function FacturasClientEstadoDeCuentaLink({
   spreadsheetUrl,
   isStaff,
 }: FacturasClientEstadoDeCuentaLinkProps) {
+  const sheetHref =
+    spreadsheetUrl && !isStaff
+      ? (spreadsheetViewUrlFromStoredUrl(spreadsheetUrl) ?? spreadsheetUrl)
+      : spreadsheetUrl;
+
   return (
     <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:items-end">
-      {spreadsheetUrl && clientName ? (
+      {sheetHref && clientName ? (
         <a
-          href={spreadsheetUrl}
+          href={sheetHref}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] shadow-sm transition hover:bg-[#227DE8]/10 sm:w-auto"

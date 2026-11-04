@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { ExternalLink, Eye, Sheet } from "lucide-react";
 import { GoogleSheetPreviewModal } from "@/components/clients/google-sheet-preview-modal";
-import { spreadsheetIdFromStoredUrl } from "@/lib/google-sheets/spreadsheet-url";
+import {
+  spreadsheetIdFromStoredUrl,
+  spreadsheetViewUrlFromStoredUrl,
+} from "@/lib/google-sheets/spreadsheet-url";
 
 type ClientEstadoDeCuentaLinkProps = {
   spreadsheetUrl: string | null;
@@ -37,6 +40,8 @@ export function ClientEstadoDeCuentaLink({
   }
 
   const modalTitle = previewTitle ?? "Estado de cuenta";
+  const viewOnlyUrl =
+    spreadsheetViewUrlFromStoredUrl(spreadsheetUrl) ?? spreadsheetUrl;
 
   return (
     <>
@@ -66,7 +71,7 @@ export function ClientEstadoDeCuentaLink({
               </button>
             ) : null}
             <a
-              href={spreadsheetUrl}
+              href={viewOnlyUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
@@ -83,8 +88,9 @@ export function ClientEstadoDeCuentaLink({
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
           spreadsheetId={sheetId}
-          openUrl={spreadsheetUrl}
+          openUrl={viewOnlyUrl}
           title={modalTitle}
+          readOnly
         />
       ) : null}
     </>

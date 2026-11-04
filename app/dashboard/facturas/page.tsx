@@ -203,7 +203,10 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
         "id, full_name, google_spreadsheet_url",
         "id, full_name",
       );
-    if (clientDetail) {
+    if (
+      clientDetail &&
+      (isStaff || clientDetail.id === clienteIdForCliente)
+    ) {
       estadoDeCuentaClient = {
         id: clientDetail.id,
         fullName: clientDetail.full_name,

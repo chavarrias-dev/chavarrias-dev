@@ -10,6 +10,7 @@ type GoogleSheetPreviewModalProps = {
   spreadsheetId: string;
   openUrl: string;
   title: string;
+  readOnly?: boolean;
 };
 
 export function GoogleSheetPreviewModal({
@@ -18,6 +19,7 @@ export function GoogleSheetPreviewModal({
   spreadsheetId,
   openUrl,
   title,
+  readOnly = false,
 }: GoogleSheetPreviewModalProps) {
   return (
     <ModalShell
@@ -43,6 +45,7 @@ export function GoogleSheetPreviewModal({
           spreadsheetId={spreadsheetId}
           openUrl={openUrl}
           title="Contenido"
+          readOnly={readOnly}
         />
       </div>
     </ModalShell>

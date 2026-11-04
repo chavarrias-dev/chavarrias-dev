@@ -5,6 +5,7 @@ import {
   fetchClientByIdWithSpreadsheetFallback,
   listClientsForEstadoDeCuenta,
 } from "@/lib/client-google-spreadsheet-db";
+import { resolveOwnClientId } from "@/lib/client-own-record";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -53,18 +54,7 @@ export default async function EstadosDeCuentaPage() {
     redirect("/dashboard");
   }
 
-  const email = user.email?.trim();
-  if (!email) {
-    redirect("/dashboard");
-  }
-
-  const { data: ownRow } = await supabase
-    .from("clients")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-
-  const ownClientId = (ownRow as { id: string } | null)?.id;
+  const ownClientId = await resolveOwnClientId(supabase, user.email);
   if (!ownClientId) {
     redirect("/dashboard");
   }
@@ -89,9 +79,10 @@ export default async function EstadosDeCuentaPage() {
   return (
     <main className={DASHBOARD_PAGE_MAIN_CLASS}>
       <div className="mb-6 sm:mb-8">
-        <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Estados de cuenta</h1>
+        <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Mi estado de cuenta</h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Consulta tu estado de cuenta actualizado por Chavarrias.
+          Solo lectura: Chavarrias actualiza tu archivo; tú no puedes editarlo ni
+          vincular otra hoja.
         </p>
       </div>
 

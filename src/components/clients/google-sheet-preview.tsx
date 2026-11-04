@@ -7,12 +7,15 @@ type GoogleSheetPreviewProps = {
   spreadsheetId: string;
   openUrl: string;
   title?: string;
+  /** Client portal: preview + links stay read-only (no edit URL). */
+  readOnly?: boolean;
 };
 
 export function GoogleSheetPreview({
   spreadsheetId,
   openUrl,
   title = "Vista previa del estado de cuenta",
+  readOnly = false,
 }: GoogleSheetPreviewProps) {
   const embedUrl = spreadsheetPreviewEmbedUrl(spreadsheetId);
 
@@ -26,7 +29,7 @@ export function GoogleSheetPreview({
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-[#227DE8] hover:underline"
         >
-          Abrir en Google Sheets
+          {readOnly ? "Abrir en modo lectura" : "Abrir en Google Sheets"}
           <ExternalLink className="size-3.5" aria-hidden />
         </a>
       </div>
@@ -40,9 +43,9 @@ export function GoogleSheetPreview({
         />
       </div>
       <p className="text-xs leading-relaxed text-slate-500">
-        La vista previa depende de Google: si no carga, inicia sesión con una
-        cuenta que tenga acceso o abre la hoja en una pestaña nueva. El cliente
-        debe tener permiso de lector en Drive.
+        {readOnly
+          ? "Solo consulta: no puedes modificar el archivo desde el CRM. Si la vista no carga, abre el enlace en modo lectura con la cuenta que Chavarrias haya autorizado."
+          : "La vista previa depende de Google: si no carga, inicia sesión con una cuenta que tenga acceso o abre la hoja en una pestaña nueva. El cliente debe tener permiso de lector en Drive."}
       </p>
     </div>
   );

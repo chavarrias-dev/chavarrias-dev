@@ -5,6 +5,34 @@ export function spreadsheetUrlFromId(spreadsheetId: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 }
 
+/** Read-only open URL (client portal). Does not grant edit in Google; user still needs Viewer on the file. */
+export function spreadsheetViewUrlFromId(spreadsheetId: string): string {
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/view`;
+}
+
+export function spreadsheetViewUrlFromStoredUrl(
+  url: string | null,
+): string | null {
+  const id = spreadsheetIdFromStoredUrl(url);
+  if (!id) {
+    return null;
+  }
+  return spreadsheetViewUrlFromId(id);
+}
+
+export function spreadsheetOpenUrlForPortalUser(
+  storedUrl: string | null,
+  isStaff: boolean,
+): string | null {
+  if (!storedUrl) {
+    return null;
+  }
+  if (isStaff) {
+    return storedUrl;
+  }
+  return spreadsheetViewUrlFromStoredUrl(storedUrl) ?? storedUrl;
+}
+
 /** Embed-friendly preview (Google may still require login or block if not shared). */
 export function spreadsheetPreviewEmbedUrl(spreadsheetId: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/preview?rm=minimal&widget=true&headers=false`;
