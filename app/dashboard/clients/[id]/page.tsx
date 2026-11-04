@@ -288,6 +288,8 @@ export default async function ClientProfilePage({
       {!isStaff ? (
         <ClientEstadoDeCuentaLink
           spreadsheetUrl={client.google_spreadsheet_url}
+          showInlinePreview={Boolean(client.google_spreadsheet_url)}
+          previewTitle={`Estado de cuenta — ${client.full_name}`}
         />
       ) : null}
 

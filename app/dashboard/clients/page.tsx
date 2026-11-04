@@ -1,25 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { DeleteClientForm } from "@/components/clients/delete-client-form";
+import {
+  ClientsListTable,
+  type ClientsListRow,
+} from "@/components/clients/clients-list-table";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   DASHBOARD_PAGE_MAIN_CLASS,
   DASHBOARD_PAGE_TITLE_CLASS,
 } from "@/lib/dashboard-layout";
-
-type ClientRow = {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  company_name: string | null;
-  tipo_razon_social: string | null;
-  puesto: string | null;
-  rfc: string | null;
-  notes: string | null;
-  created_at: string | null;
-};
 
 type PageProps = {
   searchParams: Promise<{ error?: string }>;
@@ -49,7 +39,7 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
     )
     .order("created_at", { ascending: false });
 
-  const rows = (clients ?? []) as ClientRow[];
+  const rows = (clients ?? []) as ClientsListRow[];
 
   return (
     <main className={DASHBOARD_PAGE_MAIN_CLASS}>
@@ -82,110 +72,7 @@ export default async function ClientsListPage({ searchParams }: PageProps) {
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80">
-                <th className="px-4 py-3 font-medium text-slate-700">Nombre</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Correo</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Teléfono</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Empresa</th>
-                <th className="px-4 py-3 font-medium text-slate-700">RFC</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Alta</th>
-                {isStaff ? (
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Acciones
-                  </th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={isStaff ? 7 : 6}
-                    className="px-4 py-10 text-center text-slate-500"
-                  >
-                    Aún no hay clientes.{" "}
-                    {isAdmin ? (
-                      <Link
-                        href="/dashboard/users/new"
-                        className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                      >
-                        Crear usuario cliente
-                      </Link>
-                    ) : (
-                      "Contacta a un administrador para registrar clientes."
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-b border-slate-100 transition-colors duration-200 last:border-0 hover:bg-slate-50/60"
-                  >
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      <Link
-                        href={`/dashboard/clients/${c.id}`}
-                        className="text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
-                      >
-                        {c.full_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{c.email}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {c.phone ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      <div>{c.company_name ?? "—"}</div>
-                      {c.tipo_razon_social || c.puesto ? (
-                        <div className="mt-0.5 text-xs text-slate-500">
-                          {[c.tipo_razon_social, c.puesto]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 font-mono text-xs">
-                      {c.rfc ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {c.created_at
-                        ? new Date(c.created_at).toLocaleDateString("es-MX", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </td>
-                    {isStaff ? (
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/dashboard/clients/${c.id}`}
-                            className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
-                          >
-                            Ver perfil
-                          </Link>
-                          <Link
-                            href={`/dashboard/clients/${c.id}/edit`}
-                            className="font-medium text-[#227DE8] underline-offset-2 transition-colors duration-200 hover:underline"
-                          >
-                            Editar
-                          </Link>
-                          <DeleteClientForm clientId={c.id} />
-                        </div>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ClientsListTable rows={rows} isStaff={isStaff} isAdmin={isAdmin} />
     </main>
   );
 }

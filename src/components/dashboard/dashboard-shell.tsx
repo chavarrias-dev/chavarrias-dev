@@ -17,6 +17,7 @@ import {
   Package,
   QrCode,
   Settings,
+  Sheet,
   UserPlus,
   Users,
   Wrench,
@@ -214,6 +215,12 @@ export function DashboardShell({
       icon: FileText,
       show: true,
       tourId: "nav-facturas",
+    },
+    {
+      href: "/dashboard/estados-de-cuenta",
+      label: "Estados de cuenta",
+      icon: Sheet,
+      show: isStaff || role === "cliente",
     },
     {
       href: "/dashboard/pedimentos",

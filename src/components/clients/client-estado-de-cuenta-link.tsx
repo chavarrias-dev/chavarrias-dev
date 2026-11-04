@@ -1,12 +1,19 @@
 import { ExternalLink, Sheet } from "lucide-react";
+import { GoogleSheetPreview } from "@/components/clients/google-sheet-preview";
+import { spreadsheetIdFromStoredUrl } from "@/lib/google-sheets/spreadsheet-url";
 
 type ClientEstadoDeCuentaLinkProps = {
   spreadsheetUrl: string | null;
+  showInlinePreview?: boolean;
+  previewTitle?: string;
 };
 
 export function ClientEstadoDeCuentaLink({
   spreadsheetUrl,
+  showInlinePreview = false,
+  previewTitle,
 }: ClientEstadoDeCuentaLinkProps) {
+  const sheetId = spreadsheetIdFromStoredUrl(spreadsheetUrl);
   if (!spreadsheetUrl) {
     return (
       <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
@@ -45,6 +52,15 @@ export function ClientEstadoDeCuentaLink({
           <ExternalLink className="size-4" aria-hidden />
         </a>
       </div>
+      {showInlinePreview && sheetId && spreadsheetUrl ? (
+        <div className="mt-6 border-t border-slate-100 pt-6">
+          <GoogleSheetPreview
+            spreadsheetId={sheetId}
+            openUrl={spreadsheetUrl}
+            title={previewTitle ?? "Vista previa"}
+          />
+        </div>
+      ) : null}
     </section>
   );
 }
