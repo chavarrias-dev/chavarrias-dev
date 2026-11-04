@@ -4,6 +4,7 @@ import type { ClientOption } from "@/components/clients/types";
 import { DodaHighlightOnQuery } from "@/components/dodas/doda-highlight-on-query";
 import { DodaPageLayout } from "@/components/dodas/doda-page-layout";
 import { fetchDodaDashboardRows } from "@/lib/doda-dashboard-data";
+import { isGoogleSheetsProvisioningConfigured } from "@/lib/google-sheets/config";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -48,7 +49,12 @@ export default async function DodasPage() {
         </p>
       </div>
 
-      <DodaPageLayout clients={clients} dodas={dodas} isAdmin={isAdmin} />
+      <DodaPageLayout
+        clients={clients}
+        dodas={dodas}
+        isAdmin={isAdmin}
+        googleSheetsApiEnabled={isGoogleSheetsProvisioningConfigured()}
+      />
     </main>
   );
 }

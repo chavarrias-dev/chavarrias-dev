@@ -1,14 +1,29 @@
 import { ExternalLink, Sheet } from "lucide-react";
 
 type ClientEstadoDeCuentaLinkProps = {
-  spreadsheetUrl: string;
+  spreadsheetUrl: string | null;
 };
 
 export function ClientEstadoDeCuentaLink({
   spreadsheetUrl,
 }: ClientEstadoDeCuentaLinkProps) {
+  if (!spreadsheetUrl) {
+    return (
+      <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
+          <Sheet className="size-5 text-slate-400" aria-hidden />
+          Estado de cuenta
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Aún no tienes estado de cuenta. Cuando Chavarrias vincule tu hoja,
+          podrás consultarla aquí.
+        </p>
+      </section>
+    );
+  }
+
   return (
-    <section className="mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+    <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">

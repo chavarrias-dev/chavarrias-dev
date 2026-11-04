@@ -5,14 +5,20 @@ export function spreadsheetUrlFromId(spreadsheetId: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 }
 
+const SPREADSHEET_ID_ONLY = /^[a-zA-Z0-9-_]{20,}$/;
+
 export function parseSpreadsheetIdFromUrl(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  if (/^[a-zA-Z0-9-_]+$/.test(trimmed)) {
+  if (SPREADSHEET_ID_ONLY.test(trimmed)) {
     return trimmed;
   }
   const match = trimmed.match(SPREADSHEET_ID_PATTERN);
-  return match?.[1] ?? null;
+  const id = match?.[1];
+  if (!id || !SPREADSHEET_ID_ONLY.test(id)) {
+    return null;
+  }
+  return id;
 }
 
 export function normalizeSpreadsheetUrl(raw: string): string | null {

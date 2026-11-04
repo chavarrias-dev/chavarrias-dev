@@ -14,7 +14,9 @@ export function isGoogleSheetsProvisioningConfigured(): boolean {
 }
 
 export function googleSheetsClientTemplateId(): string | null {
-  const id = process.env.GOOGLE_SHEETS_CLIENT_TEMPLATE_ID?.trim();
+  const id =
+    process.env.GOOGLE_SHEETS_CLIENT_TEMPLATE_ID?.trim() ||
+    process.env.GOOGLE_SHEETS_TEMPLATE_ID?.trim();
   return id || null;
 }
 

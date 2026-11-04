@@ -1,24 +1,76 @@
+"use client";
+
+import { useState } from "react";
 import { ExternalLink, Sheet } from "lucide-react";
 import {
-  createClientGoogleSheet,
-  linkClientGoogleSheet,
+  linkClientSpreadsheet,
+  unlinkClientSpreadsheet,
 } from "../../../app/dashboard/clients/actions";
 
 type ClientGoogleSheetPanelProps = {
   clientId: string;
   spreadsheetUrl: string | null;
   spreadsheetCreatedAt: string | null;
-  provisioningConfigured: boolean;
+  googleApiEnabled: boolean;
   statusMessage?: { kind: "ok" | "error"; text: string };
 };
+
+const inputClass =
+  "min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
+
+function LinkSpreadsheetForm({
+  clientId,
+  defaultUrl = "",
+  submitLabel = "Vincular",
+}: {
+  clientId: string;
+  defaultUrl?: string;
+  submitLabel?: string;
+}) {
+  return (
+    <form action={linkClientSpreadsheet} className="space-y-2">
+      <input type="hidden" name="client_id" value={clientId} />
+      <label
+        htmlFor={`spreadsheet_url_${clientId}`}
+        className="block text-sm font-medium text-slate-700"
+      >
+        Enlace de Google Sheets
+      </label>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          id={`spreadsheet_url_${clientId}`}
+          name="spreadsheet_url"
+          type="text"
+          required
+          defaultValue={defaultUrl}
+          placeholder="https://docs.google.com/spreadsheets/d/..."
+          className={inputClass}
+          autoComplete="off"
+        />
+        <button
+          type="submit"
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
+        >
+          {submitLabel}
+        </button>
+      </div>
+      <p className="text-xs leading-relaxed text-slate-500">
+        Crea la hoja en tu Drive y compártela con el correo del cliente como
+        Lector. Luego pega aquí el enlace.
+      </p>
+    </form>
+  );
+}
 
 export function ClientGoogleSheetPanel({
   clientId,
   spreadsheetUrl,
   spreadsheetCreatedAt,
-  provisioningConfigured,
+  googleApiEnabled,
   statusMessage,
 }: ClientGoogleSheetPanelProps) {
+  const [changingLink, setChangingLink] = useState(false);
+
   const createdLabel =
     spreadsheetCreatedAt &&
     new Date(spreadsheetCreatedAt).toLocaleString("es-MX", {
@@ -29,8 +81,10 @@ export function ClientGoogleSheetPanel({
       minute: "2-digit",
     });
 
+  const linked = Boolean(spreadsheetUrl);
+
   return (
-    <section className="mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+    <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
@@ -38,19 +92,21 @@ export function ClientGoogleSheetPanel({
             Estado de cuenta (Google Sheets)
           </h2>
           <p className="mt-1.5 max-w-2xl text-sm text-slate-500">
-            Cada cliente tiene un solo archivo de por vida: Chavarrias lo
-            actualiza; el cliente solo puede verlo.
-            Desde DODA puedes agregar movimientos del mes a ese mismo archivo.
+            Un archivo permanente por cliente. Chavarrias lo edita en Google;
+            el cliente solo lo consulta.
+            {googleApiEnabled
+              ? " Desde DODA puedes agregar movimientos del mes si la API de Google está activa."
+              : null}
           </p>
         </div>
-        {spreadsheetUrl ? (
+        {linked && !changingLink ? (
           <a
-            href={spreadsheetUrl}
+            href={spreadsheetUrl!}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
           >
-            Abrir estado de cuenta
+            Abrir hoja
             <ExternalLink className="size-4" aria-hidden />
           </a>
         ) : null}
@@ -69,72 +125,57 @@ export function ClientGoogleSheetPanel({
         </p>
       ) : null}
 
-      {spreadsheetUrl ? (
-        <div className="mt-4 space-y-1 text-sm text-slate-600">
-          <p>
+      {linked && !changingLink ? (
+        <div className="mt-4 space-y-4">
+          <p className="break-all text-sm text-slate-600">
             <span className="font-medium text-slate-700">Enlace:</span>{" "}
             <a
-              href={spreadsheetUrl}
+              href={spreadsheetUrl!}
               target="_blank"
               rel="noopener noreferrer"
-              className="break-all text-[#227DE8] underline-offset-2 hover:underline"
+              className="text-[#227DE8] underline-offset-2 hover:underline"
             >
               {spreadsheetUrl}
             </a>
           </p>
           {createdLabel ? (
-            <p className="text-xs text-slate-500">Activo desde: {createdLabel}</p>
+            <p className="text-xs text-slate-500">Vinculado: {createdLabel}</p>
           ) : null}
-          <p className="text-xs text-slate-500">
-            No se genera un archivo nuevo en cada operación: siempre es este enlace.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-6 space-y-6">
-          {!provisioningConfigured ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              La creación automática no está configurada en el servidor. Puedes
-              pegar abajo el enlace de una hoja que ya exista en Google Drive.
-            </p>
-          ) : (
-            <form action={createClientGoogleSheet} className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setChangingLink(true)}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-3 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5"
+            >
+              Cambiar enlace
+            </button>
+            <form action={unlinkClientSpreadsheet}>
               <input type="hidden" name="client_id" value={clientId} />
               <button
                 type="submit"
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#1a6ed4]"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
               >
-                Crear estado de cuenta
+                Desvincular
               </button>
-              <span className="text-xs text-slate-500">
-                Solo se crea una vez; después solo se edita el mismo archivo.
-              </span>
             </form>
-          )}
-
-          <form action={linkClientGoogleSheet} className="space-y-2">
-            <input type="hidden" name="client_id" value={clientId} />
-            <label
-              htmlFor="spreadsheet_url"
-              className="block text-sm font-medium text-slate-700"
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6">
+          {changingLink ? (
+            <button
+              type="button"
+              onClick={() => setChangingLink(false)}
+              className="mb-3 text-sm font-medium text-slate-500 hover:text-slate-700"
             >
-              O vincular hoja existente
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                id="spreadsheet_url"
-                name="spreadsheet_url"
-                type="url"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20"
-              />
-              <button
-                type="submit"
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] hover:bg-[#227DE8]/5"
-              >
-                Vincular
-              </button>
-            </div>
-          </form>
+              ← Cancelar
+            </button>
+          ) : null}
+          <LinkSpreadsheetForm
+            clientId={clientId}
+            defaultUrl={changingLink ? spreadsheetUrl ?? "" : ""}
+            submitLabel={changingLink ? "Guardar enlace" : "Vincular"}
+          />
         </div>
       )}
     </section>

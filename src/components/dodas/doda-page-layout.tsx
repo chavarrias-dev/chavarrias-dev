@@ -19,14 +19,17 @@ type DodaPageLayoutProps = {
   clients: ClientOption[];
   dodas: DodaDashboardRow[];
   isAdmin: boolean;
+  googleSheetsApiEnabled: boolean;
 };
 
 function DodaPageLayoutContent({
   clients,
   isAdmin,
+  googleSheetsApiEnabled,
 }: {
   clients: ClientOption[];
   isAdmin: boolean;
+  googleSheetsApiEnabled: boolean;
 }) {
   const { dodas, queryResults } = useDodaDashboard();
 
@@ -48,7 +51,11 @@ function DodaPageLayoutContent({
           <DodaResultsTable items={queryResults} />
         ) : null}
 
-        <DodaConfirmedTable dodas={dodas} clients={clients} />
+        <DodaConfirmedTable
+          dodas={dodas}
+          clients={clients}
+          showAppendToEstadoDeCuenta={googleSheetsApiEnabled}
+        />
 
         <DodaMonitoringErrorsTable dodas={dodas} />
       </div>
@@ -60,10 +67,15 @@ export function DodaPageLayout({
   clients,
   dodas,
   isAdmin,
+  googleSheetsApiEnabled,
 }: DodaPageLayoutProps) {
   return (
     <DodaDashboardProvider initialDodas={dodas}>
-      <DodaPageLayoutContent clients={clients} isAdmin={isAdmin} />
+      <DodaPageLayoutContent
+        clients={clients}
+        isAdmin={isAdmin}
+        googleSheetsApiEnabled={googleSheetsApiEnabled}
+      />
     </DodaDashboardProvider>
   );
 }

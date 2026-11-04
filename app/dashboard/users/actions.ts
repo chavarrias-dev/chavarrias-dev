@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
-import { provisionClientSpreadsheetIfConfigured } from "@/lib/google-sheets/provision-client-spreadsheet";
 import { readClientCompanyFields } from "@/lib/client-company";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 import { deleteProfileCompletely } from "@/lib/delete-profile";
@@ -219,7 +218,6 @@ export async function createUser(formData: FormData) {
       }
     }
 
-    await provisionClientSpreadsheetIfConfigured(admin, clientId);
 
     await logActivity(actorSupabase, {
       userId: actor.id,
@@ -404,7 +402,6 @@ export async function updateUser(formData: FormData) {
           `/dashboard/users/${id}/edit?error=${encodeURIComponent(insErr?.message ?? "Error al crear cliente")}`,
         );
       }
-      await provisionClientSpreadsheetIfConfigured(admin, insertedClient.id);
     }
   } else if (existing.role === "cliente") {
     await admin.from("clients").delete().eq("email", oldEmail);

@@ -41,6 +41,7 @@ const COLUMN_COUNT = 12;
 type DodaConfirmedTableProps = {
   dodas: DodaDashboardRow[];
   clients: ClientOption[];
+  showAppendToEstadoDeCuenta?: boolean;
 };
 
 type DayGroup = {
@@ -174,6 +175,7 @@ function DayGroupRows({
 export function DodaConfirmedTable({
   dodas,
   clients,
+  showAppendToEstadoDeCuenta = false,
 }: DodaConfirmedTableProps) {
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("");
@@ -330,24 +332,26 @@ export function DodaConfirmedTable({
             del cliente (Google Sheets).
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleAppendToEstadoDeCuenta}
-          disabled={!selectedClientId || appendingSheet}
-          title={
-            selectedClientId
-              ? undefined
-              : "Selecciona un cliente en el filtro"
-          }
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8] px-3.5 py-2 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-        >
-          {appendingSheet ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Sheet className="size-4" aria-hidden />
-          )}
-          Agregar a estado de cuenta
-        </button>
+        {showAppendToEstadoDeCuenta ? (
+          <button
+            type="button"
+            onClick={handleAppendToEstadoDeCuenta}
+            disabled={!selectedClientId || appendingSheet}
+            title={
+              selectedClientId
+                ? undefined
+                : "Selecciona un cliente en el filtro"
+            }
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8] px-3.5 py-2 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {appendingSheet ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Sheet className="size-4" aria-hidden />
+            )}
+            Agregar a estado de cuenta
+          </button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-2 border-b border-slate-100 px-4 py-3 sm:grid-cols-4 sm:gap-3 sm:px-6 sm:py-4">

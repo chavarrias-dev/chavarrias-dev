@@ -280,13 +280,15 @@ export default async function ClientProfilePage({
           clientId={id}
           spreadsheetUrl={client.google_spreadsheet_url}
           spreadsheetCreatedAt={client.google_spreadsheet_created_at}
-          provisioningConfigured={isGoogleSheetsProvisioningConfigured()}
+          googleApiEnabled={isGoogleSheetsProvisioningConfigured()}
           statusMessage={sheetStatusMessage}
         />
       ) : null}
 
-      {!isStaff && client.google_spreadsheet_url ? (
-        <ClientEstadoDeCuentaLink spreadsheetUrl={client.google_spreadsheet_url} />
+      {!isStaff ? (
+        <ClientEstadoDeCuentaLink
+          spreadsheetUrl={client.google_spreadsheet_url}
+        />
       ) : null}
 
       {!isStaff ? (
