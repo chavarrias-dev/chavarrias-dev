@@ -3,7 +3,7 @@ import { Pencil } from "lucide-react";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
-import { FacturasClientExportButton } from "@/components/facturas/facturas-client-export-button";
+import { FacturasClientEstadoDeCuentaLink } from "@/components/facturas/facturas-client-estado-de-cuenta-link";
 import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -185,31 +185,28 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
     clientsList.map((c) => [c.id, c.full_name]),
   );
 
-  let exportClientMeta: {
+  let estadoDeCuentaClient: {
+    id: string;
     fullName: string;
-    companyName: string | null;
-    email: string | null;
-    rfc: string | null;
+    spreadsheetUrl: string | null;
   } | null = null;
 
   if (clienteFilterScoped) {
     const { data: clientDetail } = await supabase
       .from("clients")
-      .select("full_name, company_name, email, rfc")
+      .select("id, full_name, google_spreadsheet_url")
       .eq("id", clienteFilterScoped)
       .maybeSingle();
     if (clientDetail) {
       const c = clientDetail as {
+        id: string;
         full_name: string;
-        company_name: string | null;
-        email: string | null;
-        rfc: string | null;
+        google_spreadsheet_url: string | null;
       };
-      exportClientMeta = {
+      estadoDeCuentaClient = {
+        id: c.id,
         fullName: c.full_name,
-        companyName: c.company_name,
-        email: c.email,
-        rfc: c.rfc,
+        spreadsheetUrl: c.google_spreadsheet_url,
       };
     }
   }
@@ -345,17 +342,11 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
               </Link>
             </div>
             {isStaff || clienteIdForCliente ? (
-              <FacturasClientExportButton
-                client={exportClientMeta}
-                facturas={rows.map((f) => ({
-                  numero_factura: f.numero_factura,
-                  fecha: f.fecha,
-                  monto: f.monto,
-                  created_at: f.created_at,
-                  archivo_url: f.archivo_url,
-                  notas: f.notas,
-                  correos_adicionales: f.correos_adicionales,
-                }))}
+              <FacturasClientEstadoDeCuentaLink
+                clientId={estadoDeCuentaClient?.id ?? clienteFilterScoped ?? null}
+                clientName={estadoDeCuentaClient?.fullName ?? null}
+                spreadsheetUrl={estadoDeCuentaClient?.spreadsheetUrl ?? null}
+                isStaff={isStaff}
               />
             ) : null}
           </div>

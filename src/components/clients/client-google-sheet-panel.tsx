@@ -35,11 +35,11 @@ export function ClientGoogleSheetPanel({
         <div>
           <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
             <Sheet className="size-5 text-[#227DE8]" aria-hidden />
-            Hoja de trabajo (Google Sheets)
+            Estado de cuenta (Google Sheets)
           </h2>
           <p className="mt-1.5 max-w-2xl text-sm text-slate-500">
-            Hoja compartida del equipo (edición) y del cliente (solo lectura).
-            Los DODAs confirmados del mes se pueden enviar desde la sección DODA.
+            Un archivo por cliente. El equipo edita; el cliente lo consulta en
+            solo lectura. Desde DODA puedes agregar movimientos del mes.
           </p>
         </div>
         {spreadsheetUrl ? (
@@ -49,7 +49,7 @@ export function ClientGoogleSheetPanel({
             rel="noopener noreferrer"
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
           >
-            Abrir hoja
+            Abrir estado de cuenta
             <ExternalLink className="size-4" aria-hidden />
           </a>
         ) : null}
@@ -99,7 +99,7 @@ export function ClientGoogleSheetPanel({
                 type="submit"
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#1a6ed4]"
               >
-                Crear hoja desde plantilla
+                Crear estado de cuenta
               </button>
               <span className="text-xs text-slate-500">
                 Copia la plantilla y da acceso de edición al equipo.

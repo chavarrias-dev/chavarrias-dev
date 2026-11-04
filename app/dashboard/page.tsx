@@ -3,9 +3,7 @@ import { redirect } from "next/navigation";
 import { PendingDocumentsCard } from "@/components/dashboard/pending-documents-card";
 import {
   ClientOnboardingTour,
-  ClientTutorialButton,
   OnboardingTour,
-  TutorialButton,
 } from "@/components/dashboard/onboarding-tour";
 import { RecentClientsCard } from "@/components/dashboard/recent-clients-card";
 import { RecentFacturasCard } from "@/components/dashboard/recent-facturas-card";
@@ -382,12 +380,6 @@ export default async function DashboardPage() {
               Hola, {welcomeName}
             </h1>
             <RoleBadge role={userRole} />
-            {resolvedRole === "admin" ? (
-              <TutorialButton userId={user.id} />
-            ) : null}
-            {resolvedRole === "cliente" ? (
-              <ClientTutorialButton userId={user.id} />
-            ) : null}
           </div>
           <p className="text-sm text-slate-500">
             Bienvenido al CRM Chavarrias. Aquí tienes un resumen de actividad.

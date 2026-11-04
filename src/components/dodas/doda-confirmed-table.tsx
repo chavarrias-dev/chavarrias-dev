@@ -1,21 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Download, Loader2, Sheet } from "lucide-react";
+import { ChevronDown, Loader2, Sheet } from "lucide-react";
 import type { ClientOption } from "@/components/clients/types";
 import { MxDateInput } from "@/components/forms/mx-date-input";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { DodaResultDetailModal } from "@/components/dodas/doda-result-detail-modal";
 import { DodaSatStatusBadge } from "@/components/dodas/doda-sat-status-badge";
 import {
-  DODA_DISPLAY_TIMEZONE,
   DODA_TABLE_BODY_CELL_CLASS,
   DODA_TABLE_BODY_ROW_CLASS,
   DODA_TABLE_CLASS,
   DODA_TABLE_HEAD_CELL_CLASS,
   DODA_TABLE_HEAD_ROW_CLASS,
   DODA_UTC_OFFSET,
-  formatDodaDateTime,
   formatDodaDayHeader,
   formatDodaTime,
   getDodaConfirmationDate,
@@ -185,7 +183,6 @@ export function DodaConfirmedTable({
     null,
   );
   const [modalOpen, setModalOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [appendingSheet, setAppendingSheet] = useState(false);
   const [toast, setToast] = useState<{ tone: DodaToastTone; message: string } | null>(
     null,
@@ -321,39 +318,6 @@ export function DodaConfirmedTable({
     }
   }
 
-  async function handleExport() {
-    if (confirmedAll.length === 0 || exporting) return;
-    setExporting(true);
-
-    try {
-      const XLSX = await import("xlsx");
-      const rows = confirmedAll.map((doda) => ({
-        Número: doda.numero_integracion ?? "",
-        Estado: doda.sat_status ?? "Desaduanamiento libre",
-        Pedimento: doda.pedimento ?? "",
-        "Tipo Pedimento": doda.tipo_pedimento ?? "",
-        Remesas: doda.remesas_presentadas ?? "",
-        Clave: doda.clave_pedimento ?? "",
-        Vehículo: doda.datos_vehiculo ?? "",
-        Cantidad: doda.cantidad_mercancia ?? "",
-        "Remesa Consolidado": "",
-        Cliente: doda.client_name ?? UNASSIGNED_CLIENT_LABEL,
-        "Fecha confirmación": formatDodaDateTime(getDodaConfirmationDate(doda)),
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "DODAs");
-
-      const todayKey = new Intl.DateTimeFormat("en-CA", {
-        timeZone: DODA_DISPLAY_TIMEZONE,
-      }).format(new Date());
-      XLSX.writeFile(workbook, `dodas-desaduanados-${todayKey}.xlsx`);
-    } finally {
-      setExporting(false);
-    }
-  }
-
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
       <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-4">
@@ -362,42 +326,28 @@ export function DodaConfirmedTable({
             Desaduanamiento confirmado
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            DODAs que ya alcanzaron desaduanamiento libre en el SAT.
+            DODAs confirmados en el SAT. Envíalos al archivo de estado de cuenta
+            del cliente (Google Sheets).
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <button
-            type="button"
-            onClick={handleAppendToEstadoDeCuenta}
-            disabled={!selectedClientId || appendingSheet}
-            title={
-              selectedClientId
-                ? undefined
-                : "Selecciona un cliente en el filtro"
-            }
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8] px-3.5 py-2 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            {appendingSheet ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Sheet className="size-4" aria-hidden />
-            )}
-            Agregar a estado de cuenta
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting || confirmedAll.length === 0}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-300 px-3.5 py-2 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            {exporting ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Download className="size-4" aria-hidden />
-            )}
-            Exportar a Excel
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleAppendToEstadoDeCuenta}
+          disabled={!selectedClientId || appendingSheet}
+          title={
+            selectedClientId
+              ? undefined
+              : "Selecciona un cliente en el filtro"
+          }
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8] px-3.5 py-2 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+        >
+          {appendingSheet ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Sheet className="size-4" aria-hidden />
+          )}
+          Agregar a estado de cuenta
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-2 border-b border-slate-100 px-4 py-3 sm:grid-cols-4 sm:gap-3 sm:px-6 sm:py-4">

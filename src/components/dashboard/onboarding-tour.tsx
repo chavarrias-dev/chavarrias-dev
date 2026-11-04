@@ -307,8 +307,8 @@ type TutorialButtonProps = {
 
 function tutorialButtonClassName(className?: string): string {
   return [
-    "inline-flex items-center gap-1.5 rounded-lg border border-[#227DE8] bg-white text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5",
-    className ?? "h-9 px-3",
+    "inline-flex items-center gap-2 rounded-lg text-xs font-medium text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-700",
+    className ?? "w-full px-3 py-2",
   ].join(" ");
 }
 
@@ -323,14 +323,14 @@ export function TutorialButton({
       title="Ver tutorial del CRM"
       onClick={() => startAdminTour(userId)}
       className={`${tutorialButtonClassName(className)} ${
-        collapsed ? "size-9 justify-center px-0" : "w-full justify-center"
+        collapsed ? "justify-center px-2 py-2" : ""
       }`}
     >
-      <CircleHelp className="size-4 shrink-0" aria-hidden />
+      <CircleHelp className="size-3.5 shrink-0" aria-hidden />
       {collapsed ? (
         <span className="sr-only">Ver tutorial</span>
       ) : (
-        <span>Ver tutorial</span>
+        <span>Tutorial</span>
       )}
     </button>
   );
@@ -376,14 +376,14 @@ export function ClientTutorialButton({
       title="Ver tutorial del CRM"
       onClick={() => startClientTour(userId)}
       className={`${tutorialButtonClassName(className)} ${
-        collapsed ? "size-9 justify-center px-0" : "w-full justify-center"
+        collapsed ? "justify-center px-2 py-2" : ""
       }`}
     >
-      <CircleHelp className="size-4 shrink-0" aria-hidden />
+      <CircleHelp className="size-3.5 shrink-0" aria-hidden />
       {collapsed ? (
         <span className="sr-only">Ver tutorial</span>
       ) : (
-        <span>Ver tutorial</span>
+        <span>Tutorial</span>
       )}
     </button>
   );
