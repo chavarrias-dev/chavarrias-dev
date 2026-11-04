@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Download, Loader2 } from "lucide-react";
+import { ChevronDown, Download, Loader2, Sheet } from "lucide-react";
+import type { ClientOption } from "@/components/clients/types";
 import { MxDateInput } from "@/components/forms/mx-date-input";
+import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { DodaResultDetailModal } from "@/components/dodas/doda-result-detail-modal";
 import { DodaSatStatusBadge } from "@/components/dodas/doda-sat-status-badge";
 import {
@@ -40,6 +42,7 @@ const COLUMN_COUNT = 12;
 
 type DodaConfirmedTableProps = {
   dodas: DodaDashboardRow[];
+  clients: ClientOption[];
 };
 
 type DayGroup = {
@@ -170,7 +173,10 @@ function DayGroupRows({
   );
 }
 
-export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
+export function DodaConfirmedTable({
+  dodas,
+  clients,
+}: DodaConfirmedTableProps) {
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -180,9 +186,25 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [appendingSheet, setAppendingSheet] = useState(false);
+  const [toast, setToast] = useState<{ tone: DodaToastTone; message: string } | null>(
+    null,
+  );
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(
     () => new Set(),
   );
+
+  const clientIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const client of clients) {
+      map.set(client.full_name.trim(), client.id);
+    }
+    return map;
+  }, [clients]);
+
+  const selectedClientId = clientFilter
+    ? (clientIdByName.get(clientFilter) ?? null)
+    : null;
 
   const confirmedAll = useMemo(
     () => categorizeDodasForDashboard(dodas).confirmed,
@@ -249,6 +271,56 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
     });
   }
 
+  async function handleAppendToEstadoDeCuenta() {
+    if (!selectedClientId || appendingSheet) return;
+    if (clientFilter === UNASSIGNED_CLIENT_LABEL) {
+      setToast({
+        tone: "error",
+        message: "Asocia un cliente al DODA antes de agregar al estado de cuenta.",
+      });
+      return;
+    }
+
+    setAppendingSheet(true);
+    try {
+      const response = await fetch(
+        `/api/clients/${selectedClientId}/estado-de-cuenta/dodas`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        tabTitle?: string;
+        appended?: number;
+        skipped?: number;
+        spreadsheetUrl?: string;
+      };
+
+      if (!response.ok || !payload.ok) {
+        setToast({
+          tone: "error",
+          message: payload.error ?? "No se pudo actualizar la hoja.",
+        });
+        return;
+      }
+
+      const parts = [
+        `${payload.appended ?? 0} DODA(s) agregados a «${payload.tabTitle ?? "mes actual"}».`,
+      ];
+      if ((payload.skipped ?? 0) > 0) {
+        parts.push(`${payload.skipped} ya estaban en la hoja.`);
+      }
+      setToast({ tone: "success", message: parts.join(" ") });
+    } catch {
+      setToast({
+        tone: "error",
+        message: "Error de red al actualizar el estado de cuenta.",
+      });
+    } finally {
+      setAppendingSheet(false);
+    }
+  }
+
   async function handleExport() {
     if (confirmedAll.length === 0 || exporting) return;
     setExporting(true);
@@ -293,19 +365,39 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
             DODAs que ya alcanzaron desaduanamiento libre en el SAT.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={exporting || confirmedAll.length === 0}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-300 px-3.5 py-2 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-        >
-          {exporting ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Download className="size-4" aria-hidden />
-          )}
-          Exportar a Excel
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <button
+            type="button"
+            onClick={handleAppendToEstadoDeCuenta}
+            disabled={!selectedClientId || appendingSheet}
+            title={
+              selectedClientId
+                ? undefined
+                : "Selecciona un cliente en el filtro"
+            }
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8] px-3.5 py-2 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {appendingSheet ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Sheet className="size-4" aria-hidden />
+            )}
+            Agregar a estado de cuenta
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting || confirmedAll.length === 0}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-300 px-3.5 py-2 text-sm font-medium text-green-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {exporting ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="size-4" aria-hidden />
+            )}
+            Exportar a Excel
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 border-b border-slate-100 px-4 py-3 sm:grid-cols-4 sm:gap-3 sm:px-6 sm:py-4">
@@ -431,6 +523,8 @@ export function DodaConfirmedTable({ dodas }: DodaConfirmedTableProps) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
       />
+
+      {toast ? <DodaToast tone={toast.tone} message={toast.message} /> : null}
     </section>
   );
 }

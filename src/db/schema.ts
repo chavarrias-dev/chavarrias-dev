@@ -45,6 +45,9 @@ export const clients = pgTable("clients", {
   fechaInicioOperaciones: text("fecha_inicio_operaciones"),
   notes: text("notes"),
   constanciaUrl: text("constancia_url"),
+  googleSpreadsheetId: text("google_spreadsheet_id"),
+  googleSpreadsheetUrl: text("google_spreadsheet_url"),
+  googleSpreadsheetCreatedAt: timestamp("google_spreadsheet_created_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

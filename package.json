@@ -23,6 +23,7 @@
     "dotenv": "^17.4.2",
     "driver.js": "^1.4.0",
     "drizzle-orm": "^0.45.2",
+    "googleapis": "^189.0.0",
     "jsqr": "^1.4.0",
     "jszip": "^3.10.2",
     "lucide-react": "^1.17.0",

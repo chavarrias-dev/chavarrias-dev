@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
+import { provisionClientSpreadsheetIfConfigured } from "@/lib/google-sheets/provision-client-spreadsheet";
 import { readClientCompanyFields } from "@/lib/client-company";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 import { deleteProfileCompletely } from "@/lib/delete-profile";
@@ -218,6 +219,8 @@ export async function createUser(formData: FormData) {
       }
     }
 
+    await provisionClientSpreadsheetIfConfigured(admin, clientId);
+
     await logActivity(actorSupabase, {
       userId: actor.id,
       userEmail: actor.email ?? "",
@@ -382,21 +385,26 @@ export async function updateUser(formData: FormData) {
         );
       }
     } else {
-      const { error: insErr } = await admin.from("clients").insert({
-        full_name: fullName.trim(),
-        email,
-        phone,
-        company_name: companyName,
-        tipo_razon_social: tipoRazonSocial,
-        puesto,
-        rfc,
-        notes: null,
-      });
-      if (insErr) {
+      const { data: insertedClient, error: insErr } = await admin
+        .from("clients")
+        .insert({
+          full_name: fullName.trim(),
+          email,
+          phone,
+          company_name: companyName,
+          tipo_razon_social: tipoRazonSocial,
+          puesto,
+          rfc,
+          notes: null,
+        })
+        .select("id")
+        .single<{ id: string }>();
+      if (insErr || !insertedClient) {
         redirect(
-          `/dashboard/users/${id}/edit?error=${encodeURIComponent(insErr.message)}`,
+          `/dashboard/users/${id}/edit?error=${encodeURIComponent(insErr?.message ?? "Error al crear cliente")}`,
         );
       }
+      await provisionClientSpreadsheetIfConfigured(admin, insertedClient.id);
     }
   } else if (existing.role === "cliente") {
     await admin.from("clients").delete().eq("email", oldEmail);

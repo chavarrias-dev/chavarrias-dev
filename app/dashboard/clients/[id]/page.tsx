@@ -3,10 +3,13 @@ import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { notFound, redirect } from "next/navigation";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
+import { ClientEstadoDeCuentaLink } from "@/components/clients/client-estado-de-cuenta-link";
+import { ClientGoogleSheetPanel } from "@/components/clients/client-google-sheet-panel";
 import {
   ClientDocumentsSection,
   type ClientDocumentRowData,
 } from "@/components/documents/client-documents-section";
+import { isGoogleSheetsProvisioningConfigured } from "@/lib/google-sheets/config";
 import {
   DOCUMENT_TYPES,
   type DocumentStatus,
@@ -29,6 +32,8 @@ type ClientRecord = {
   puesto: string | null;
   rfc: string | null;
   constancia_url: string | null;
+  google_spreadsheet_url: string | null;
+  google_spreadsheet_created_at: string | null;
   created_at: string | null;
 };
 
@@ -89,10 +94,18 @@ function formatShortDate(value: string | null): string {
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    google_sheet_ok?: string;
+    google_sheet_error?: string;
+  }>;
 };
 
-export default async function ClientProfilePage({ params }: PageProps) {
+export default async function ClientProfilePage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id } = await params;
+  const sheetParams = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -129,7 +142,7 @@ export default async function ClientProfilePage({ params }: PageProps) {
   const { data: clientRow, error: clientErr } = await supabase
     .from("clients")
     .select(
-      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, created_at",
+      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, google_spreadsheet_url, google_spreadsheet_created_at, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -207,6 +220,12 @@ export default async function ClientProfilePage({ params }: PageProps) {
   const sectionShell =
     "overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm";
 
+  const sheetStatusMessage = sheetParams.google_sheet_ok
+    ? ({ kind: "ok" as const, text: sheetParams.google_sheet_ok })
+    : sheetParams.google_sheet_error
+      ? ({ kind: "error" as const, text: sheetParams.google_sheet_error })
+      : undefined;
+
   return (
     <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <div className="mb-6">
@@ -249,6 +268,20 @@ export default async function ClientProfilePage({ params }: PageProps) {
           </div>
         ) : null}
       </div>
+
+      {isStaff ? (
+        <ClientGoogleSheetPanel
+          clientId={id}
+          spreadsheetUrl={client.google_spreadsheet_url}
+          spreadsheetCreatedAt={client.google_spreadsheet_created_at}
+          provisioningConfigured={isGoogleSheetsProvisioningConfigured()}
+          statusMessage={sheetStatusMessage}
+        />
+      ) : null}
+
+      {!isStaff && client.google_spreadsheet_url ? (
+        <ClientEstadoDeCuentaLink spreadsheetUrl={client.google_spreadsheet_url} />
+      ) : null}
 
       {!isStaff ? (
         <ClientDocumentsSection

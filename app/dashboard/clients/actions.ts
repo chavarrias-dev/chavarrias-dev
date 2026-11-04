@@ -2,6 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity-log";
+import {
+  linkExistingClientSpreadsheet,
+  provisionClientSpreadsheet,
+} from "@/lib/google-sheets/provision-client-spreadsheet";
+import { parseSpreadsheetIdFromUrl } from "@/lib/google-sheets/spreadsheet-url";
 import { readClientCompanyFields } from "@/lib/client-company";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -92,6 +97,98 @@ export async function updateClient(formData: FormData) {
   });
 
   redirect("/dashboard/clients");
+}
+
+function redirectClientSheetResult(
+  clientId: string,
+  kind: "ok" | "error",
+  message: string,
+): never {
+  const param = kind === "ok" ? "google_sheet_ok" : "google_sheet_error";
+  redirect(
+    `/dashboard/clients/${clientId}?${param}=${encodeURIComponent(message)}`,
+  );
+}
+
+export async function createClientGoogleSheet(formData: FormData) {
+  const { supabase, user } = await requireStaff();
+  const admin = createSupabaseAdminClient();
+
+  const rawId = formData.get("client_id");
+  if (typeof rawId !== "string" || !rawId.trim()) {
+    redirect("/dashboard/clients?error=Identificador%20invalido");
+  }
+  const clientId = rawId.trim();
+
+  const result = await provisionClientSpreadsheet(admin, clientId);
+  if (!result.ok) {
+    redirectClientSheetResult(clientId, "error", result.error);
+  }
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: result.created ? "creó hoja Google del cliente" : "abrió hoja Google del cliente",
+    entityType: "cliente",
+    entityId: clientId,
+    entityName: clientId,
+  });
+
+  redirectClientSheetResult(
+    clientId,
+    "ok",
+    result.created
+      ? "Hoja de Google creada. El equipo puede editarla en el enlace."
+      : "Este cliente ya tenía una hoja vinculada.",
+  );
+}
+
+export async function linkClientGoogleSheet(formData: FormData) {
+  const { supabase, user } = await requireStaff();
+  const admin = createSupabaseAdminClient();
+
+  const rawId = formData.get("client_id");
+  const rawUrl = formData.get("spreadsheet_url");
+  if (typeof rawId !== "string" || !rawId.trim()) {
+    redirect("/dashboard/clients?error=Identificador%20invalido");
+  }
+  if (typeof rawUrl !== "string" || !rawUrl.trim()) {
+    redirectClientSheetResult(
+      rawId.trim(),
+      "error",
+      "Pega la URL o el ID de la hoja de Google.",
+    );
+  }
+
+  const clientId = rawId.trim();
+  const spreadsheetId = parseSpreadsheetIdFromUrl(rawUrl);
+  if (!spreadsheetId) {
+    redirectClientSheetResult(
+      clientId,
+      "error",
+      "URL de Google Sheets no válida.",
+    );
+  }
+
+  const result = await linkExistingClientSpreadsheet(
+    admin,
+    clientId,
+    spreadsheetId,
+  );
+  if (!result.ok) {
+    redirectClientSheetResult(clientId, "error", result.error);
+  }
+
+  await logActivity(supabase, {
+    userId: user.id,
+    userEmail: user.email ?? "",
+    action: "vinculó hoja Google del cliente",
+    entityType: "cliente",
+    entityId: clientId,
+    entityName: clientId,
+  });
+
+  redirectClientSheetResult(clientId, "ok", "Hoja vinculada correctamente.");
 }
 
 export async function deleteClient(formData: FormData) {

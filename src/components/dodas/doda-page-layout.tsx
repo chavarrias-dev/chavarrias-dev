@@ -48,7 +48,7 @@ function DodaPageLayoutContent({
           <DodaResultsTable items={queryResults} />
         ) : null}
 
-        <DodaConfirmedTable dodas={dodas} />
+        <DodaConfirmedTable dodas={dodas} clients={clients} />
 
         <DodaMonitoringErrorsTable dodas={dodas} />
       </div>
