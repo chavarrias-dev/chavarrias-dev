@@ -42,6 +42,8 @@ type ClientDocumentsSectionProps = {
   allowClientUpload?: boolean;
   sectionTitle?: string;
   prominent?: boolean;
+  embedded?: boolean;
+  hideSectionTitle?: boolean;
 };
 
 function formatShortDate(value: string | null): string {
@@ -68,6 +70,8 @@ export function ClientDocumentsSection({
   allowClientUpload = false,
   sectionTitle = "Documentos",
   prominent = false,
+  embedded = false,
+  hideSectionTitle = false,
 }: ClientDocumentsSectionProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,7 +192,7 @@ export function ClientDocumentsSection({
 
   return (
     <section
-      className={`mb-10 font-poppins ${prominent ? "scroll-mt-24" : ""}`}
+      className={`font-poppins ${embedded ? "" : "mb-10"} ${prominent ? "scroll-mt-24" : ""}`}
       id={prominent ? "mi-expediente" : undefined}
     >
       {prominent ? (
@@ -214,7 +218,7 @@ export function ClientDocumentsSection({
             )}
           </div>
         </div>
-      ) : (
+      ) : hideSectionTitle ? null : (
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-medium tracking-tight text-slate-900">
             {sectionTitle}

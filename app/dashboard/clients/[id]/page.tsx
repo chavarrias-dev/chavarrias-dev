@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { ArchiveFileLink } from "@/components/files/archive-file-link";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
-import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
-import { DeletePedimentoForm } from "@/components/pedimentos/delete-pedimento-form";
 import { ClientEstadoDeCuentaLink } from "@/components/clients/client-estado-de-cuenta-link";
 import { ClientGoogleSheetPanel } from "@/components/clients/client-google-sheet-panel";
+import { ClientProfileFacturasTable } from "@/components/clients/client-profile-facturas-table";
+import { ClientProfilePedimentosTable } from "@/components/clients/client-profile-pedimentos-table";
+import {
+  ClientProfileTabs,
+  type ClientProfileTabId,
+} from "@/components/clients/client-profile-tabs";
 import {
   ClientDocumentsSection,
   type ClientDocumentRowData,
@@ -18,8 +22,8 @@ import {
   calculateDocumentStatusFromRow,
   recalculateDocumentStatuses,
 } from "@/lib/document-status";
-import { formatPedimentoNumber } from "@/lib/pedimento-number";
 import { fetchClientByIdWithSpreadsheetFallback } from "@/lib/client-google-spreadsheet-db";
+import { formatShortDate } from "@/lib/format-short-date";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -76,26 +80,10 @@ function initialsFromName(fullName: string): string {
   ).toUpperCase();
 }
 
-function formatShortDate(value: string | null): string {
-  if (!value) return "—";
-  const d = value.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-    return new Date(`${d}T12:00:00`).toLocaleDateString("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  }
-  return new Date(value).toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 type PageProps = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{
+    tab?: string;
     google_sheet_ok?: string;
     google_sheet_error?: string;
   }>;
@@ -106,7 +94,7 @@ export default async function ClientProfilePage({
   searchParams,
 }: PageProps) {
   const { id } = await params;
-  const sheetParams = await searchParams;
+  const sp = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -140,15 +128,13 @@ export default async function ClientProfilePage({
     redirect("/dashboard");
   }
 
-  const {
-    data: clientRow,
-    error: clientLoadError,
-  } = await fetchClientByIdWithSpreadsheetFallback<ClientRecord>(
-    supabase,
-    id,
-    "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, google_spreadsheet_url, google_spreadsheet_created_at, created_at",
-    "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, created_at",
-  );
+  const { data: clientRow, error: clientLoadError } =
+    await fetchClientByIdWithSpreadsheetFallback<ClientRecord>(
+      supabase,
+      id,
+      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, google_spreadsheet_url, google_spreadsheet_created_at, created_at",
+      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, created_at",
+    );
 
   if (clientLoadError) {
     throw new Error(clientLoadError);
@@ -216,8 +202,6 @@ export default async function ClientProfilePage({
 
   const initials = initialsFromName(client.full_name);
 
-  const actionsColSpan = isStaff ? 5 : 4;
-
   const btnPrimary =
     "btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow";
   const btnOutline =
@@ -226,11 +210,30 @@ export default async function ClientProfilePage({
   const sectionShell =
     "overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm";
 
-  const sheetStatusMessage = sheetParams.google_sheet_ok
-    ? ({ kind: "ok" as const, text: sheetParams.google_sheet_ok })
-    : sheetParams.google_sheet_error
-      ? ({ kind: "error" as const, text: sheetParams.google_sheet_error })
+  const sheetStatusMessage = sp.google_sheet_ok
+    ? ({ kind: "ok" as const, text: sp.google_sheet_ok })
+    : sp.google_sheet_error
+      ? ({ kind: "error" as const, text: sp.google_sheet_error })
       : undefined;
+
+  let initialProfileTab: ClientProfileTabId = "documentos";
+  if (
+    sp.tab === "documentos" ||
+    sp.tab === "facturas" ||
+    sp.tab === "pedimentos" ||
+    sp.tab === "estado-cuenta"
+  ) {
+    initialProfileTab = sp.tab;
+  } else if (sp.google_sheet_ok || sp.google_sheet_error) {
+    initialProfileTab = "estado-cuenta";
+  }
+
+  const tabCounts = {
+    documentos: clientDocuments.filter((row) => row.archivoUrl).length,
+    facturas: facturas.length,
+    pedimentos: pedimentos.length,
+    hasEstadoCuenta: Boolean(client.google_spreadsheet_url),
+  };
 
   return (
     <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
@@ -250,7 +253,7 @@ export default async function ClientProfilePage({
           </h1>
           <p className="mt-1.5 text-sm text-slate-500">
             {isStaff
-              ? "Datos de contacto y documentos asociados."
+              ? "Datos de contacto, documentos, facturas y pedimentos."
               : "Consulta tus datos y gestiona tu expediente documental."}
           </p>
         </div>
@@ -275,37 +278,7 @@ export default async function ClientProfilePage({
         ) : null}
       </div>
 
-      {isStaff ? (
-        <ClientGoogleSheetPanel
-          clientId={id}
-          spreadsheetUrl={client.google_spreadsheet_url}
-          spreadsheetCreatedAt={client.google_spreadsheet_created_at}
-          googleApiEnabled={isGoogleSheetsProvisioningConfigured()}
-          statusMessage={sheetStatusMessage}
-        />
-      ) : null}
-
-      {!isStaff ? (
-        <ClientEstadoDeCuentaLink
-          spreadsheetUrl={client.google_spreadsheet_url}
-          previewTitle={`Estado de cuenta — ${client.full_name}`}
-        />
-      ) : null}
-
-      {!isStaff ? (
-        <ClientDocumentsSection
-          clientId={id}
-          isStaff={isStaff}
-          documents={clientDocuments}
-          allowClientUpload
-          sectionTitle="Mi Expediente"
-          prominent
-        />
-      ) : null}
-
-      <section
-        className={`${sectionShell} mb-10 p-6 sm:p-8`}
-      >
+      <section className={`${sectionShell} mb-8 p-6 sm:p-8`}>
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div
             className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#227DE8]/15 text-xl font-semibold tracking-tight text-[#227DE8] shadow-inner ring-2 ring-[#227DE8]/10"
@@ -402,196 +375,59 @@ export default async function ClientProfilePage({
         </div>
       </section>
 
-      {isStaff ? (
-        <ClientDocumentsSection
+      <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-slate-100" />}>
+        <ClientProfileTabs
           clientId={id}
-          isStaff={isStaff}
-          documents={clientDocuments}
+          initialTab={initialProfileTab}
+          counts={tabCounts}
+          panels={{
+            documentos: (
+              <ClientDocumentsSection
+                clientId={id}
+                isStaff={isStaff}
+                documents={clientDocuments}
+                allowClientUpload={!isStaff}
+                sectionTitle={isStaff ? "Documentos" : "Mi expediente"}
+                prominent={!isStaff}
+                embedded
+                hideSectionTitle={isStaff}
+              />
+            ),
+            facturas: (
+              <ClientProfileFacturasTable
+                clientId={id}
+                facturas={facturas}
+                isStaff={isStaff}
+                embedded
+              />
+            ),
+            pedimentos: (
+              <ClientProfilePedimentosTable
+                clientId={id}
+                pedimentos={pedimentos}
+                isStaff={isStaff}
+                embedded
+              />
+            ),
+            estadoCuenta: isStaff ? (
+              <ClientGoogleSheetPanel
+                clientId={id}
+                spreadsheetUrl={client.google_spreadsheet_url}
+                spreadsheetCreatedAt={client.google_spreadsheet_created_at}
+                googleApiEnabled={isGoogleSheetsProvisioningConfigured()}
+                statusMessage={sheetStatusMessage}
+                embedded
+              />
+            ) : (
+              <ClientEstadoDeCuentaLink
+                spreadsheetUrl={client.google_spreadsheet_url}
+                previewTitle={`Estado de cuenta — ${client.full_name}`}
+                embedded
+              />
+            ),
+          }}
         />
-      ) : null}
-
-      <section className="mb-10">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-medium tracking-tight text-slate-900">
-            Facturas
-          </h2>
-          {isStaff ? (
-            <Link
-              href={`/dashboard/facturas/new?cliente_id=${encodeURIComponent(id)}`}
-              className="text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
-            >
-              + Nueva factura
-            </Link>
-          ) : null}
-        </div>
-        <div className={sectionShell}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Número
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Fecha
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Monto
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
-                  {isStaff ? (
-                    <th className="px-4 py-3 font-medium text-slate-700"> </th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody>
-                {facturas.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={actionsColSpan}
-                      className="px-4 py-10 text-center text-sm text-slate-500"
-                    >
-                      Este cliente aún no tiene facturas registradas.
-                    </td>
-                  </tr>
-                ) : (
-                  facturas.map((f) => (
-                    <tr
-                      key={f.id}
-                      className="border-b border-slate-100 table-row-interactive last:border-0 hover:bg-slate-50/60"
-                    >
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {f.numero_factura}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatShortDate(f.fecha)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-800">
-                        {Number(f.monto).toLocaleString("es-MX", {
-                          style: "currency",
-                          currency: "MXN",
-                        })}
-                      </td>
-                      <td className="px-4 py-3">
-                        {f.archivo_url ? (
-                          <ArchiveFileLink href={f.archivo_url} />
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      {isStaff ? (
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link
-                              href={`/dashboard/facturas/${f.id}/edit`}
-                              className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                            >
-                              Editar
-                            </Link>
-                            <DeleteFacturaForm facturaId={f.id} />
-                          </div>
-                        </td>
-                      ) : null}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-medium tracking-tight text-slate-900">
-            Pedimentos
-          </h2>
-          {isStaff ? (
-            <Link
-              href={`/dashboard/pedimentos/new?cliente_id=${encodeURIComponent(id)}`}
-              className="text-sm font-medium text-[#227DE8] underline-offset-2 hover:underline"
-            >
-              + Nuevo pedimento
-            </Link>
-          ) : null}
-        </div>
-        <div className={sectionShell}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Número
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Apertura
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Cierre
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Aduana
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Archivo</th>
-                  {isStaff ? (
-                    <th className="px-4 py-3 font-medium text-slate-700"> </th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody>
-                {pedimentos.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={isStaff ? 6 : 5}
-                      className="px-4 py-10 text-center text-sm text-slate-500"
-                    >
-                      Este cliente aún no tiene pedimentos registrados.
-                    </td>
-                  </tr>
-                ) : (
-                  pedimentos.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b border-slate-100 table-row-interactive last:border-0 hover:bg-slate-50/60"
-                    >
-                      <td className="px-4 py-3 font-medium tracking-wide text-slate-900">
-                        {formatPedimentoNumber(p.numero_pedimento)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatShortDate(p.fecha)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatShortDate(p.fecha_cierre)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">{p.aduana}</td>
-                      <td className="px-4 py-3">
-                        {p.archivo_url ? (
-                          <ArchiveFileLink href={p.archivo_url} />
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      {isStaff ? (
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link
-                              href={`/dashboard/pedimentos/${p.id}/edit`}
-                              className="font-medium text-[#227DE8] underline-offset-2 hover:underline"
-                            >
-                              Editar
-                            </Link>
-                            <DeletePedimentoForm pedimentoId={p.id} />
-                          </div>
-                        </td>
-                      ) : null}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      </Suspense>
     </main>
   );
 }

@@ -15,6 +15,7 @@ type ClientGoogleSheetPanelProps = {
   spreadsheetCreatedAt: string | null;
   googleApiEnabled: boolean;
   statusMessage?: { kind: "ok" | "error"; text: string };
+  embedded?: boolean;
 };
 
 const inputClass =
@@ -70,6 +71,7 @@ export function ClientGoogleSheetPanel({
   spreadsheetCreatedAt,
   googleApiEnabled,
   statusMessage,
+  embedded = false,
 }: ClientGoogleSheetPanelProps) {
   const [changingLink, setChangingLink] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -88,7 +90,9 @@ export function ClientGoogleSheetPanel({
   const linked = Boolean(spreadsheetUrl);
 
   return (
-    <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+    <section
+      className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 ${embedded ? "" : "mb-10"}`}
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">

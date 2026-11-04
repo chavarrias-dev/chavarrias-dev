@@ -8,18 +8,22 @@ import { spreadsheetIdFromStoredUrl } from "@/lib/google-sheets/spreadsheet-url"
 type ClientEstadoDeCuentaLinkProps = {
   spreadsheetUrl: string | null;
   previewTitle?: string;
+  embedded?: boolean;
 };
 
 export function ClientEstadoDeCuentaLink({
   spreadsheetUrl,
   previewTitle,
+  embedded = false,
 }: ClientEstadoDeCuentaLinkProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const sheetId = spreadsheetIdFromStoredUrl(spreadsheetUrl);
 
   if (!spreadsheetUrl) {
     return (
-      <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+      <section
+        className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 ${embedded ? "" : "mb-10"}`}
+      >
         <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
           <Sheet className="size-5 text-slate-400" aria-hidden />
           Estado de cuenta
@@ -36,7 +40,9 @@ export function ClientEstadoDeCuentaLink({
 
   return (
     <>
-      <section className="font-poppins mb-10 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
+      <section
+        className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 ${embedded ? "" : "mb-10"}`}
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
