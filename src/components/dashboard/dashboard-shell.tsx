@@ -18,7 +18,6 @@ import {
   QrCode,
   Settings,
   Sheet,
-  UserPlus,
   Users,
   Wrench,
   X,
@@ -203,13 +202,6 @@ export function DashboardShell({
     { href: "/dashboard", label: "Dashboard", icon: Home, show: true },
     { href: "/dashboard/clients", label: "Clientes", icon: Users, show: isStaff, tourId: "nav-clients" },
     {
-      href: "/dashboard/users",
-      label: "Usuarios",
-      icon: UserPlus,
-      show: isStaff,
-      tourId: "nav-users",
-    },
-    {
       href: "/dashboard/facturas",
       label: "Facturas",
       icon: FileText,
@@ -339,6 +331,7 @@ export function DashboardShell({
             label: "Configuración",
             icon: Settings,
             show: true,
+            tourId: "nav-settings",
           }}
           collapsed={collapsed && !mobileOpen}
           pathname={pathname}

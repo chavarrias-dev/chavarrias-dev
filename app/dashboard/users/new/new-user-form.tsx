@@ -395,7 +395,7 @@ export function NewUserForm({ errorMessage }: NewUserFormProps) {
 
         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
           <Link
-            href="/dashboard/users"
+            href="/dashboard/settings?tab=usuarios"
             className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all duration-200 hover:bg-slate-50"
           >
             Cancelar

@@ -97,7 +97,6 @@ export default async function EstadosDeCuentaPage() {
 
       <ClientEstadoDeCuentaLink
         spreadsheetUrl={sheetUrl}
-        showInlinePreview={Boolean(sheetUrl)}
         previewTitle={`Estado de cuenta — ${client?.full_name ?? "Cliente"}`}
       />
     </main>

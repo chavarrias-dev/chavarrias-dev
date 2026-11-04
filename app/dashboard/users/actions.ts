@@ -228,7 +228,7 @@ export async function createUser(formData: FormData) {
       entityName: fullName.trim(),
     });
 
-    redirect("/dashboard/users");
+    redirect("/dashboard/settings?tab=usuarios");
   }
 
   await logActivity(actorSupabase, {
@@ -240,7 +240,7 @@ export async function createUser(formData: FormData) {
     entityName: fullName.trim(),
   });
 
-  redirect("/dashboard/users");
+  redirect("/dashboard/settings?tab=usuarios");
 }
 
 export async function updateUser(formData: FormData) {
@@ -248,7 +248,7 @@ export async function updateUser(formData: FormData) {
 
   const userId = formData.get("user_id");
   if (typeof userId !== "string" || !userId.trim()) {
-    redirect("/dashboard/users?error=Identificador%20invalido");
+    redirect("/dashboard/settings?tab=usuarios&error=Identificador%20invalido");
   }
   const id = userId.trim();
 
@@ -309,7 +309,7 @@ export async function updateUser(formData: FormData) {
     }>();
 
   if (loadErr || !existing) {
-    redirect("/dashboard/users?error=Usuario%20no%20encontrado");
+    redirect("/dashboard/settings?tab=usuarios&error=Usuario%20no%20encontrado");
   }
 
   const oldEmail = existing.email.trim().toLowerCase();
@@ -407,7 +407,7 @@ export async function updateUser(formData: FormData) {
     await admin.from("clients").delete().eq("email", oldEmail);
   }
 
-  redirect("/dashboard/users");
+  redirect("/dashboard/settings?tab=usuarios");
 }
 
 export async function deleteUser(formData: FormData) {
@@ -421,7 +421,7 @@ export async function deleteUser(formData: FormData) {
   const actorRole = await getUserRole(supabase, user.id);
   if (actorRole !== "admin") {
     redirect(
-      `/dashboard/users?error=${encodeURIComponent(
+      `/dashboard/settings?tab=usuarios&error=${encodeURIComponent(
         "Solo los administradores pueden eliminar usuarios.",
       )}`,
     );
@@ -429,13 +429,13 @@ export async function deleteUser(formData: FormData) {
 
   const raw = formData.get("user_id");
   if (typeof raw !== "string" || !raw.trim()) {
-    redirect("/dashboard/users?error=Identificador%20invalido");
+    redirect("/dashboard/settings?tab=usuarios&error=Identificador%20invalido");
   }
   const targetId = raw.trim();
 
   if (targetId === user.id) {
     redirect(
-      "/dashboard/users?error=No%20puedes%20eliminar%20tu%20propia%20cuenta",
+      "/dashboard/settings?tab=usuarios&error=No%20puedes%20eliminar%20tu%20propia%20cuenta",
     );
   }
 
@@ -453,7 +453,7 @@ export async function deleteUser(formData: FormData) {
 
   if (profileLoadErr || !profile) {
     redirect(
-      `/dashboard/users?error=${encodeURIComponent(profileLoadErr?.message ?? "Usuario no encontrado")}`,
+      `/dashboard/settings?tab=usuarios&error=${encodeURIComponent(profileLoadErr?.message ?? "Usuario no encontrado")}`,
     );
   }
 
@@ -466,7 +466,7 @@ export async function deleteUser(formData: FormData) {
       .eq("email", emailNorm);
     if (clientErr) {
       redirect(
-        `/dashboard/users?error=${encodeURIComponent(clientErr.message)}`,
+        `/dashboard/settings?tab=usuarios&error=${encodeURIComponent(clientErr.message)}`,
       );
     }
   }
@@ -474,7 +474,7 @@ export async function deleteUser(formData: FormData) {
   const removed = await deleteProfileCompletely(admin, targetId);
   if (!removed.ok) {
     redirect(
-      `/dashboard/users?error=${encodeURIComponent(removed.error)}`,
+      `/dashboard/settings?tab=usuarios&error=${encodeURIComponent(removed.error)}`,
     );
   }
 
@@ -490,5 +490,5 @@ export async function deleteUser(formData: FormData) {
     entityName: entityDisplay,
   });
 
-  redirect("/dashboard/users");
+  redirect("/dashboard/settings?tab=usuarios");
 }

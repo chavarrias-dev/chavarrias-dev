@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Sheet } from "lucide-react";
+import { ExternalLink, Eye, Sheet } from "lucide-react";
+import { GoogleSheetPreviewModal } from "@/components/clients/google-sheet-preview-modal";
+import { spreadsheetIdFromStoredUrl } from "@/lib/google-sheets/spreadsheet-url";
 import {
   linkClientSpreadsheet,
   unlinkClientSpreadsheet,
@@ -70,6 +72,8 @@ export function ClientGoogleSheetPanel({
   statusMessage,
 }: ClientGoogleSheetPanelProps) {
   const [changingLink, setChangingLink] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const sheetId = spreadsheetIdFromStoredUrl(spreadsheetUrl);
 
   const createdLabel =
     spreadsheetCreatedAt &&
@@ -100,15 +104,27 @@ export function ClientGoogleSheetPanel({
           </p>
         </div>
         {linked && !changingLink ? (
-          <a
-            href={spreadsheetUrl!}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
-          >
-            Abrir hoja
-            <ExternalLink className="size-4" aria-hidden />
-          </a>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {sheetId ? (
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/10"
+              >
+                <Eye className="size-4" aria-hidden />
+                Vista previa
+              </button>
+            ) : null}
+            <a
+              href={spreadsheetUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
+            >
+              Abrir hoja
+              <ExternalLink className="size-4" aria-hidden />
+            </a>
+          </div>
         ) : null}
       </div>
 
@@ -178,6 +194,15 @@ export function ClientGoogleSheetPanel({
           />
         </div>
       )}
+      {sheetId && spreadsheetUrl ? (
+        <GoogleSheetPreviewModal
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          spreadsheetId={sheetId}
+          openUrl={spreadsheetUrl}
+          title="Estado de cuenta"
+        />
+      ) : null}
     </section>
   );
 }

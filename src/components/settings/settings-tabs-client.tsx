@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Bell, Mail, Palette, Shield, User } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Bell, Mail, Palette, Shield, User, Users } from "lucide-react";
+import {
+  SettingsUsersSection,
+  type SettingsUserRow,
+} from "@/components/settings/settings-users-section";
 import { AppearanceSection } from "@/components/settings/appearance-section";
 import { FacturaEmailTemplateSection } from "@/components/settings/factura-email-template-section";
 import { DodaWhatsappNotificationsSection } from "@/components/settings/doda-whatsapp-notifications-section";
@@ -15,16 +19,22 @@ type SettingsTabId =
   | "seguridad"
   | "notificaciones"
   | "apariencia"
-  | "correo-facturas";
+  | "correo-facturas"
+  | "usuarios";
 
 type SettingsTabsClientProps = {
   isAdmin: boolean;
+  isStaff: boolean;
   initialFullName: string;
   initialEmail: string;
   initialAvatarUrl: string | null;
   initialNotifDodaAlert: boolean;
   initialNotifDocsAlert: boolean;
   initialNotifMessagesAlert: boolean;
+  usersRows?: SettingsUserRow[];
+  usersCanDelete?: boolean;
+  usersListError?: string;
+  usersLoadError?: string;
 };
 
 function parseTab(value: string | null): SettingsTabId | null {
@@ -33,7 +43,8 @@ function parseTab(value: string | null): SettingsTabId | null {
     value === "seguridad" ||
     value === "notificaciones" ||
     value === "apariencia" ||
-    value === "correo-facturas"
+    value === "correo-facturas" ||
+    value === "usuarios"
   ) {
     return value;
   }
@@ -41,8 +52,23 @@ function parseTab(value: string | null): SettingsTabId | null {
 }
 
 export function SettingsTabsClient(props: SettingsTabsClientProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTabId>("perfil");
+
+  function selectTab(tabId: SettingsTabId) {
+    setActiveTab(tabId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (tabId === "perfil") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tabId);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/dashboard/settings?${qs}` : "/dashboard/settings", {
+      scroll: false,
+    });
+  }
 
   useEffect(() => {
     const fromQuery = parseTab(searchParams.get("tab"));
@@ -74,6 +100,9 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
     { id: "perfil", label: "Mi Perfil", icon: User },
     { id: "seguridad", label: "Seguridad", icon: Shield },
     { id: "notificaciones", label: "Notificaciones", icon: Bell },
+    ...(props.isStaff
+      ? [{ id: "usuarios" as const, label: "Usuarios", icon: Users }]
+      : []),
     ...(props.isAdmin
       ? [
           {
@@ -96,7 +125,8 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              data-tour={tab.id === "usuarios" ? "nav-users" : undefined}
+              onClick={() => selectTab(tab.id)}
               className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-200 ${
                 active
                   ? "border-[#227DE8] text-[#227DE8]"
@@ -110,7 +140,9 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
         })}
       </div>
 
-      <div className="max-w-2xl min-w-0 space-y-6">
+      <div
+        className={`min-w-0 space-y-6 ${activeTab === "usuarios" ? "max-w-none" : "max-w-2xl"}`}
+      >
         {activeTab === "perfil" ? (
           <ProfileSection
             initialFullName={props.initialFullName}
@@ -133,6 +165,14 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
           <FacturaEmailTemplateSection />
         ) : null}
         {activeTab === "apariencia" && props.isAdmin ? <AppearanceSection /> : null}
+        {activeTab === "usuarios" && props.isStaff ? (
+          <SettingsUsersSection
+            rows={props.usersRows ?? []}
+            canDeleteUsers={props.usersCanDelete ?? false}
+            listError={props.usersListError}
+            loadError={props.usersLoadError}
+          />
+        ) : null}
       </div>
     </div>
   );

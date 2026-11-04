@@ -115,11 +115,11 @@ function buildAdminTourSteps(): DriveStep[] {
       },
     },
     {
-      element: '[data-tour="nav-users"]',
+      element: '[data-tour="nav-settings"]',
       popover: {
-        title: "Usuarios",
+        title: "Configuración y usuarios",
         description:
-          "Crea y administra usuarios: admins, empleados y clientes.",
+          "Desde Configuración gestionas tu perfil y, en la pestaña Usuarios, creas cuentas y cambias roles.",
         side: "right",
         align: "start",
       },
