@@ -16,7 +16,8 @@ export function ClientEstadoDeCuentaLink({
             Estado de cuenta
           </h2>
           <p className="mt-1.5 text-sm text-slate-500">
-            Consulta tu estado de cuenta en Google Sheets (solo lectura).
+            Tu estado de cuenta es siempre el mismo archivo, actualizado por
+            Chavarrias. Aquí solo puedes consultarlo (no editarlo).
           </p>
         </div>
         <a

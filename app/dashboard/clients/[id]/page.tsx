@@ -19,6 +19,7 @@ import {
   recalculateDocumentStatuses,
 } from "@/lib/document-status";
 import { formatPedimentoNumber } from "@/lib/pedimento-number";
+import { fetchClientByIdWithSpreadsheetFallback } from "@/lib/client-google-spreadsheet-db";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -139,15 +140,20 @@ export default async function ClientProfilePage({
     redirect("/dashboard");
   }
 
-  const { data: clientRow, error: clientErr } = await supabase
-    .from("clients")
-    .select(
-      "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, google_spreadsheet_url, google_spreadsheet_created_at, created_at",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const {
+    data: clientRow,
+    error: clientLoadError,
+  } = await fetchClientByIdWithSpreadsheetFallback<ClientRecord>(
+    supabase,
+    id,
+    "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, google_spreadsheet_url, google_spreadsheet_created_at, created_at",
+    "id, full_name, email, phone, company_name, tipo_razon_social, puesto, rfc, constancia_url, created_at",
+  );
 
-  if (clientErr || !clientRow) {
+  if (clientLoadError) {
+    throw new Error(clientLoadError);
+  }
+  if (!clientRow) {
     notFound();
   }
 

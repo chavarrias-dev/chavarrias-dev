@@ -52,6 +52,18 @@ async function loadStaffEditorEmails(
   return [...emails];
 }
 
+async function ensureSpreadsheetTeamAccess(
+  admin: SupabaseClient,
+  drive: ReturnType<typeof createGoogleDriveClient>,
+  spreadsheetId: string,
+  clientEmail: string,
+): Promise<void> {
+  if (!drive) return;
+  const staffEmails = await loadStaffEditorEmails(admin);
+  await grantSpreadsheetAccess(drive, spreadsheetId, staffEmails);
+  await grantClientReaderAccess(drive, spreadsheetId, clientEmail);
+}
+
 async function grantSpreadsheetAccess(
   drive: ReturnType<typeof createGoogleDriveClient>,
   spreadsheetId: string,
@@ -131,7 +143,8 @@ export async function provisionClientSpreadsheet(
   if (client.google_spreadsheet_id && client.google_spreadsheet_url) {
     const driveExisting = createGoogleDriveClient();
     if (driveExisting) {
-      await grantClientReaderAccess(
+      await ensureSpreadsheetTeamAccess(
+        admin,
         driveExisting,
         client.google_spreadsheet_id,
         client.email,
@@ -173,9 +186,12 @@ export async function provisionClientSpreadsheet(
     };
   }
 
-  const staffEmails = await loadStaffEditorEmails(admin);
-  await grantSpreadsheetAccess(drive, spreadsheetId, staffEmails);
-  await grantClientReaderAccess(drive, spreadsheetId, client.email);
+  await ensureSpreadsheetTeamAccess(
+    admin,
+    drive,
+    spreadsheetId,
+    client.email,
+  );
 
   const spreadsheetUrl = spreadsheetUrlFromId(spreadsheetId);
   const createdAt = new Date().toISOString();
@@ -222,9 +238,14 @@ export async function linkExistingClientSpreadsheet(
 ): Promise<ProvisionClientSpreadsheetResult> {
   const { data: client, error: clientErr } = await admin
     .from("clients")
-    .select("id, email")
+    .select("id, email, google_spreadsheet_id, google_spreadsheet_url")
     .eq("id", clientId)
-    .maybeSingle<{ id: string; email: string }>();
+    .maybeSingle<{
+      id: string;
+      email: string;
+      google_spreadsheet_id: string | null;
+      google_spreadsheet_url: string | null;
+    }>();
 
   if (clientErr || !client) {
     return {
@@ -234,9 +255,47 @@ export async function linkExistingClientSpreadsheet(
     };
   }
 
+  if (
+    client.google_spreadsheet_id &&
+    client.google_spreadsheet_id !== spreadsheetId
+  ) {
+    return {
+      ok: false,
+      code: "api",
+      error:
+        "Este cliente ya tiene su archivo de estado de cuenta. Sigue editando el enlace actual en Google Sheets; no se sustituye desde el CRM.",
+    };
+  }
+
+  if (
+    client.google_spreadsheet_id === spreadsheetId &&
+    client.google_spreadsheet_url
+  ) {
+    const drive = createGoogleDriveClient();
+    if (drive) {
+      await ensureSpreadsheetTeamAccess(
+        admin,
+        drive,
+        spreadsheetId,
+        client.email,
+      );
+    }
+    return {
+      ok: true,
+      spreadsheetId,
+      spreadsheetUrl: client.google_spreadsheet_url,
+      created: false,
+    };
+  }
+
   const drive = createGoogleDriveClient();
   if (drive) {
-    await grantClientReaderAccess(drive, spreadsheetId, client.email);
+    await ensureSpreadsheetTeamAccess(
+      admin,
+      drive,
+      spreadsheetId,
+      client.email,
+    );
   }
 
   const spreadsheetUrl = spreadsheetUrlFromId(spreadsheetId);

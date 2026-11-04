@@ -138,8 +138,8 @@ export async function createClientGoogleSheet(formData: FormData) {
     clientId,
     "ok",
     result.created
-      ? "Hoja de Google creada. El equipo puede editarla en el enlace."
-      : "Este cliente ya tenía una hoja vinculada.",
+      ? "Archivo de estado de cuenta creado. Es el mismo enlace permanente para este cliente."
+      : "Este cliente ya tiene su archivo. Ábrelo y sigue editándolo en Google Sheets.",
   );
 }
 

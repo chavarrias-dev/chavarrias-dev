@@ -52,7 +52,7 @@ export function FacturasClientEstadoDeCuentaLink({
         </p>
       ) : spreadsheetUrl ? (
         <p className="text-center text-xs text-slate-500 sm:text-right">
-          Archivo en Google Sheets (un estado de cuenta por cliente).
+          Mismo archivo permanente del cliente (solo lectura para el cliente).
         </p>
       ) : isStaff ? (
         <p className="text-center text-xs text-slate-500 sm:text-right">

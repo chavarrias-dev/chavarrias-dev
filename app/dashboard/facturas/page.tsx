@@ -4,6 +4,7 @@ import { MxDateInput } from "@/components/forms/mx-date-input";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
 import { FacturasClientEstadoDeCuentaLink } from "@/components/facturas/facturas-client-estado-de-cuenta-link";
+import { fetchClientByIdWithSpreadsheetFallback } from "@/lib/client-google-spreadsheet-db";
 import { normalizeFormDateToIso } from "@/lib/mx-date";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -192,21 +193,21 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   } | null = null;
 
   if (clienteFilterScoped) {
-    const { data: clientDetail } = await supabase
-      .from("clients")
-      .select("id, full_name, google_spreadsheet_url")
-      .eq("id", clienteFilterScoped)
-      .maybeSingle();
-    if (clientDetail) {
-      const c = clientDetail as {
+    const { data: clientDetail } =
+      await fetchClientByIdWithSpreadsheetFallback<{
         id: string;
         full_name: string;
-        google_spreadsheet_url: string | null;
-      };
+      }>(
+        supabase,
+        clienteFilterScoped,
+        "id, full_name, google_spreadsheet_url",
+        "id, full_name",
+      );
+    if (clientDetail) {
       estadoDeCuentaClient = {
-        id: c.id,
-        fullName: c.full_name,
-        spreadsheetUrl: c.google_spreadsheet_url,
+        id: clientDetail.id,
+        fullName: clientDetail.full_name,
+        spreadsheetUrl: clientDetail.google_spreadsheet_url,
       };
     }
   }

@@ -38,8 +38,9 @@ export function ClientGoogleSheetPanel({
             Estado de cuenta (Google Sheets)
           </h2>
           <p className="mt-1.5 max-w-2xl text-sm text-slate-500">
-            Un archivo por cliente. El equipo edita; el cliente lo consulta en
-            solo lectura. Desde DODA puedes agregar movimientos del mes.
+            Cada cliente tiene un solo archivo de por vida: Chavarrias lo
+            actualiza; el cliente solo puede verlo.
+            Desde DODA puedes agregar movimientos del mes a ese mismo archivo.
           </p>
         </div>
         {spreadsheetUrl ? (
@@ -82,8 +83,11 @@ export function ClientGoogleSheetPanel({
             </a>
           </p>
           {createdLabel ? (
-            <p className="text-xs text-slate-500">Vinculada: {createdLabel}</p>
+            <p className="text-xs text-slate-500">Activo desde: {createdLabel}</p>
           ) : null}
+          <p className="text-xs text-slate-500">
+            No se genera un archivo nuevo en cada operación: siempre es este enlace.
+          </p>
         </div>
       ) : (
         <div className="mt-6 space-y-6">
@@ -102,7 +106,7 @@ export function ClientGoogleSheetPanel({
                 Crear estado de cuenta
               </button>
               <span className="text-xs text-slate-500">
-                Copia la plantilla y da acceso de edición al equipo.
+                Solo se crea una vez; después solo se edita el mismo archivo.
               </span>
             </form>
           )}
