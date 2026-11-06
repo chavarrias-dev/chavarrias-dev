@@ -23,6 +23,7 @@ import {
   WhatsAppPhoneInput,
   whatsAppPhoneFieldClass,
 } from "@/components/dodas/whatsapp-phone-input";
+import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destination-dialog";
 import type { DodaRecord } from "@/lib/doda-types";
 import { combineMexicoWhatsAppLocalNumber } from "@/lib/whatsapp-phone-input";
 
@@ -39,7 +40,7 @@ type BatchNotifyPayload = {
 function buildBatchNotifyPayload(
   mode: NotifyMode,
   phoneLocal: string,
-  groupId: string,
+  registeredGroupRowId: string,
 ): BatchNotifyPayload {
   if (mode === "individual") {
     const combined = combineMexicoWhatsAppLocalNumber(phoneLocal);
@@ -53,7 +54,7 @@ function buildBatchNotifyPayload(
     return {
       notify_type: "group",
       notify_whatsapp_number: null,
-      notify_whatsapp_group_id: groupId.trim() || null,
+      notify_whatsapp_group_id: registeredGroupRowId.trim() || null,
     };
   }
   return {
@@ -66,6 +67,7 @@ function buildBatchNotifyPayload(
 type DodaScheduleSectionProps = {
   clients: ClientOption[];
   isAdmin: boolean;
+  whatsappGroups: WhatsappGroupOption[];
 };
 
 type UploadPhase = "idle" | "submitting" | "done" | "error";
@@ -89,6 +91,7 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 export function DodaScheduleSection({
   clients,
   isAdmin,
+  whatsappGroups,
 }: DodaScheduleSectionProps) {
   const router = useRouter();
   const { refreshDashboard, setQueryResults, appendQueryResult, clearQueryResults } =
@@ -109,7 +112,7 @@ export function DodaScheduleSection({
   );
   const [notifyMode, setNotifyMode] = useState<NotifyMode>(null);
   const [notifyPhoneLocal, setNotifyPhoneLocal] = useState("");
-  const [notifyGroupId, setNotifyGroupId] = useState("");
+  const [notifyRegisteredGroupId, setNotifyRegisteredGroupId] = useState("");
 
   const isSubmitting = phase === "submitting";
 
@@ -242,7 +245,7 @@ export function DodaScheduleSection({
     const batchNotify = buildBatchNotifyPayload(
       notifyMode,
       notifyPhoneLocal,
-      notifyGroupId,
+      notifyRegisteredGroupId,
     );
 
     setPhase("submitting");
@@ -420,7 +423,8 @@ export function DodaScheduleSection({
                 isAdmin={isAdmin}
                 defaultNotifyMode={notifyMode}
                 defaultPhoneLocal={notifyPhoneLocal}
-                defaultGroupId={notifyGroupId}
+                defaultRegisteredGroupId={notifyRegisteredGroupId}
+                whatsappGroups={whatsappGroups}
               />
             </div>
             <div className="mt-2 space-y-2">
@@ -472,17 +476,30 @@ export function DodaScheduleSection({
                   htmlFor="schedule_notify_group"
                   className="mb-1.5 block text-xs font-medium text-slate-600"
                 >
-                  ID del grupo
+                  Grupo registrado
                 </label>
-                <input
+                <select
                   id="schedule_notify_group"
-                  type="text"
-                  value={notifyGroupId}
-                  onChange={(event) => setNotifyGroupId(event.target.value)}
+                  value={notifyRegisteredGroupId}
+                  onChange={(event) =>
+                    setNotifyRegisteredGroupId(event.target.value)
+                  }
                   className={fieldClass}
-                  placeholder="120363XXXXXXXXXX"
                   disabled={isSubmitting}
-                />
+                >
+                  <option value="">Selecciona un grupo…</option>
+                  {whatsappGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.group_id})
+                    </option>
+                  ))}
+                </select>
+                {whatsappGroups.length === 0 ? (
+                  <p className="mt-1.5 text-xs text-amber-800">
+                    No hay grupos en el catálogo. Un administrador puede
+                    registrarlos en Configuración → Grupos WhatsApp.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </fieldset>

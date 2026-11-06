@@ -5,18 +5,28 @@ import { ChevronDown, Search } from "lucide-react";
 import type { ClientOption } from "@/components/clients/types";
 import { DodaLookupUploader } from "@/components/dodas/doda-lookup-uploader";
 import { DodaScheduleSection } from "@/components/dodas/doda-schedule-section";
+import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destination-dialog";
 
 type DodaToolsSectionProps = {
   clients: ClientOption[];
   isAdmin: boolean;
+  whatsappGroups: WhatsappGroupOption[];
 };
 
-export function DodaToolsSection({ clients, isAdmin }: DodaToolsSectionProps) {
+export function DodaToolsSection({
+  clients,
+  isAdmin,
+  whatsappGroups,
+}: DodaToolsSectionProps) {
   const [consultOpen, setConsultOpen] = useState(false);
 
   return (
     <>
-      <DodaScheduleSection clients={clients} isAdmin={isAdmin} />
+      <DodaScheduleSection
+        clients={clients}
+        isAdmin={isAdmin}
+        whatsappGroups={whatsappGroups}
+      />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <button

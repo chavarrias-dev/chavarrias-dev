@@ -7,6 +7,11 @@ import {
   normalizeCombinedWhatsAppNumber,
 } from "@/lib/whatsapp-phone-input";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  isWhatsappGroupIdRegistered,
+  normalizeWhatsappGroupIdForStorage,
+  resolveRegisteredGroupIdString,
+} from "@/lib/whatsapp-groups";
 
 export type DodaNotificationConfigType = "individual" | "group";
 
@@ -85,11 +90,14 @@ const EMPTY_BATCH_NOTIFY: DodaBatchNotifyFields = {
 };
 
 /** Parses optional batch notification from schedule form / API. */
-export function parseDodaBatchNotifySettings(input: {
-  notify_type?: string | null;
-  notify_whatsapp_number?: string | null;
-  notify_whatsapp_group_id?: string | null;
-}): DodaBatchNotifyFields {
+export async function parseDodaBatchNotifySettings(
+  supabase: SupabaseClient,
+  input: {
+    notify_type?: string | null;
+    notify_whatsapp_number?: string | null;
+    notify_whatsapp_group_id?: string | null;
+  },
+): Promise<DodaBatchNotifyFields> {
   const type = input.notify_type?.trim();
   if (type !== "individual" && type !== "group") {
     return EMPTY_BATCH_NOTIFY;
@@ -109,14 +117,46 @@ export function parseDodaBatchNotifySettings(input: {
   }
 
   const groupRaw = input.notify_whatsapp_group_id?.trim() ?? "";
-  if (!groupRaw || !normalizeWhatsAppGroupRecipient(groupRaw)) {
+  if (!groupRaw) {
     return EMPTY_BATCH_NOTIFY;
+  }
+
+  const uuidLike =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (uuidLike.test(groupRaw)) {
+    const storedFromCatalog = await resolveRegisteredGroupIdString(
+      supabase,
+      groupRaw,
+    );
+    if (!storedFromCatalog) {
+      throw new Error(
+        "El grupo seleccionado no existe. Actualiza la lista o elige otro grupo registrado.",
+      );
+    }
+    return {
+      notify_type: "group",
+      notify_whatsapp_number: null,
+      notify_whatsapp_group_id: storedFromCatalog,
+    };
+  }
+
+  const candidate = normalizeWhatsAppGroupRecipient(groupRaw);
+  if (!candidate) {
+    throw new Error("ID de grupo de WhatsApp inválido.");
+  }
+
+  const stored = normalizeWhatsappGroupIdForStorage(candidate);
+  const registered = await isWhatsappGroupIdRegistered(supabase, stored);
+  if (!registered) {
+    throw new Error(
+      "El grupo no está registrado. Agrégalo en Configuración → Grupos de WhatsApp.",
+    );
   }
 
   return {
     notify_type: "group",
     notify_whatsapp_number: null,
-    notify_whatsapp_group_id: groupRaw.replace(/@g\.us$/i, "").trim(),
+    notify_whatsapp_group_id: stored,
   };
 }
 

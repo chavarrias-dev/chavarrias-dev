@@ -192,6 +192,13 @@ export const dodaNotificationConfig = pgTable("doda_notification_config", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const whatsappGroups = pgTable("whatsapp_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  groupId: text("group_id").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const facturaEmailSettings = pgTable("factura_email_settings", {
   id: text("id").primaryKey().default("default"),
   bodyTemplate: text("body_template").notNull(),

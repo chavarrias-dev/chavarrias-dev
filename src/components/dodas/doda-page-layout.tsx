@@ -14,21 +14,25 @@ import {
 import { DodaResultsTable } from "@/components/dodas/doda-results-table";
 import { DodaToolsSection } from "@/components/dodas/doda-tools-section";
 import type { DodaDashboardRow } from "@/lib/doda-dashboard-categories";
+import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destination-dialog";
 
 type DodaPageLayoutProps = {
   clients: ClientOption[];
   dodas: DodaDashboardRow[];
   isAdmin: boolean;
+  whatsappGroups: WhatsappGroupOption[];
   googleSheetsApiEnabled: boolean;
 };
 
 function DodaPageLayoutContent({
   clients,
   isAdmin,
+  whatsappGroups,
   googleSheetsApiEnabled,
 }: {
   clients: ClientOption[];
   isAdmin: boolean;
+  whatsappGroups: WhatsappGroupOption[];
   googleSheetsApiEnabled: boolean;
 }) {
   const { dodas, queryResults } = useDodaDashboard();
@@ -37,12 +41,16 @@ function DodaPageLayoutContent({
     <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 lg:items-start">
         <div className="space-y-4 sm:space-y-6">
-          <DodaToolsSection clients={clients} isAdmin={isAdmin} />
+          <DodaToolsSection
+            clients={clients}
+            isAdmin={isAdmin}
+            whatsappGroups={whatsappGroups}
+          />
           <DodaLatestResultsSection dodas={dodas} />
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          <DodaMonitoringTable dodas={dodas} />
+          <DodaMonitoringTable dodas={dodas} whatsappGroups={whatsappGroups} />
         </div>
       </div>
 
@@ -57,7 +65,7 @@ function DodaPageLayoutContent({
           showAppendToEstadoDeCuenta={googleSheetsApiEnabled}
         />
 
-        <DodaMonitoringErrorsTable dodas={dodas} />
+        <DodaMonitoringErrorsTable dodas={dodas} whatsappGroups={whatsappGroups} />
       </div>
     </div>
   );
@@ -67,6 +75,7 @@ export function DodaPageLayout({
   clients,
   dodas,
   isAdmin,
+  whatsappGroups,
   googleSheetsApiEnabled,
 }: DodaPageLayoutProps) {
   return (
@@ -74,6 +83,7 @@ export function DodaPageLayout({
       <DodaPageLayoutContent
         clients={clients}
         isAdmin={isAdmin}
+        whatsappGroups={whatsappGroups}
         googleSheetsApiEnabled={googleSheetsApiEnabled}
       />
     </DodaDashboardProvider>

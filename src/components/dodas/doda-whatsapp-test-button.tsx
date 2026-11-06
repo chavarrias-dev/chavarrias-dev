@@ -5,6 +5,7 @@ import { Loader2, MessageCircle, X } from "lucide-react";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
 import { WhatsAppPhoneInput } from "@/components/dodas/whatsapp-phone-input";
 import { combineMexicoWhatsAppLocalNumber } from "@/lib/whatsapp-phone-input";
+import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destination-dialog";
 
 type NotifyMode = "individual" | "group";
 
@@ -12,7 +13,9 @@ type DodaWhatsappTestButtonProps = {
   isAdmin: boolean;
   defaultNotifyMode?: NotifyMode | null;
   defaultPhoneLocal?: string;
-  defaultGroupId?: string;
+  /** Row id from `whatsapp_groups` when mode is group */
+  defaultRegisteredGroupId?: string;
+  whatsappGroups: WhatsappGroupOption[];
 };
 
 const fieldClass =
@@ -22,7 +25,8 @@ export function DodaWhatsappTestButton({
   isAdmin,
   defaultNotifyMode = null,
   defaultPhoneLocal = "",
-  defaultGroupId = "",
+  defaultRegisteredGroupId = "",
+  whatsappGroups,
 }: DodaWhatsappTestButtonProps) {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -30,7 +34,9 @@ export function DodaWhatsappTestButton({
     defaultNotifyMode === "group" ? "group" : "individual",
   );
   const [phoneLocal, setPhoneLocal] = useState(defaultPhoneLocal);
-  const [groupId, setGroupId] = useState(defaultGroupId);
+  const [registeredGroupId, setRegisteredGroupId] = useState(
+    defaultRegisteredGroupId,
+  );
   const [toast, setToast] = useState<{
     key: number;
     tone: DodaToastTone;
@@ -43,8 +49,8 @@ export function DodaWhatsappTestButton({
     }
     setMode(defaultNotifyMode === "group" ? "group" : "individual");
     setPhoneLocal(defaultPhoneLocal);
-    setGroupId(defaultGroupId);
-  }, [open, defaultNotifyMode, defaultPhoneLocal, defaultGroupId]);
+    setRegisteredGroupId(defaultRegisteredGroupId);
+  }, [open, defaultNotifyMode, defaultPhoneLocal, defaultRegisteredGroupId]);
 
   useEffect(() => {
     if (!toast) {
@@ -72,7 +78,8 @@ export function DodaWhatsappTestButton({
         body: JSON.stringify({
           notify_type: mode,
           notify_whatsapp_number: combinedPhone,
-          notify_whatsapp_group_id: mode === "group" ? groupId : null,
+          notify_whatsapp_group_id:
+            mode === "group" ? registeredGroupId || null : null,
         }),
       });
       const payload = (await response.json()) as {
@@ -187,14 +194,28 @@ export function DodaWhatsappTestButton({
                   disabled={sending}
                 />
               ) : (
-                <input
-                  type="text"
-                  value={groupId}
-                  onChange={(event) => setGroupId(event.target.value)}
-                  placeholder="120363XXXXXXXXXX"
-                  disabled={sending}
-                  className={fieldClass}
-                />
+                <div className="space-y-1">
+                  <select
+                    value={registeredGroupId}
+                    onChange={(event) =>
+                      setRegisteredGroupId(event.target.value)
+                    }
+                    disabled={sending}
+                    className={fieldClass}
+                  >
+                    <option value="">Selecciona un grupo…</option>
+                    {whatsappGroups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.group_id})
+                      </option>
+                    ))}
+                  </select>
+                  {whatsappGroups.length === 0 ? (
+                    <p className="text-xs text-amber-800">
+                      Registra grupos en Configuración → Grupos WhatsApp.
+                    </p>
+                  ) : null}
+                </div>
               )}
             </div>
 
@@ -212,7 +233,9 @@ export function DodaWhatsappTestButton({
                 onClick={() => void handleSend()}
                 disabled={
                   sending ||
-                  (mode === "individual" ? !canSendIndividual : !groupId.trim())
+                  (mode === "individual"
+                    ? !canSendIndividual
+                    : !registeredGroupId.trim())
                 }
                 className="inline-flex items-center gap-2 rounded-lg bg-[#227DE8] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a6ed4] disabled:cursor-not-allowed disabled:opacity-60"
               >

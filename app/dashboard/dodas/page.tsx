@@ -6,7 +6,9 @@ import { DodaPageLayout } from "@/components/dodas/doda-page-layout";
 import { fetchDodaDashboardRows } from "@/lib/doda-dashboard-data";
 import { isGoogleSheetsProvisioningConfigured } from "@/lib/google-sheets/config";
 import { getUserRole } from "@/lib/supabase/profile-role";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { listWhatsappGroups } from "@/lib/whatsapp-groups";
 import {
   DASHBOARD_PAGE_MAIN_CLASS,
   DASHBOARD_PAGE_TITLE_CLASS,
@@ -27,13 +29,16 @@ export default async function DodasPage() {
     redirect("/dashboard");
   }
 
-  const [{ data: clientsData }, dodas] = await Promise.all([
+  const admin = createSupabaseAdminClient();
+  const [{ data: clientsData }, dodas, whatsappGroupsResult] = await Promise.all([
     supabase.from("clients").select("id, full_name").order("full_name"),
     fetchDodaDashboardRows(supabase),
+    listWhatsappGroups(admin),
   ]);
 
   const clients = (clientsData ?? []) as ClientOption[];
   const isAdmin = role === "admin";
+  const whatsappGroups = whatsappGroupsResult.error ? [] : whatsappGroupsResult.rows;
 
   return (
     <main className={DASHBOARD_PAGE_MAIN_CLASS}>
@@ -53,6 +58,7 @@ export default async function DodasPage() {
         clients={clients}
         dodas={dodas}
         isAdmin={isAdmin}
+        whatsappGroups={whatsappGroups}
         googleSheetsApiEnabled={isGoogleSheetsProvisioningConfigured()}
       />
     </main>

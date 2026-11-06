@@ -41,11 +41,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "JSON inválido" }, { status: 400 });
   }
 
-  const batch = parseDodaBatchNotifySettings({
-    notify_type: body.notify_type,
-    notify_whatsapp_number: body.notify_whatsapp_number,
-    notify_whatsapp_group_id: body.notify_whatsapp_group_id,
-  });
+  let batch;
+  try {
+    batch = await parseDodaBatchNotifySettings(supabase, {
+      notify_type: body.notify_type,
+      notify_whatsapp_number: body.notify_whatsapp_number,
+      notify_whatsapp_group_id: body.notify_whatsapp_group_id,
+    });
+  } catch (notifyErr) {
+    const msg =
+      notifyErr instanceof Error
+        ? notifyErr.message
+        : "Configuración de notificación inválida";
+    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+  }
 
   if (!batch.notify_type) {
     return NextResponse.json(

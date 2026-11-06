@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Mail, Palette, Shield, User, Users } from "lucide-react";
+import { Bell, Mail, MessageCircle, Palette, Shield, User, Users } from "lucide-react";
 import {
   SettingsUsersSection,
   type SettingsUserRow,
@@ -13,11 +13,13 @@ import { DodaWhatsappNotificationsSection } from "@/components/settings/doda-wha
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { SecuritySection } from "@/components/settings/security-section";
+import { WhatsappGroupsSettingsSection } from "@/components/settings/whatsapp-groups-settings-section";
 
 type SettingsTabId =
   | "perfil"
   | "seguridad"
   | "notificaciones"
+  | "grupos-whatsapp"
   | "apariencia"
   | "correo-facturas"
   | "usuarios";
@@ -42,6 +44,7 @@ function parseTab(value: string | null): SettingsTabId | null {
     value === "perfil" ||
     value === "seguridad" ||
     value === "notificaciones" ||
+    value === "grupos-whatsapp" ||
     value === "apariencia" ||
     value === "correo-facturas" ||
     value === "usuarios"
@@ -106,6 +109,11 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
     ...(props.isAdmin
       ? [
           {
+            id: "grupos-whatsapp" as const,
+            label: "Grupos WhatsApp",
+            icon: MessageCircle,
+          },
+          {
             id: "correo-facturas" as const,
             label: "Correo facturas",
             icon: Mail,
@@ -160,6 +168,9 @@ export function SettingsTabsClient(props: SettingsTabsClientProps) {
             />
             <DodaWhatsappNotificationsSection isAdmin={props.isAdmin} />
           </>
+        ) : null}
+        {activeTab === "grupos-whatsapp" && props.isAdmin ? (
+          <WhatsappGroupsSettingsSection />
         ) : null}
         {activeTab === "correo-facturas" && props.isAdmin ? (
           <FacturaEmailTemplateSection />

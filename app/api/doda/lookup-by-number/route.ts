@@ -54,11 +54,20 @@ export async function POST(req: Request) {
 
     const number = validated.numbers[0]!;
     const isMonitored = Boolean(body.monitor);
-    const batchNotify = parseDodaBatchNotifySettings({
-      notify_type: body.notify_type,
-      notify_whatsapp_number: body.notify_whatsapp_number,
-      notify_whatsapp_group_id: body.notify_whatsapp_group_id,
-    });
+    let batchNotify;
+    try {
+      batchNotify = await parseDodaBatchNotifySettings(supabase, {
+        notify_type: body.notify_type,
+        notify_whatsapp_number: body.notify_whatsapp_number,
+        notify_whatsapp_group_id: body.notify_whatsapp_group_id,
+      });
+    } catch (notifyErr) {
+      const msg =
+        notifyErr instanceof Error
+          ? notifyErr.message
+          : "Configuración de notificación inválida";
+      return jsonError(msg, 400);
+    }
     const { runDodaLookupByNumberAndSave } = await import("@/lib/doda-service");
 
     const { lookup, doda } = await runDodaLookupByNumberAndSave({

@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, RotateCw, X } from "lucide-react";
+import { ChevronDown, Loader2, Pencil, RotateCw, X } from "lucide-react";
 import { DodaCancelDialog } from "@/components/dodas/doda-cancel-dialog";
+import { DodaNotifyDestinationDialog } from "@/components/dodas/doda-notify-destination-dialog";
+import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destination-dialog";
 import { normalizeDodaTimestamp } from "@/components/dodas/doda-display-utils";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
@@ -29,12 +31,16 @@ import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 
 type DodaMonitoringDashboardProps = {
   dodas: DodaDashboardRow[];
+  whatsappGroups: WhatsappGroupOption[];
 };
 
 const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
-function dodaNotifyCellDisplay(doda: DodaDashboardRow): {
+function dodaNotifyCellDisplay(
+  doda: DodaDashboardRow,
+  groupNameByStoredId: Map<string, string>,
+): {
   label: string;
   title?: string;
 } {
@@ -48,9 +54,11 @@ function dodaNotifyCellDisplay(doda: DodaDashboardRow): {
     };
   }
   if (doda.notify_type === "group" && doda.notify_whatsapp_group_id?.trim()) {
+    const stored = doda.notify_whatsapp_group_id.trim();
+    const catalogName = groupNameByStoredId.get(stored);
     return {
       label: "👥",
-      title: doda.notify_whatsapp_group_id.trim(),
+      title: catalogName ? `${catalogName} (${stored})` : stored,
     };
   }
   return { label: "—" };
@@ -123,12 +131,14 @@ type GroupedTableProps = {
   groups: ClientDodaGroup[];
   emptyMessage: string;
   variant: "monitoring" | "error";
+  groupNameByStoredId: Map<string, string>;
   onRetry?: (dodaId: string) => Promise<void>;
   retryingId?: string | null;
   onCancelRequest?: (doda: DodaDashboardRow) => void;
   cancellingId?: string | null;
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
+  onEditNotify?: (doda: DodaDashboardRow) => void;
   disableRowActions?: boolean;
   headerAction?: React.ReactNode;
 };
@@ -153,6 +163,8 @@ function ClientGroupMobileSection({
   cancellingId,
   onCheckNowRequest,
   checkingId,
+  onEditNotify,
+  groupNameByStoredId,
   disableRowActions,
 }: {
   group: ClientDodaGroup;
@@ -165,6 +177,8 @@ function ClientGroupMobileSection({
   cancellingId?: string | null;
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
+  onEditNotify?: (doda: DodaDashboardRow) => void;
+  groupNameByStoredId: Map<string, string>;
   disableRowActions?: boolean;
 }) {
   const accent =
@@ -180,7 +194,10 @@ function ClientGroupMobileSection({
       onToggle={onToggle}
     >
       {group.items.map((doda) => {
-        const notify = dodaNotifyCellDisplay(doda);
+        const notify =
+          variant === "monitoring"
+            ? dodaNotifyCellDisplay(doda, groupNameByStoredId)
+            : { label: "—", title: undefined };
         return (
           <DodaMobileCard
             key={doda.id}
@@ -211,6 +228,21 @@ function ClientGroupMobileSection({
                       <span className="mt-0.5 block text-[11px] text-slate-500">
                         {notify.title}
                       </span>
+                    ) : null}
+                    {onEditNotify ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditNotify(doda)}
+                        disabled={
+                          cancellingId === doda.id ||
+                          checkingId === doda.id ||
+                          disableRowActions
+                        }
+                        className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-medium text-[#227DE8] hover:underline disabled:opacity-50"
+                      >
+                        <Pencil className="size-3" aria-hidden />
+                        Editar destino
+                      </button>
                     ) : null}
                   </DodaMobileKv>
                 </div>
@@ -313,6 +345,8 @@ function ClientGroupSection({
   cancellingId,
   onCheckNowRequest,
   checkingId,
+  onEditNotify,
+  groupNameByStoredId,
   disableRowActions,
 }: {
   group: ClientDodaGroup;
@@ -326,6 +360,8 @@ function ClientGroupSection({
   cancellingId?: string | null;
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
+  onEditNotify?: (doda: DodaDashboardRow) => void;
+  groupNameByStoredId: Map<string, string>;
   disableRowActions?: boolean;
 }) {
   const rowClass = rowClassForVariant(variant);
@@ -387,15 +423,37 @@ function ClientGroupSection({
                   </td>
                   <td className="px-4 py-3 text-center text-slate-600">
                     {(() => {
-                      const notify = dodaNotifyCellDisplay(doda);
+                      const notify = dodaNotifyCellDisplay(
+                        doda,
+                        groupNameByStoredId,
+                      );
                       return (
-                        <span
-                          className="text-base leading-none"
-                          title={notify.title}
-                          aria-label={notify.title ?? "Sin notificación WhatsApp"}
-                        >
-                          {notify.label}
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span
+                            className="text-base leading-none"
+                            title={notify.title}
+                            aria-label={
+                              notify.title ?? "Sin notificación WhatsApp"
+                            }
+                          >
+                            {notify.label}
+                          </span>
+                          {onEditNotify ? (
+                            <button
+                              type="button"
+                              onClick={() => onEditNotify(doda)}
+                              disabled={
+                                cancellingId === doda.id ||
+                                checkingId === doda.id ||
+                                disableRowActions
+                              }
+                              className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[#227DE8] hover:underline disabled:opacity-50"
+                            >
+                              <Pencil className="size-3" aria-hidden />
+                              Editar
+                            </button>
+                          ) : null}
+                        </div>
                       );
                     })()}
                   </td>
@@ -490,12 +548,14 @@ function GroupedDodaTable({
   groups,
   emptyMessage,
   variant,
+  groupNameByStoredId,
   onRetry,
   retryingId,
   onCancelRequest,
   cancellingId,
   onCheckNowRequest,
   checkingId,
+  onEditNotify,
   disableRowActions,
   headerAction,
 }: GroupedTableProps) {
@@ -582,6 +642,8 @@ function GroupedDodaTable({
                       cancellingId={cancellingId}
                       onCheckNowRequest={onCheckNowRequest}
                       checkingId={checkingId}
+                      onEditNotify={onEditNotify}
+                      groupNameByStoredId={groupNameByStoredId}
                       disableRowActions={disableRowActions}
                     />
                   ))}
@@ -604,6 +666,8 @@ function GroupedDodaTable({
                 cancellingId={cancellingId}
                 onCheckNowRequest={onCheckNowRequest}
                 checkingId={checkingId}
+                onEditNotify={onEditNotify}
+                groupNameByStoredId={groupNameByStoredId}
                 disableRowActions={disableRowActions}
               />
             ))}
@@ -646,10 +710,22 @@ function cleanDodaErrorMessage(
 }
 
 /** "En monitoreo" table. Auto-refreshes so resolved/failed DODAs move to their table. */
-export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
+export function DodaMonitoringTable({
+  dodas,
+  whatsappGroups,
+}: DodaMonitoringDashboardProps) {
   const router = useRouter();
   const { removeDoda, updateDoda } = useDodaDashboard();
   const { monitoringGroups } = useDashboardGroups(dodas);
+  const groupNameByStoredId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const g of whatsappGroups) {
+      map.set(g.group_id, g.name);
+    }
+    return map;
+  }, [whatsappGroups]);
+  const [notifyEditTarget, setNotifyEditTarget] =
+    useState<DodaDashboardRow | null>(null);
   const [cancelTarget, setCancelTarget] = useState<DodaDashboardRow | null>(
     null,
   );
@@ -839,10 +915,12 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
         groups={monitoringGroups}
         emptyMessage="No hay DODAs en monitoreo activo."
         variant="monitoring"
+        groupNameByStoredId={groupNameByStoredId}
         onCancelRequest={setCancelTarget}
         cancellingId={cancellingId}
         onCheckNowRequest={handleCheckNow}
         checkingId={checkingId}
+        onEditNotify={setNotifyEditTarget}
         disableRowActions={checkingAll}
         headerAction={
           monitoringGroups.length > 0 ? (
@@ -869,6 +947,19 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
       {toast ? (
         <DodaToast key={toast.key} tone={toast.tone} message={toast.message} />
       ) : null}
+      {notifyEditTarget ? (
+        <DodaNotifyDestinationDialog
+          open
+          onClose={() => setNotifyEditTarget(null)}
+          doda={notifyEditTarget}
+          groups={whatsappGroups}
+          onSaved={(updated) => {
+            updateDoda(updated.id, updated);
+            setNotifyEditTarget(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
       {cancelTarget ? (
         <DodaCancelDialog
           numeroIntegracion={
@@ -886,11 +977,19 @@ export function DodaMonitoringTable({ dodas }: DodaMonitoringDashboardProps) {
 /** "Errores" table. */
 export function DodaMonitoringErrorsTable({
   dodas,
+  whatsappGroups,
 }: DodaMonitoringDashboardProps) {
   const router = useRouter();
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const { errorGroups } = useDashboardGroups(dodas);
+  const groupNameByStoredId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const g of whatsappGroups) {
+      map.set(g.group_id, g.name);
+    }
+    return map;
+  }, [whatsappGroups]);
 
   async function handleRetry(dodaId: string) {
     setRetryingId(dodaId);
@@ -936,6 +1035,7 @@ export function DodaMonitoringErrorsTable({
         groups={errorGroups}
         emptyMessage=""
         variant="error"
+        groupNameByStoredId={groupNameByStoredId}
         onRetry={handleRetry}
         retryingId={retryingId}
       />

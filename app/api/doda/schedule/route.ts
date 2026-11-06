@@ -67,13 +67,24 @@ export async function POST(req: Request) {
 
     const clienteId = emptyToNull(formData.get("cliente_id"));
     const notas = emptyToNull(formData.get("notas"));
-    const batchNotify = parseDodaBatchNotifySettings({
-      notify_type: emptyToNull(formData.get("notify_type")),
-      notify_whatsapp_number: emptyToNull(formData.get("notify_whatsapp_number")),
-      notify_whatsapp_group_id: emptyToNull(
-        formData.get("notify_whatsapp_group_id"),
-      ),
-    });
+    let batchNotify;
+    try {
+      batchNotify = await parseDodaBatchNotifySettings(supabase, {
+        notify_type: emptyToNull(formData.get("notify_type")),
+        notify_whatsapp_number: emptyToNull(
+          formData.get("notify_whatsapp_number"),
+        ),
+        notify_whatsapp_group_id: emptyToNull(
+          formData.get("notify_whatsapp_group_id"),
+        ),
+      });
+    } catch (notifyErr) {
+      const msg =
+        notifyErr instanceof Error
+          ? notifyErr.message
+          : "Configuración de notificación inválida";
+      return jsonError(msg, 400);
+    }
     const { runDodaLookupAndSave } = await import("@/lib/doda-service");
 
     const dodas: DodaRecord[] = [];
