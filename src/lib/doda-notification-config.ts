@@ -121,11 +121,15 @@ export async function parseDodaBatchNotifySettings(
     return EMPTY_BATCH_NOTIFY;
   }
 
+  // Catalog reads must use service role: the schedule UI loads groups with admin,
+  // and `whatsapp_groups` often has RLS with no staff SELECT policy.
+  const catalogClient = createSupabaseAdminClient();
+
   const uuidLike =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (uuidLike.test(groupRaw)) {
     const storedFromCatalog = await resolveRegisteredGroupIdString(
-      supabase,
+      catalogClient,
       groupRaw,
     );
     if (!storedFromCatalog) {
@@ -146,7 +150,7 @@ export async function parseDodaBatchNotifySettings(
   }
 
   const stored = normalizeWhatsappGroupIdForStorage(candidate);
-  const registered = await isWhatsappGroupIdRegistered(supabase, stored);
+  const registered = await isWhatsappGroupIdRegistered(catalogClient, stored);
   if (!registered) {
     throw new Error(
       "El grupo no está registrado. Agrégalo en Configuración → Grupos de WhatsApp.",

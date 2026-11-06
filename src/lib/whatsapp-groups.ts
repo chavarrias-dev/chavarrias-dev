@@ -48,7 +48,11 @@ export async function getWhatsappGroupById(
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    console.error("[whatsapp-groups] getWhatsappGroupById failed", id, error);
+    return null;
+  }
+  if (!data) {
     return null;
   }
   return data as WhatsappGroupRow;
