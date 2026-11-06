@@ -34,8 +34,6 @@ type DodaMonitoringDashboardProps = {
 const BADGE_BASE =
   "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
 
-const THREE_MINUTES_SECONDS = 3 * 60;
-
 function dodaNotifyCellDisplay(doda: DodaDashboardRow): {
   label: string;
   title?: string;
@@ -80,34 +78,42 @@ function ErrorBadge() {
   );
 }
 
+/** Parse stored `timestamp without time zone` as UTC via normalizeDodaTimestamp. */
+function parseDodaInstant(value: string | null): Date | null {
+  if (!value) {
+    return null;
+  }
+  const ms = new Date(normalizeDodaTimestamp(value)).getTime();
+  if (!Number.isFinite(ms)) {
+    return null;
+  }
+  return new Date(ms);
+}
+
+const STALE_LAST_CHECK_HOURS = 25;
+
 /**
- * Simple repeating 3-minute countdown, purely local to the browser tab —
- * deliberately NOT derived from last_checked_at. That column is a Postgres
- * `timestamp without time zone`, so it comes back over the wire as
- * "2026-08-25 22:06:48.943" with no "Z"/offset; `new Date(...)` on a
- * space-separated, zone-less string parses it as *local* time, not UTC,
- * silently shifting it by the server's UTC offset (e.g. 300 minutes on a
- * UTC-5 host). That produced the "300 minutes" display bug. This component
- * just ticks down on its own instead of doing any date arithmetic.
+ * Honest cadence note: the real schedule is server-side cron (see /api/cron/check-dodas).
+ * We no longer show a fake 3-minute countdown that reset forever and looked like a bug.
  */
-function MonitoringCountdown() {
-  const [seconds, setSeconds] = useState(THREE_MINUTES_SECONDS);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSeconds((prev) => (prev <= 1 ? THREE_MINUTES_SECONDS : prev - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const display = `${minutes}:${secs.toString().padStart(2, "0")}`;
+function MonitoringCadenceNote({ lastCheckedAt }: { lastCheckedAt: string | null }) {
+  const last = parseDodaInstant(lastCheckedAt);
+  const stale =
+    last != null &&
+    Date.now() - last.getTime() > STALE_LAST_CHECK_HOURS * 60 * 60 * 1000;
 
   return (
-    <span className="block text-[11px] text-orange-700">
-      Próxima revisión en {display}
-    </span>
+    <>
+      <span className="block text-[11px] leading-snug text-orange-700">
+        Revisión automática en servidor. La columna «Última consulta» muestra el último
+        intento al SAT.
+      </span>
+      {stale ? (
+        <span className="mt-0.5 block text-[11px] font-medium leading-snug text-amber-800">
+          No hay revisiones recientes: revisa el cron o usa «Revisar ahora».
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -210,8 +216,8 @@ function ClientGroupMobileSection({
                 </div>
                 <div className="mt-2">
                   <MonitoringBadge />
-                  <MonitoringCountdown
-                    key={doda.last_checked_at ?? doda.looked_up_at ?? doda.id}
+                  <MonitoringCadenceNote
+                    lastCheckedAt={doda.last_checked_at ?? null}
                   />
                 </div>
                 <DodaMobileActions>
@@ -395,8 +401,8 @@ function ClientGroupSection({
                   </td>
                   <td className="px-4 py-3">
                     <MonitoringBadge />
-                    <MonitoringCountdown
-                      key={doda.last_checked_at ?? doda.looked_up_at ?? doda.id}
+                    <MonitoringCadenceNote
+                      lastCheckedAt={doda.last_checked_at ?? null}
                     />
                   </td>
                   <td className="px-4 py-3">
