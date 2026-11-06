@@ -118,3 +118,131 @@ export async function sendEvolutionText(
     responseJson,
   };
 }
+
+/** Grupo devuelto por Evolution (`fetchAllGroups`): id + asunto visible. */
+export type EvolutionGroupSummary = {
+  id: string;
+  subject: string;
+};
+
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const t = value.trim();
+  return t.length > 0 ? t : null;
+}
+
+function extractGroupId(raw: unknown): string | null {
+  const s = asNonEmptyString(raw);
+  if (s) {
+    return s;
+  }
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    return (
+      asNonEmptyString(o.id) ??
+      asNonEmptyString(o.jid) ??
+      asNonEmptyString(o.groupId) ??
+      null
+    );
+  }
+  return null;
+}
+
+function extractSubject(raw: unknown): string {
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const sub =
+      asNonEmptyString(o.subject) ??
+      asNonEmptyString(o.name) ??
+      asNonEmptyString(o.groupName);
+    if (sub) {
+      return sub;
+    }
+  }
+  return "Sin nombre";
+}
+
+function extractGroupsArray(body: unknown): unknown[] {
+  if (Array.isArray(body)) {
+    return body;
+  }
+  if (body && typeof body === "object") {
+    const o = body as Record<string, unknown>;
+    const candidates = [
+      o.data,
+      o.groups,
+      o.group,
+      o.response,
+      o.result,
+    ];
+    for (const c of candidates) {
+      if (Array.isArray(c)) {
+        return c;
+      }
+      if (c && typeof c === "object" && Array.isArray((c as { data?: unknown }).data)) {
+        return (c as { data: unknown[] }).data;
+      }
+    }
+  }
+  return [];
+}
+
+/**
+ * Lista grupos de WhatsApp desde Evolution API (instancia configurada en env).
+ * GET `{EVOLUTION_API_URL}/group/fetchAllGroups/{EVOLUTION_INSTANCE}?getParticipants=false`
+ */
+export async function fetchEvolutionGroups(): Promise<EvolutionGroupSummary[]> {
+  const { baseUrl, instance, apiKey } = getEvolutionConfig();
+
+  const url = `${baseUrl}/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      apikey: apiKey,
+    },
+  });
+
+  let body: unknown = null;
+  const contentType = response.headers.get("content-type") ?? "";
+  const rawText = await response.text();
+  if (rawText) {
+    if (contentType.includes("application/json")) {
+      try {
+        body = JSON.parse(rawText) as unknown;
+      } catch {
+        body = rawText;
+      }
+    } else {
+      body = rawText;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(formatEvolutionError(response.status, body));
+  }
+
+  const items = extractGroupsArray(body);
+  const seen = new Set<string>();
+  const out: EvolutionGroupSummary[] = [];
+
+  for (const item of items) {
+    const id = extractGroupId(item);
+    if (!id) {
+      continue;
+    }
+    const key = id.trim().toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    out.push({
+      id: id.trim(),
+      subject: extractSubject(item),
+    });
+  }
+
+  return out;
+}
