@@ -25,7 +25,7 @@ export function ClientEstadoDeCuentaLink({
   if (!spreadsheetUrl) {
     return (
       <section
-        className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 ${embedded ? "" : "mb-10"}`}
+        className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-6 md:p-8 ${embedded ? "" : "mb-10"}`}
       >
         <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
           <Sheet className="size-5 text-slate-400" aria-hidden />
@@ -46,11 +46,11 @@ export function ClientEstadoDeCuentaLink({
   return (
     <>
       <section
-        className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 ${embedded ? "" : "mb-10"}`}
+        className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-6 md:p-8 ${embedded ? "" : "mb-10"}`}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-base font-medium text-slate-900 sm:text-lg">
               <Sheet className="size-5 text-[#227DE8]" aria-hidden />
               Estado de cuenta
             </h2>
@@ -59,12 +59,12 @@ export function ClientEstadoDeCuentaLink({
               Chavarrias. Aquí solo puedes consultarlo (no editarlo).
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:shrink-0">
             {sheetId ? (
               <button
                 type="button"
                 onClick={() => setPreviewOpen(true)}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/10"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/10 sm:min-h-10 sm:w-auto"
               >
                 <Eye className="size-4" aria-hidden />
                 Vista previa
@@ -74,10 +74,11 @@ export function ClientEstadoDeCuentaLink({
               href={viewOnlyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] sm:min-h-10 sm:w-auto"
             >
-              Ver mi estado de cuenta
-              <ExternalLink className="size-4" aria-hidden />
+              <span className="sm:hidden">Abrir estado de cuenta</span>
+              <span className="hidden sm:inline">Ver mi estado de cuenta</span>
+              <ExternalLink className="size-4 shrink-0" aria-hidden />
             </a>
           </div>
         </div>

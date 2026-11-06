@@ -29,6 +29,10 @@ import {
 import { fetchClientByIdWithSpreadsheetFallback } from "@/lib/client-google-spreadsheet-db";
 import { formatShortDate } from "@/lib/format-short-date";
 import { getUserRole } from "@/lib/supabase/profile-role";
+import {
+  DASHBOARD_PAGE_MAIN_CLASS,
+  DASHBOARD_PAGE_TITLE_CLASS,
+} from "@/lib/dashboard-layout";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ClientRecord = {
@@ -202,9 +206,9 @@ export default async function ClientProfilePage({
   const initials = initialsFromName(client.full_name);
 
   const btnPrimary =
-    "btn-primary-motion inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow";
+    "btn-primary-motion inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] hover:shadow sm:min-h-10 sm:w-auto sm:shrink-0";
   const btnOutline =
-    "inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5";
+    "inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[#227DE8] bg-white px-4 text-sm font-medium text-[#227DE8] shadow-sm transition-all duration-200 hover:bg-[#227DE8]/5 sm:min-h-10 sm:w-auto sm:shrink-0";
 
   const sectionShell =
     "overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm";
@@ -235,7 +239,7 @@ export default async function ClientProfilePage({
   };
 
   return (
-    <main className="font-poppins w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
       <div className="mb-6">
         <Link
           href={isStaff ? "/dashboard/clients" : "/dashboard"}
@@ -245,9 +249,9 @@ export default async function ClientProfilePage({
         </Link>
       </div>
 
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-medium tracking-tight text-slate-900">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>
             {isStaff ? "Perfil del cliente" : "Mi perfil"}
           </h1>
           <p className="mt-1.5 text-sm text-slate-500">
@@ -257,7 +261,7 @@ export default async function ClientProfilePage({
           </p>
         </div>
         {isStaff ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Link href={`/dashboard/clients/${id}/edit`} className={btnOutline}>
               Editar cliente
             </Link>
@@ -277,10 +281,10 @@ export default async function ClientProfilePage({
         ) : null}
       </div>
 
-      <section className={`${sectionShell} mb-8 p-6 sm:p-8`}>
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+      <section className={`${sectionShell} mb-6 p-4 sm:mb-8 sm:p-6 md:p-8`}>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
           <div
-            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#227DE8]/15 text-xl font-semibold tracking-tight text-[#227DE8] shadow-inner ring-2 ring-[#227DE8]/10"
+            className="mx-auto flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#227DE8]/15 text-lg font-semibold tracking-tight text-[#227DE8] shadow-inner ring-2 ring-[#227DE8]/10 sm:mx-0 sm:h-20 sm:w-20 sm:text-xl"
             aria-hidden
           >
             {initials}

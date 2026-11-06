@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, Eye, Search } from "lucide-react";
 import { GoogleSheetPreviewModal } from "@/components/clients/google-sheet-preview-modal";
 import type { ClientEstadoDeCuentaRow } from "@/lib/client-google-spreadsheet-db";
+import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 import { spreadsheetIdFromStoredUrl } from "@/lib/google-sheets/spreadsheet-url";
 
 type EstadosDeCuentaStaffViewProps = {
@@ -12,7 +13,10 @@ type EstadosDeCuentaStaffViewProps = {
 };
 
 const fieldClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20";
+  "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[16px] text-slate-900 shadow-none outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#227DE8] focus:ring-2 focus:ring-[#227DE8]/20 sm:text-[15px]";
+
+const actionBtnClass =
+  "inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 sm:min-h-0 sm:flex-none sm:border-0 sm:bg-transparent sm:px-0 sm:text-xs sm:hover:bg-transparent";
 
 type PreviewTarget = {
   clientId: string;
@@ -20,6 +24,72 @@ type PreviewTarget = {
   spreadsheetId: string;
   openUrl: string;
 };
+
+function ClientEstadoCard({
+  client,
+  onPreview,
+}: {
+  client: ClientEstadoDeCuentaRow;
+  onPreview: (client: ClientEstadoDeCuentaRow) => void;
+}) {
+  const linked = Boolean(client.google_spreadsheet_url);
+
+  return (
+    <article className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-slate-900">
+            {client.full_name}
+          </p>
+          {client.company_name ? (
+            <p className="truncate text-xs text-slate-500">
+              {client.company_name}
+            </p>
+          ) : null}
+          <p className="mt-1 truncate text-xs text-slate-400">{client.email}</p>
+        </div>
+        {linked ? (
+          <span className="inline-flex shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+            Vinculado
+          </span>
+        ) : (
+          <span className="inline-flex shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+            Sin vincular
+          </span>
+        )}
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {linked ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onPreview(client)}
+              className={actionBtnClass}
+            >
+              <Eye className="size-4 shrink-0 sm:size-3.5" aria-hidden />
+              Vista previa
+            </button>
+            <a
+              href={client.google_spreadsheet_url!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={actionBtnClass}
+            >
+              Abrir hoja
+              <ExternalLink className="size-4 shrink-0 sm:size-3" aria-hidden />
+            </a>
+          </>
+        ) : null}
+        <Link
+          href={`/dashboard/clients/${client.id}?tab=estado-cuenta`}
+          className={`${actionBtnClass} text-slate-700 sm:text-slate-600`}
+        >
+          Gestionar
+        </Link>
+      </div>
+    </article>
+  );
+}
 
 export function EstadosDeCuentaStaffView({
   clients,
@@ -60,7 +130,7 @@ export function EstadosDeCuentaStaffView({
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -73,9 +143,10 @@ export function EstadosDeCuentaStaffView({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar cliente…"
               className={`${fieldClass} pl-10`}
+              enterKeyHint="search"
             />
           </div>
-          <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-slate-600">
+          <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 px-3 text-sm text-slate-600 sm:border-0 sm:bg-transparent sm:px-0">
             <input
               type="checkbox"
               checked={onlyLinked}
@@ -86,100 +157,108 @@ export function EstadosDeCuentaStaffView({
           </label>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50/80">
-                <tr>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Cliente
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Estado
-                  </th>
-                  <th className="px-4 py-3 font-medium text-slate-700">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-8 text-center text-slate-500"
-                    >
-                      No hay clientes que coincidan con el filtro.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((client) => {
-                    const linked = Boolean(client.google_spreadsheet_url);
-                    return (
-                      <tr
-                        key={client.id}
-                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60"
-                      >
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">
-                            {client.full_name}
-                          </p>
-                          {client.company_name ? (
-                            <p className="text-xs text-slate-500">
-                              {client.company_name}
+        {filtered.length === 0 ? (
+          <p className="rounded-2xl border border-slate-200/90 bg-white px-4 py-10 text-center text-sm text-slate-500">
+            No hay clientes que coincidan con el filtro.
+          </p>
+        ) : (
+          <>
+            <ul className="flex flex-col gap-3 md:hidden">
+              {filtered.map((client) => (
+                <li key={client.id}>
+                  <ClientEstadoCard client={client} onPreview={openPreview} />
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:block">
+              <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50/80">
+                    <tr>
+                      <th className="px-4 py-3 font-medium text-slate-700">
+                        Cliente
+                      </th>
+                      <th className="px-4 py-3 font-medium text-slate-700">
+                        Estado
+                      </th>
+                      <th className="px-4 py-3 font-medium text-slate-700">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((client) => {
+                      const linked = Boolean(client.google_spreadsheet_url);
+                      return (
+                        <tr
+                          key={client.id}
+                          className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60"
+                        >
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-slate-900">
+                              {client.full_name}
                             </p>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3">
-                          {linked ? (
-                            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                              Vinculado
-                            </span>
-                          ) : (
-                            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                              Sin vincular
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            {linked ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openPreview(client)}
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-[#227DE8] hover:underline"
-                                >
-                                  <Eye className="size-3.5" aria-hidden />
-                                  Vista previa
-                                </button>
-                                <a
-                                  href={client.google_spreadsheet_url!}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-[#227DE8] hover:underline"
-                                >
-                                  Abrir
-                                  <ExternalLink className="size-3" aria-hidden />
-                                </a>
-                              </>
+                            {client.company_name ? (
+                              <p className="text-xs text-slate-500">
+                                {client.company_name}
+                              </p>
                             ) : null}
-                            <Link
-                              href={`/dashboard/clients/${client.id}`}
-                              className="text-xs font-medium text-slate-600 hover:text-[#227DE8] hover:underline"
-                            >
-                              Gestionar
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {linked ? (
+                              <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                                Vinculado
+                              </span>
+                            ) : (
+                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                                Sin vincular
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              {linked ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openPreview(client)}
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-[#227DE8] hover:underline"
+                                  >
+                                    <Eye className="size-3.5" aria-hidden />
+                                    Vista previa
+                                  </button>
+                                  <a
+                                    href={client.google_spreadsheet_url!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-[#227DE8] hover:underline"
+                                  >
+                                    Abrir
+                                    <ExternalLink
+                                      className="size-3"
+                                      aria-hidden
+                                    />
+                                  </a>
+                                </>
+                              ) : null}
+                              <Link
+                                href={`/dashboard/clients/${client.id}?tab=estado-cuenta`}
+                                className="text-xs font-medium text-slate-600 hover:text-[#227DE8] hover:underline"
+                              >
+                                Gestionar
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {preview ? (

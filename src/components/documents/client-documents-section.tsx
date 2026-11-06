@@ -19,6 +19,7 @@ import {
   type DocumentStatus,
   type DocumentType,
 } from "@/lib/documents-config";
+import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 import {
   quickUploadClientDocument,
 } from "../../../app/dashboard/clients/[id]/documents/actions";
@@ -245,8 +246,8 @@ export function ClientDocumentsSection({
       ) : null}
 
       <div className={sectionShell}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left text-sm">
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
+          <table className="w-full min-w-[720px] text-left text-sm sm:min-w-[920px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-4 py-3 font-medium text-slate-700">

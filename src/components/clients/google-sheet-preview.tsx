@@ -27,7 +27,7 @@ export function GoogleSheetPreview({
           href={openUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#227DE8] hover:underline"
+          className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-[#227DE8]/25 bg-[#227DE8]/5 px-3 text-sm font-medium text-[#227DE8] sm:min-h-0 sm:w-auto sm:border-0 sm:bg-transparent sm:px-0 sm:hover:underline"
         >
           {readOnly ? "Abrir en modo lectura" : "Abrir en Google Sheets"}
           <ExternalLink className="size-3.5" aria-hidden />
@@ -37,7 +37,7 @@ export function GoogleSheetPreview({
         <iframe
           title={title}
           src={embedUrl}
-          className="h-[min(70vh,520px)] w-full bg-white"
+          className="h-[min(52dvh,420px)] w-full bg-white sm:h-[min(70vh,520px)]"
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
         />

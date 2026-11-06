@@ -1,41 +1,14 @@
 import { NextResponse } from "next/server";
 import {
-  DODA_DISPLAY_TIMEZONE,
-  normalizeDodaTimestamp,
-} from "@/components/dodas/doda-display-utils";
-import {
-  normalizeWhatsAppGroupRecipient,
   normalizeWhatsAppIndividualRecipient,
   parseDodaBatchNotifySettings,
 } from "@/lib/doda-notification-config";
+import { sendEvolutionText } from "@/lib/evolution-whatsapp";
+import { buildDodaLiberatedWhatsAppMessage } from "@/lib/doda-external-notifications";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  EXPECTED_DODA_CONTENT_SID,
-  formatTwilioWhatsAppTo,
-  getTwilioAccountSid,
-  getTwilioTemplateDodaSid,
-  getTwilioMessagingServiceSid,
-  inspectMexicoWhatsAppDestination,
-  sendDodaLiberadoWhatsApp,
-  twilioMessagingConsoleHint,
-} from "@/lib/twilio";
 
 export const runtime = "nodejs";
-
-function buildTestTemplateFecha(): string {
-  return new Date(normalizeDodaTimestamp(new Date().toISOString())).toLocaleString(
-    "es-MX",
-    {
-      timeZone: DODA_DISPLAY_TIMEZONE,
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  );
-}
 
 type TestBody = {
   notify_type?: string | null;
@@ -44,23 +17,17 @@ type TestBody = {
 };
 
 export async function POST(req: Request) {
-  console.log("[doda/test-notification] POST start");
-
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    console.log("[doda/test-notification] rejected: no user");
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
   }
 
-  console.log("[doda/test-notification] user", user.id);
-
   const role = await getUserRole(supabase, user.id);
   if (role !== "admin") {
-    console.log("[doda/test-notification] rejected: role", role);
     return NextResponse.json(
       { ok: false, error: "Solo administradores pueden enviar pruebas" },
       { status: 403 },
@@ -70,13 +37,7 @@ export async function POST(req: Request) {
   let body: TestBody;
   try {
     body = (await req.json()) as TestBody;
-    console.log("[doda/test-notification] body", {
-      notify_type: body.notify_type,
-      notify_whatsapp_number: body.notify_whatsapp_number,
-      notify_whatsapp_group_id: body.notify_whatsapp_group_id,
-    });
   } catch {
-    console.log("[doda/test-notification] invalid JSON");
     return NextResponse.json({ ok: false, error: "JSON inválido" }, { status: 400 });
   }
 
@@ -85,8 +46,6 @@ export async function POST(req: Request) {
     notify_whatsapp_number: body.notify_whatsapp_number,
     notify_whatsapp_group_id: body.notify_whatsapp_group_id,
   });
-
-  console.log("[doda/test-notification] parsed batch", batch);
 
   if (!batch.notify_type) {
     return NextResponse.json(
@@ -98,96 +57,51 @@ export async function POST(req: Request) {
     );
   }
 
-  let to: string | null = null;
-  if (batch.notify_type === "individual" && batch.notify_whatsapp_number) {
-    to = normalizeWhatsAppIndividualRecipient(batch.notify_whatsapp_number);
-  } else if (batch.notify_type === "group" && batch.notify_whatsapp_group_id) {
-    to = normalizeWhatsAppGroupRecipient(batch.notify_whatsapp_group_id);
+  if (batch.notify_type === "group") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "La prueba por Evolution API solo está disponible en modo número individual. Cambia a «Número» e introduce el mismo valor que usarías en notify_whatsapp_number.",
+      },
+      { status: 400 },
+    );
   }
 
-  console.log("[doda/test-notification] destination digits (raw):", to);
+  let toRaw: string | null = null;
+  if (batch.notify_type === "individual" && batch.notify_whatsapp_number) {
+    toRaw = normalizeWhatsAppIndividualRecipient(batch.notify_whatsapp_number);
+  }
 
-  if (!to) {
+  if (!toRaw) {
     return NextResponse.json(
       { ok: false, error: "Destino de WhatsApp inválido" },
       { status: 400 },
     );
   }
 
+  const testText = buildDodaLiberatedWhatsAppMessage({
+    integrationNumber: "149066025",
+    pedimento: "300-1754-6003278/6",
+    tipoPedimento: "N/A",
+    changedAt: new Date().toISOString(),
+  });
+
   try {
-    const accountSid = getTwilioAccountSid();
-    const messagingServiceSid = getTwilioMessagingServiceSid();
-    const contentSid = getTwilioTemplateDodaSid();
-    const toFormatted = formatTwilioWhatsAppTo(to);
-
-    const destinationPreview = inspectMexicoWhatsAppDestination(toFormatted);
-
-    console.log("[doda/test-notification] Twilio env snapshot", {
-      accountSid,
-      messagingServiceSid,
-      contentSid,
-      expectedContentSid: EXPECTED_DODA_CONTENT_SID,
-      contentSidMatchesExpected: contentSid === EXPECTED_DODA_CONTENT_SID,
-      twilioTemplateDodaSidSetInEnv: Boolean(
-        process.env.TWILIO_TEMPLATE_DODA_SID?.trim(),
-      ),
-      sendMode: "contentSid template (no body)",
-      toDigits: to,
-      toFormatted,
-      destinationPreview,
-      templateApprovalHint:
-        'Twilio Console → Content Template Builder → doda_liberado → status must be "Approved"',
+    const result = await sendEvolutionText(toRaw, testText);
+    return NextResponse.json({
+      ok: true,
+      provider: "evolution" as const,
+      evolution: {
+        number: result.number,
+        response: result.responseJson,
+      },
     });
-
-    const payload = {
-      to,
-      integracion: "149066025",
-      pedimento: "300-1754-6003278/6",
-      fecha: buildTestTemplateFecha(),
-    };
-    console.log("[doda/test-notification] calling sendDodaLiberadoWhatsApp", payload);
-
-    const result = await sendDodaLiberadoWhatsApp(payload);
-
-    console.log("[doda/test-notification] send result", {
-      sid: result.sid,
-      status: result.twilio.status,
-      errorCode: result.twilio.errorCode,
-      errorMessage: result.twilio.errorMessage,
-      savedToDb: Boolean(result.record),
-      twilioConsole: twilioMessagingConsoleHint(result.sid),
-    });
-
-    const twilioPayload = {
-      twilioMessageSid: result.sid,
-      status: result.twilio.status,
-      errorCode: result.twilio.errorCode,
-      errorMessage: result.twilio.errorMessage,
-      to: result.twilio.to,
-      from: result.twilio.from,
-      destination: result.destination,
-      contentTemplate: result.contentTemplate,
-      twilioConsoleHint: twilioMessagingConsoleHint(result.sid),
-      savedToHistory: Boolean(result.record),
-    };
-
-    if (!result.record) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "La plantilla se envió pero no se pudo guardar en el historial de WhatsApp",
-          ...twilioPayload,
-        },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({ ok: true, ...twilioPayload });
   } catch (error) {
-    console.error("[doda/test-notification] send failed", error);
     const message =
-      error instanceof Error ? error.message : "Error al enviar WhatsApp";
+      error instanceof Error
+        ? error.message
+        : "Error al enviar el mensaje de prueba por Evolution API.";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

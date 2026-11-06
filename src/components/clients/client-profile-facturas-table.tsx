@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArchiveFileLink } from "@/components/files/archive-file-link";
 import { DeleteFacturaForm } from "@/components/facturas/delete-factura-form";
+import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 import { formatShortDate } from "@/lib/format-short-date";
 
 export type ClientProfileFacturaRow = {
@@ -57,8 +58,8 @@ export function ClientProfileFacturasTable({
       ) : null}
 
       <div className={sectionShell}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+        <div className={DASHBOARD_TABLE_SCROLL_CLASS}>
+          <table className="w-full min-w-[640px] text-left text-sm sm:min-w-[720px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-4 py-3 font-medium text-slate-700">Número</th>

@@ -52,7 +52,7 @@ function LinkSpreadsheetForm({
         />
         <button
           type="submit"
-          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] sm:min-h-10 sm:w-auto"
         >
           {submitLabel}
         </button>
@@ -91,11 +91,11 @@ export function ClientGoogleSheetPanel({
 
   return (
     <section
-      className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8 ${embedded ? "" : "mb-10"}`}
+      className={`font-poppins overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-6 md:p-8 ${embedded ? "" : "mb-10"}`}
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-lg font-medium text-slate-900">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="flex flex-wrap items-center gap-2 text-base font-medium text-slate-900 sm:text-lg">
             <Sheet className="size-5 text-[#227DE8]" aria-hidden />
             Estado de cuenta (Google Sheets)
           </h2>
@@ -108,12 +108,12 @@ export function ClientGoogleSheetPanel({
           </p>
         </div>
         {linked && !changingLink ? (
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:shrink-0">
             {sheetId ? (
               <button
                 type="button"
                 onClick={() => setPreviewOpen(true)}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/10"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/10 sm:min-h-10 sm:w-auto"
               >
                 <Eye className="size-4" aria-hidden />
                 Vista previa
@@ -123,10 +123,10 @@ export function ClientGoogleSheetPanel({
               href={spreadsheetUrl!}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4]"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#227DE8] px-4 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#1a6ed4] sm:min-h-10 sm:w-auto"
             >
               Abrir hoja
-              <ExternalLink className="size-4" aria-hidden />
+              <ExternalLink className="size-4 shrink-0" aria-hidden />
             </a>
           </div>
         ) : null}
@@ -161,19 +161,19 @@ export function ClientGoogleSheetPanel({
           {createdLabel ? (
             <p className="text-xs text-slate-500">Vinculado: {createdLabel}</p>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               onClick={() => setChangingLink(true)}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-[#227DE8] bg-white px-3 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[#227DE8] bg-white px-3 text-sm font-medium text-[#227DE8] transition hover:bg-[#227DE8]/5 sm:min-h-9 sm:w-auto"
             >
               Cambiar enlace
             </button>
-            <form action={unlinkClientSpreadsheet}>
+            <form action={unlinkClientSpreadsheet} className="w-full sm:w-auto">
               <input type="hidden" name="client_id" value={clientId} />
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 sm:min-h-9"
               >
                 Desvincular
               </button>

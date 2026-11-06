@@ -30,9 +30,16 @@ export function FacturasClientEstadoDeCuentaLink({
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#227DE8]/30 bg-[#227DE8]/5 px-4 text-sm font-medium text-[#227DE8] shadow-sm transition hover:bg-[#227DE8]/10 sm:w-auto"
         >
           <Sheet className="size-4 shrink-0" aria-hidden />
-          {isStaff
-            ? `Estado de cuenta — ${clientName}`
-            : "Ver mi estado de cuenta"}
+          {isStaff ? (
+            <>
+              <span className="hidden sm:inline">
+                Estado de cuenta — {clientName}
+              </span>
+              <span className="truncate sm:hidden">E. cuenta — {clientName}</span>
+            </>
+          ) : (
+            "Ver mi estado de cuenta"
+          )}
           <ExternalLink className="size-3.5 shrink-0 opacity-70" aria-hidden />
         </a>
       ) : clientId && isStaff ? (

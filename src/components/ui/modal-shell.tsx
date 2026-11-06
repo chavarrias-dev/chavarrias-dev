@@ -107,7 +107,7 @@ export function ModalShell({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex p-4 ${alignClass}`}
+      className={`fixed inset-0 z-[100] flex ${align === "bottom-sheet" ? "p-0 sm:p-4" : "p-3 sm:p-4"} ${alignClass}`}
       role="presentation"
     >
       <button

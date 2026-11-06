@@ -42,12 +42,18 @@ function parseTab(value: string | null): ClientProfileTabId | null {
 const TAB_META: {
   id: ClientProfileTabId;
   label: string;
+  shortLabel: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: "documentos", label: "Documentos", icon: FolderOpen },
-  { id: "facturas", label: "Facturas", icon: Receipt },
-  { id: "pedimentos", label: "Pedimentos", icon: FileText },
-  { id: "estado-cuenta", label: "Estado de cuenta", icon: Sheet },
+  { id: "documentos", label: "Documentos", shortLabel: "Docs", icon: FolderOpen },
+  { id: "facturas", label: "Facturas", shortLabel: "Facturas", icon: Receipt },
+  { id: "pedimentos", label: "Pedimentos", shortLabel: "Pedim.", icon: FileText },
+  {
+    id: "estado-cuenta",
+    label: "Estado de cuenta",
+    shortLabel: "E. cuenta",
+    icon: Sheet,
+  },
 ];
 
 function tabCount(
@@ -124,7 +130,7 @@ export function ClientProfileTabs({
   return (
     <div className="font-poppins">
       <nav
-        className="mb-6 flex gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200/90 bg-slate-50/50 p-1 [-webkit-overflow-scrolling:touch] sm:inline-flex sm:max-w-full"
+        className="-mx-1 mb-5 flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200/90 bg-slate-50/50 p-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:mb-6 sm:flex-wrap sm:overflow-visible"
         aria-label="Secciones del perfil"
       >
         {TAB_META.map((tab) => {
@@ -139,7 +145,7 @@ export function ClientProfileTabs({
               key={tab.id}
               type="button"
               onClick={() => selectTab(tab.id)}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-200 sm:px-4 ${
+              className={`inline-flex min-h-11 shrink-0 snap-start items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 sm:min-h-0 sm:gap-2 sm:px-4 ${
                 active
                   ? "bg-white text-[#227DE8] shadow-sm ring-1 ring-slate-200/80"
                   : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
@@ -147,7 +153,10 @@ export function ClientProfileTabs({
               aria-current={active ? "page" : undefined}
             >
               <Icon className="size-4 shrink-0" aria-hidden />
-              <span>{tab.label}</span>
+              <span className="whitespace-nowrap sm:hidden">{tab.shortLabel}</span>
+              <span className="hidden whitespace-nowrap sm:inline">
+                {tab.label}
+              </span>
               {count !== null && count > 0 ? (
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${
