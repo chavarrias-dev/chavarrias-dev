@@ -206,7 +206,7 @@ export function DodaWhatsappTestButton({
                     <option value="">Selecciona un grupo…</option>
                     {whatsappGroups.map((g) => (
                       <option key={g.id} value={g.id}>
-                        {g.name} ({g.group_id})
+                        {g.name}
                       </option>
                     ))}
                   </select>

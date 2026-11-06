@@ -496,7 +496,7 @@ export function DodaScheduleSection({
                   <option value="">Selecciona un grupo importado o registrado…</option>
                   {whatsappGroups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.name} ({g.group_id})
+                      {g.name}
                     </option>
                   ))}
                 </select>

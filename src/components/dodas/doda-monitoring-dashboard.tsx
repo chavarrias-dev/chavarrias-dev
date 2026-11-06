@@ -60,7 +60,7 @@ function dodaNotifyCellDisplay(
     const catalogName = groupNameByStoredId.get(stored);
     return {
       label: "👥",
-      title: catalogName ? `${catalogName} (${stored})` : stored,
+      title: catalogName ?? stored,
     };
   }
   return { label: "—" };
