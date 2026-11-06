@@ -157,11 +157,11 @@ export function DodaNotifyDestinationDialog({
               id="doda-notify-dialog-title"
               className="text-base font-medium text-slate-900"
             >
-              Notificación WhatsApp
+              Asignar grupo (WhatsApp)
             </h3>
             <p className="mt-0.5 text-xs text-slate-500">
-              DODA {doda.numero_integracion ?? doda.id.slice(0, 8)} · solo si
-              sigue pendiente
+              DODA {doda.numero_integracion ?? doda.id.slice(0, 8)} · solo si sigue
+              pendiente. El aviso al liberar va al grupo o número que elijas.
             </p>
           </div>
           <button
@@ -207,7 +207,7 @@ export function DodaNotifyDestinationDialog({
                 disabled={saving}
                 className="size-4 border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
               />
-              <span className="text-sm text-slate-800">Grupo registrado</span>
+              <span className="text-sm text-slate-800">Asignar grupo</span>
             </label>
           </div>
 
@@ -235,7 +235,7 @@ export function DodaNotifyDestinationDialog({
                 htmlFor="doda_notify_edit_group"
                 className="mb-1.5 block text-xs font-medium text-slate-600"
               >
-                Grupo
+                Grupo del catálogo
               </label>
               <select
                 id="doda_notify_edit_group"
@@ -244,7 +244,7 @@ export function DodaNotifyDestinationDialog({
                 disabled={saving}
                 className={fieldClass}
               >
-                <option value="">Selecciona un grupo…</option>
+                <option value="">Selecciona un grupo importado o registrado…</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name} ({g.group_id})
@@ -253,8 +253,8 @@ export function DodaNotifyDestinationDialog({
               </select>
               {groups.length === 0 ? (
                 <p className="mt-1.5 text-xs text-amber-800">
-                  No hay grupos registrados. Un admin puede agregarlos en
-                  Configuración → Grupos WhatsApp.
+                  No hay grupos en el catálogo. Un administrador puede importarlos o
+                  crearlos en Configuración → Grupos WhatsApp.
                 </p>
               ) : null}
             </div>

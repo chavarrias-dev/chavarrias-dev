@@ -50,7 +50,11 @@ function DodaPageLayoutContent({
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          <DodaMonitoringTable dodas={dodas} whatsappGroups={whatsappGroups} />
+          <DodaMonitoringTable
+            dodas={dodas}
+            whatsappGroups={whatsappGroups}
+            isAdmin={isAdmin}
+          />
         </div>
       </div>
 

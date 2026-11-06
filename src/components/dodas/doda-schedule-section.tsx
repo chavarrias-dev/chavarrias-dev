@@ -414,11 +414,17 @@ export function DodaScheduleSection({
           </div>
 
           <fieldset className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-4">
-            <legend className="sr-only">Notificación WhatsApp (opcional)</legend>
+            <legend className="sr-only">Asignar grupo o número para avisar al liberar (opcional)</legend>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium text-slate-800">
-                Notificación WhatsApp (opcional)
-              </p>
+              <div>
+                <p className="text-sm font-medium text-slate-800">
+                  Asignar grupo (opcional)
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Al poner el DODA en revisión, el aviso puede ir al grupo que elijas
+                  (lista del catálogo: importados desde WhatsApp o dados de alta manualmente).
+                </p>
+              </div>
               <DodaWhatsappTestButton
                 isAdmin={isAdmin}
                 defaultNotifyMode={notifyMode}
@@ -448,7 +454,7 @@ export function DodaScheduleSection({
                   disabled={isSubmitting}
                   className="size-4 border-slate-300 text-[#227DE8] focus:ring-[#227DE8]/30"
                 />
-                <span className="text-sm text-slate-800">Grupo de WhatsApp</span>
+                <span className="text-sm text-slate-800">Asignar grupo</span>
               </label>
             </div>
 
@@ -476,7 +482,7 @@ export function DodaScheduleSection({
                   htmlFor="schedule_notify_group"
                   className="mb-1.5 block text-xs font-medium text-slate-600"
                 >
-                  Grupo registrado
+                  Grupo del catálogo
                 </label>
                 <select
                   id="schedule_notify_group"
@@ -487,7 +493,7 @@ export function DodaScheduleSection({
                   className={fieldClass}
                   disabled={isSubmitting}
                 >
-                  <option value="">Selecciona un grupo…</option>
+                  <option value="">Selecciona un grupo importado o registrado…</option>
                   {whatsappGroups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name} ({g.group_id})
@@ -497,7 +503,7 @@ export function DodaScheduleSection({
                 {whatsappGroups.length === 0 ? (
                   <p className="mt-1.5 text-xs text-amber-800">
                     No hay grupos en el catálogo. Un administrador puede
-                    registrarlos en Configuración → Grupos WhatsApp.
+                    importarlos o crearlos en Configuración → Grupos WhatsApp.
                   </p>
                 ) : null}
               </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, Pencil, RotateCw, X } from "lucide-react";
+import { ChevronDown, Loader2, Pencil, RotateCw, Trash2, X } from "lucide-react";
 import { DodaCancelDialog } from "@/components/dodas/doda-cancel-dialog";
 import { DodaNotifyDestinationDialog } from "@/components/dodas/doda-notify-destination-dialog";
 import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destination-dialog";
@@ -27,11 +27,13 @@ import {
   type ClientDodaGroup,
   type DodaDashboardRow,
 } from "@/lib/doda-dashboard-categories";
+import { DODA_CRON_INTERVAL_MS } from "@/lib/doda-monitoring-constants";
 import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 
 type DodaMonitoringDashboardProps = {
   dodas: DodaDashboardRow[];
   whatsappGroups: WhatsappGroupOption[];
+  isAdmin?: boolean;
 };
 
 const BADGE_BASE =
@@ -98,30 +100,53 @@ function parseDodaInstant(value: string | null): Date | null {
   return new Date(ms);
 }
 
-const STALE_LAST_CHECK_HOURS = 25;
+function formatTimeUntilNextReview(ms: number): string {
+  if (ms <= 0) {
+    return "pendiente";
+  }
+  const totalSec = Math.ceil(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h}h ${mm}m`;
+  }
+  if (m > 0) {
+    return `${m}m ${s}s`;
+  }
+  return `${s}s`;
+}
 
-/**
- * Honest cadence note: the real schedule is server-side cron (see /api/cron/check-dodas).
- * We no longer show a fake 3-minute countdown that reset forever and looked like a bug.
- */
-function MonitoringCadenceNote({ lastCheckedAt }: { lastCheckedAt: string | null }) {
+/** Cuenta atrás hasta la próxima ventana de revisión automática (cron ~cada 3 min). */
+function MonitoringNextReviewLine({
+  lastCheckedAt,
+}: {
+  lastCheckedAt: string | null;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const last = parseDodaInstant(lastCheckedAt);
-  const stale =
-    last != null &&
-    Date.now() - last.getTime() > STALE_LAST_CHECK_HOURS * 60 * 60 * 1000;
+  if (!last) {
+    return (
+      <span className="block text-[11px] leading-snug text-orange-700">
+        Próxima revisión automática en breve
+      </span>
+    );
+  }
+
+  const nextAt = last.getTime() + DODA_CRON_INTERVAL_MS;
+  const remaining = nextAt - now;
 
   return (
-    <>
-      <span className="block text-[11px] leading-snug text-orange-700">
-        Revisión automática en servidor. La columna «Última consulta» muestra el último
-        intento al SAT.
-      </span>
-      {stale ? (
-        <span className="mt-0.5 block text-[11px] font-medium leading-snug text-amber-800">
-          No hay revisiones recientes: revisa el cron o usa «Revisar ahora».
-        </span>
-      ) : null}
-    </>
+    <span className="block text-[11px] leading-snug text-orange-700">
+      Próxima revisión en {formatTimeUntilNextReview(remaining)}
+    </span>
   );
 }
 
@@ -139,6 +164,8 @@ type GroupedTableProps = {
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
   onEditNotify?: (doda: DodaDashboardRow) => void;
+  onPermanentDeleteRequest?: (doda: DodaDashboardRow) => void;
+  permanentDeletingId?: string | null;
   disableRowActions?: boolean;
   headerAction?: React.ReactNode;
 };
@@ -164,6 +191,8 @@ function ClientGroupMobileSection({
   onCheckNowRequest,
   checkingId,
   onEditNotify,
+  onPermanentDeleteRequest,
+  permanentDeletingId,
   groupNameByStoredId,
   disableRowActions,
 }: {
@@ -178,6 +207,8 @@ function ClientGroupMobileSection({
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
   onEditNotify?: (doda: DodaDashboardRow) => void;
+  onPermanentDeleteRequest?: (doda: DodaDashboardRow) => void;
+  permanentDeletingId?: string | null;
   groupNameByStoredId: Map<string, string>;
   disableRowActions?: boolean;
 }) {
@@ -248,7 +279,7 @@ function ClientGroupMobileSection({
                 </div>
                 <div className="mt-2">
                   <MonitoringBadge />
-                  <MonitoringCadenceNote
+                  <MonitoringNextReviewLine
                     lastCheckedAt={doda.last_checked_at ?? null}
                   />
                 </div>
@@ -270,6 +301,26 @@ function ClientGroupMobileSection({
                         <RotateCw className="size-3" aria-hidden />
                       )}
                       {checkingId === doda.id ? "Revisando…" : "Revisar"}
+                    </button>
+                  ) : null}
+                  {onPermanentDeleteRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => onPermanentDeleteRequest(doda)}
+                      disabled={
+                        permanentDeletingId === doda.id ||
+                        checkingId === doda.id ||
+                        cancellingId === doda.id
+                      }
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="Eliminar registro del CRM"
+                    >
+                      {permanentDeletingId === doda.id ? (
+                        <Loader2 className="size-3 animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 className="size-3" aria-hidden />
+                      )}
+                      Eliminar
                     </button>
                   ) : null}
                   {onCancelRequest ? (
@@ -346,6 +397,8 @@ function ClientGroupSection({
   onCheckNowRequest,
   checkingId,
   onEditNotify,
+  onPermanentDeleteRequest,
+  permanentDeletingId,
   groupNameByStoredId,
   disableRowActions,
 }: {
@@ -361,6 +414,8 @@ function ClientGroupSection({
   onCheckNowRequest?: (doda: DodaDashboardRow) => void;
   checkingId?: string | null;
   onEditNotify?: (doda: DodaDashboardRow) => void;
+  onPermanentDeleteRequest?: (doda: DodaDashboardRow) => void;
+  permanentDeletingId?: string | null;
   groupNameByStoredId: Map<string, string>;
   disableRowActions?: boolean;
 }) {
@@ -459,7 +514,7 @@ function ClientGroupSection({
                   </td>
                   <td className="px-4 py-3">
                     <MonitoringBadge />
-                    <MonitoringCadenceNote
+                    <MonitoringNextReviewLine
                       lastCheckedAt={doda.last_checked_at ?? null}
                     />
                   </td>
@@ -482,6 +537,27 @@ function ClientGroupSection({
                             <RotateCw className="size-3" aria-hidden />
                           )}
                           {checkingId === doda.id ? "Revisando…" : "Revisar ahora"}
+                        </button>
+                      ) : null}
+                      {onPermanentDeleteRequest ? (
+                        <button
+                          type="button"
+                          onClick={() => onPermanentDeleteRequest(doda)}
+                          disabled={
+                            permanentDeletingId === doda.id ||
+                            cancellingId === doda.id ||
+                            checkingId === doda.id ||
+                            disableRowActions
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Eliminar registro del CRM (irreversible)"
+                        >
+                          {permanentDeletingId === doda.id ? (
+                            <Loader2 className="size-3 animate-spin" aria-hidden />
+                          ) : (
+                            <Trash2 className="size-3" aria-hidden />
+                          )}
+                          Eliminar
                         </button>
                       ) : null}
                       {onCancelRequest ? (
@@ -556,6 +632,8 @@ function GroupedDodaTable({
   onCheckNowRequest,
   checkingId,
   onEditNotify,
+  onPermanentDeleteRequest,
+  permanentDeletingId,
   disableRowActions,
   headerAction,
 }: GroupedTableProps) {
@@ -643,6 +721,8 @@ function GroupedDodaTable({
                       onCheckNowRequest={onCheckNowRequest}
                       checkingId={checkingId}
                       onEditNotify={onEditNotify}
+                      onPermanentDeleteRequest={onPermanentDeleteRequest}
+                      permanentDeletingId={permanentDeletingId}
                       groupNameByStoredId={groupNameByStoredId}
                       disableRowActions={disableRowActions}
                     />
@@ -667,6 +747,8 @@ function GroupedDodaTable({
                 onCheckNowRequest={onCheckNowRequest}
                 checkingId={checkingId}
                 onEditNotify={onEditNotify}
+                onPermanentDeleteRequest={onPermanentDeleteRequest}
+                permanentDeletingId={permanentDeletingId}
                 groupNameByStoredId={groupNameByStoredId}
                 disableRowActions={disableRowActions}
               />
@@ -713,6 +795,7 @@ function cleanDodaErrorMessage(
 export function DodaMonitoringTable({
   dodas,
   whatsappGroups,
+  isAdmin = false,
 }: DodaMonitoringDashboardProps) {
   const router = useRouter();
   const { removeDoda, updateDoda } = useDodaDashboard();
@@ -742,6 +825,9 @@ export function DodaMonitoringTable({
     tone: DodaToastTone;
     message: string;
   } | null>(null);
+  const [permanentDeletingId, setPermanentDeletingId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -902,6 +988,40 @@ export function DodaMonitoringTable({
     }
   }
 
+  async function handlePermanentDelete(doda: DodaDashboardRow) {
+    const label = doda.numero_integracion ?? doda.id.slice(0, 8);
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente el DODA ${label}? Esto borra el registro del CRM (no solo cancela el monitoreo).`,
+      )
+    ) {
+      return;
+    }
+    setPermanentDeletingId(doda.id);
+    try {
+      const response = await fetch(`/api/doda/${doda.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "No se pudo eliminar el registro");
+      }
+      removeDoda(doda.id);
+      showToast("success", "DODA eliminado del CRM");
+      router.refresh();
+    } catch (error) {
+      showToast(
+        "error",
+        error instanceof Error ? error.message : "No se pudo eliminar",
+      );
+    } finally {
+      setPermanentDeletingId(null);
+    }
+  }
+
   return (
     <div className="space-y-3">
       {cancelError ? (
@@ -921,6 +1041,10 @@ export function DodaMonitoringTable({
         onCheckNowRequest={handleCheckNow}
         checkingId={checkingId}
         onEditNotify={setNotifyEditTarget}
+        onPermanentDeleteRequest={
+          isAdmin ? handlePermanentDelete : undefined
+        }
+        permanentDeletingId={permanentDeletingId}
         disableRowActions={checkingAll}
         headerAction={
           monitoringGroups.length > 0 ? (
