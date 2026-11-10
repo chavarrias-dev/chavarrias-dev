@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, Pencil, RotateCw, Trash2, X } from "lucide-react";
 import { DodaCancelDialog } from "@/components/dodas/doda-cancel-dialog";
@@ -118,13 +118,24 @@ function formatTimeUntilNextReview(ms: number): string {
   return `${s}s`;
 }
 
-/** Cuenta atrás hasta la próxima ventana de revisión automática (cron ~cada 3 min). */
+/**
+ * Cuenta atrás hasta la próxima revisión (~3 min desde last_checked_at).
+ * Al llegar a 0 dispara onDue (check-now); al actualizar last_checked_at el contador
+ * se reinicia, y así hasta que el DODA salga de monitoreo.
+ */
 function MonitoringNextReviewLine({
   lastCheckedAt,
+  isChecking = false,
+  onDue,
 }: {
   lastCheckedAt: string | null;
+  isChecking?: boolean;
+  onDue?: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
+  const firedForLastCheckRef = useRef<string | null>(null);
+  const onDueRef = useRef(onDue);
+  onDueRef.current = onDue;
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -132,7 +143,59 @@ function MonitoringNextReviewLine({
   }, []);
 
   const last = parseDodaInstant(lastCheckedAt);
-  if (!last) {
+  const lastKey = lastCheckedAt ?? "";
+  const remaining =
+    last != null ? last.getTime() + DODA_CRON_INTERVAL_MS - now : null;
+
+  useEffect(() => {
+    if (!onDueRef.current || isChecking) {
+      return;
+    }
+    if (remaining == null) {
+      if (firedForLastCheckRef.current === lastKey) {
+        return;
+      }
+      firedForLastCheckRef.current = lastKey;
+      onDueRef.current();
+      return;
+    }
+    if (remaining > 0) {
+      return;
+    }
+    if (firedForLastCheckRef.current === lastKey) {
+      return;
+    }
+    firedForLastCheckRef.current = lastKey;
+    onDueRef.current();
+  }, [remaining, lastKey, isChecking]);
+
+  // Si el check no actualizó last_checked_at, permitir otro intento a los ~5s.
+  useEffect(() => {
+    if (isChecking) {
+      return;
+    }
+    if (
+      remaining != null &&
+      remaining <= 0 &&
+      firedForLastCheckRef.current === lastKey
+    ) {
+      const retry = window.setTimeout(() => {
+        firedForLastCheckRef.current = null;
+      }, 5000);
+      return () => window.clearTimeout(retry);
+    }
+    return;
+  }, [isChecking, remaining, lastKey]);
+
+  if (isChecking) {
+    return (
+      <span className="block text-[11px] leading-snug text-orange-700">
+        Revisando ahora…
+      </span>
+    );
+  }
+
+  if (!last || remaining == null) {
     return (
       <span className="block text-[11px] leading-snug text-orange-700">
         Próxima revisión automática en breve
@@ -140,8 +203,13 @@ function MonitoringNextReviewLine({
     );
   }
 
-  const nextAt = last.getTime() + DODA_CRON_INTERVAL_MS;
-  const remaining = nextAt - now;
+  if (remaining <= 0) {
+    return (
+      <span className="block text-[11px] leading-snug text-orange-700">
+        Iniciando revisión…
+      </span>
+    );
+  }
 
   return (
     <span className="block text-[11px] leading-snug text-orange-700">
@@ -281,6 +349,12 @@ function ClientGroupMobileSection({
                   <MonitoringBadge />
                   <MonitoringNextReviewLine
                     lastCheckedAt={doda.last_checked_at ?? null}
+                    isChecking={checkingId === doda.id}
+                    onDue={
+                      onCheckNowRequest && !disableRowActions
+                        ? () => onCheckNowRequest(doda)
+                        : undefined
+                    }
                   />
                 </div>
                 <DodaMobileActions>
@@ -516,6 +590,12 @@ function ClientGroupSection({
                     <MonitoringBadge />
                     <MonitoringNextReviewLine
                       lastCheckedAt={doda.last_checked_at ?? null}
+                      isChecking={checkingId === doda.id}
+                      onDue={
+                        onCheckNowRequest && !disableRowActions
+                          ? () => onCheckNowRequest(doda)
+                          : undefined
+                      }
                     />
                   </td>
                   <td className="px-4 py-3">

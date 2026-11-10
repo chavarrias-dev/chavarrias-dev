@@ -16,6 +16,15 @@ export function normalizeWhatsappGroupIdForStorage(raw: string): string {
   return raw.trim().replace(/@g\.us$/i, "").trim();
 }
 
+/** Digits-only + `digits@g.us` for matching catalog vs dodas rows. */
+export function whatsappGroupIdStorageVariants(raw: string): string[] {
+  const digits = normalizeWhatsappGroupIdForStorage(raw);
+  if (!digits) {
+    return [];
+  }
+  return Array.from(new Set([digits, `${digits}@g.us`]));
+}
+
 export function isValidWhatsappGroupIdFormat(raw: string): boolean {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -77,32 +86,42 @@ export async function isWhatsappGroupIdRegistered(
   supabase: SupabaseClient,
   storedGroupId: string,
 ): Promise<boolean> {
-  const normalized = normalizeWhatsappGroupIdForStorage(storedGroupId);
-  if (!normalized) {
+  const variants = whatsappGroupIdStorageVariants(storedGroupId);
+  if (variants.length === 0) {
     return false;
   }
   const { data, error } = await supabase
     .from("whatsapp_groups")
     .select("id")
-    .eq("group_id", normalized)
-    .maybeSingle();
+    .in("group_id", variants)
+    .limit(1);
 
-  if (error || !data) {
+  if (error || !data?.length) {
     return false;
   }
   return true;
 }
 
+/**
+ * DODAs that still use this group in active monitoring.
+ * Cancelled rows keep is_resolved=false but is_monitored=false — those must not block delete.
+ */
 export async function countPendingDodasForGroupId(
   supabase: SupabaseClient,
   groupIdStored: string,
 ): Promise<number> {
+  const variants = whatsappGroupIdStorageVariants(groupIdStored);
+  if (variants.length === 0) {
+    return 0;
+  }
+
   const { count, error } = await supabase
     .from("dodas")
     .select("id", { count: "exact", head: true })
+    .eq("is_monitored", true)
     .eq("is_resolved", false)
     .eq("notify_type", "group")
-    .eq("notify_whatsapp_group_id", groupIdStored);
+    .in("notify_whatsapp_group_id", variants);
 
   if (error) {
     console.error("[whatsapp-groups] count pending dodas failed", error);
