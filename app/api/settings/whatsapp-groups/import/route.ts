@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  findWhatsappGroupByNormalizedId,
   isValidWhatsappGroupIdFormat,
   normalizeWhatsappGroupIdForStorage,
 } from "@/lib/whatsapp-groups";
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
   }> = [];
   let skippedDuplicate = 0;
   let skippedInvalid = 0;
+  const alreadyRegistered: Array<{ name: string; group_id: string }> = [];
 
   for (const item of items) {
     const rawId = item.id?.trim() ?? "";
@@ -70,14 +72,13 @@ export async function POST(req: Request) {
 
     const groupId = normalizeWhatsappGroupIdForStorage(rawId);
 
-    const { data: existing } = await admin
-      .from("whatsapp_groups")
-      .select("id")
-      .eq("group_id", groupId)
-      .maybeSingle();
-
+    const existing = await findWhatsappGroupByNormalizedId(admin, groupId);
     if (existing) {
       skippedDuplicate += 1;
+      alreadyRegistered.push({
+        name: existing.name,
+        group_id: existing.group_id,
+      });
       continue;
     }
 
@@ -90,6 +91,13 @@ export async function POST(req: Request) {
     if (error) {
       if (error.code === "23505") {
         skippedDuplicate += 1;
+        const again = await findWhatsappGroupByNormalizedId(admin, groupId);
+        if (again) {
+          alreadyRegistered.push({
+            name: again.name,
+            group_id: again.group_id,
+          });
+        }
         continue;
       }
       return jsonError(error.message, 500);
@@ -104,6 +112,7 @@ export async function POST(req: Request) {
     imported: inserted.length,
     skipped_duplicate: skippedDuplicate,
     skipped_invalid: skippedInvalid,
+    already_registered: alreadyRegistered,
     groups: inserted,
   });
 }

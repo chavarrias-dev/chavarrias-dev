@@ -99,6 +99,20 @@
       "when": 1792800000000,
       "tag": "0013_profiles_fk_on_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794500000000,
+      "tag": "0019_normalize_whatsapp_group_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794600000000,
+      "tag": "0020_doda_monitoring_stopped",
+      "breakpoints": true
     }
   ]
 }

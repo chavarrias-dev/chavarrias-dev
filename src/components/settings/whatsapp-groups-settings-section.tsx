@@ -48,6 +48,16 @@ export function WhatsappGroupsSettingsSection() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignSource, setReassignSource] =
+    useState<WhatsappGroupOption | null>(null);
+  const [reassignPending, setReassignPending] = useState<
+    Array<{ id: string; numero_integracion: string | null }>
+  >([]);
+  const [reassignTargetId, setReassignTargetId] = useState("");
+  const [reassignError, setReassignError] = useState<string | null>(null);
+  const [reassignSubmitting, setReassignSubmitting] = useState(false);
+
   const [importOpen, setImportOpen] = useState(false);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState<string | null>(null);
@@ -58,9 +68,18 @@ export function WhatsappGroupsSettingsSection() {
   >(() => new Set());
   const [importSubmitting, setImportSubmitting] = useState(false);
 
-  const registeredGroupIds = useMemo(
-    () => new Set(rows.map((r) => r.group_id)),
-    [rows],
+  const registeredByNormalizedId = useMemo(() => {
+    const map = new Map<string, WhatsappGroupOption>();
+    for (const row of rows) {
+      map.set(normalizeGroupIdForMatch(row.group_id), row);
+    }
+    return map;
+  }, [rows]);
+
+  const reassignTargets = useMemo(
+    () =>
+      rows.filter((row) => (reassignSource ? row.id !== reassignSource.id : true)),
+    [rows, reassignSource],
   );
 
   const load = useCallback(async () => {
@@ -217,7 +236,7 @@ export function WhatsappGroupsSettingsSection() {
     const next = new Set<string>();
     for (const g of remoteGroups) {
       const key = normalizeGroupIdForMatch(g.id);
-      if (!registeredGroupIds.has(key)) {
+      if (!registeredByNormalizedId.has(key)) {
         next.add(key);
       }
     }
@@ -314,9 +333,21 @@ export function WhatsappGroupsSettingsSection() {
       const response = await fetch(`/api/settings/whatsapp-groups/${id}`, {
         method: "DELETE",
       });
-      const payload = await parseJson<{ ok?: boolean; error?: string }>(
-        response,
-      );
+      const payload = await parseJson<{
+        ok?: boolean;
+        error?: string;
+        code?: string;
+        pending?: Array<{ id: string; numero_integracion: string | null }>;
+      }>(response);
+      if (response.status === 409 && payload.code === "PENDING_DODAS") {
+        const source = rows.find((row) => row.id === id) ?? null;
+        setReassignSource(source);
+        setReassignPending(payload.pending ?? []);
+        setReassignTargetId("");
+        setReassignError(payload.error ?? null);
+        setReassignOpen(true);
+        return;
+      }
       if (!response.ok || !payload.ok) {
         throw new Error(
           payload.error ??
@@ -331,6 +362,50 @@ export function WhatsappGroupsSettingsSection() {
     }
   }
 
+  async function handleReassignAndDelete() {
+    if (!reassignSource || !reassignTargetId) {
+      setReassignError("Selecciona el grupo de destino.");
+      return;
+    }
+    setReassignSubmitting(true);
+    setReassignError(null);
+    try {
+      const response = await fetch(
+        `/api/settings/whatsapp-groups/${reassignSource.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reassign_to_group_row_id: reassignTargetId,
+          }),
+        },
+      );
+      const payload = await parseJson<{
+        ok?: boolean;
+        error?: string;
+        reassigned?: number;
+      }>(response);
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "No se pudo reasignar y eliminar");
+      }
+      setRows((current) =>
+        current.filter((row) => row.id !== reassignSource.id),
+      );
+      setReassignOpen(false);
+      setReassignSource(null);
+      setReassignPending([]);
+      setSuccessBanner(
+        `Grupo eliminado. Se reasignaron ${payload.reassigned ?? reassignPending.length} DODA(s) pendientes.`,
+      );
+    } catch (e) {
+      setReassignError(
+        e instanceof Error ? e.message : "Error al reasignar y eliminar",
+      );
+    } finally {
+      setReassignSubmitting(false);
+    }
+  }
+
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -342,7 +417,8 @@ export function WhatsappGroupsSettingsSection() {
             Registra los grupos a los que se puede enviar la notificación al
             liberar un pedimento. Solo se permiten grupos dados de alta aquí; el
             ID es el JID sin prefijo{" "}
-            <span className="font-mono text-xs">chat.</span> (dígitos, opcional{" "}
+            <span className="font-mono text-xs">chat.</span>. Se guarda solo con
+            dígitos (sin{" "}
             <span className="font-mono text-xs">@g.us</span>).
           </p>
         </div>
@@ -575,6 +651,110 @@ export function WhatsappGroupsSettingsSection() {
         )}
       </div>
 
+      {reassignOpen && reassignSource ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          role="presentation"
+          onClick={() => !reassignSubmitting && setReassignOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-labelledby="wa-reassign-title"
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h3
+                id="wa-reassign-title"
+                className="text-base font-medium text-slate-900"
+              >
+                Reasignar y eliminar
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                «{reassignSource.name}» tiene {reassignPending.length} DODA(s)
+                pendientes
+                {reassignPending.length > 0
+                  ? `: ${reassignPending
+                      .map(
+                        (d) =>
+                          d.numero_integracion?.trim() || d.id.slice(0, 8),
+                      )
+                      .slice(0, 6)
+                      .join(", ")}${
+                      reassignPending.length > 6
+                        ? ` y ${reassignPending.length - 6} más`
+                        : ""
+                    }`
+                  : ""}
+                .
+              </p>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              {reassignError ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {reassignError}
+                </p>
+              ) : null}
+              <div>
+                <label
+                  htmlFor="wa_reassign_target"
+                  className="mb-1.5 block text-xs font-medium text-slate-600"
+                >
+                  Mover DODAs pendientes a
+                </label>
+                <select
+                  id="wa_reassign_target"
+                  value={reassignTargetId}
+                  onChange={(e) => setReassignTargetId(e.target.value)}
+                  className={fieldClass}
+                  disabled={reassignSubmitting || reassignTargets.length === 0}
+                >
+                  <option value="">Selecciona un grupo…</option>
+                  {reassignTargets.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+                {reassignTargets.length === 0 ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    No hay otro grupo en el catálogo. Crea o importa uno antes
+                    de reasignar.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => !reassignSubmitting && setReassignOpen(false)}
+                disabled={reassignSubmitting}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleReassignAndDelete()}
+                disabled={
+                  reassignSubmitting ||
+                  !reassignTargetId ||
+                  reassignTargets.length === 0
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {reassignSubmitting ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Trash2 className="size-4" aria-hidden />
+                )}
+                Reasignar a otro grupo y eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {importOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
@@ -640,7 +820,10 @@ export function WhatsappGroupsSettingsSection() {
                     <ul className="space-y-2">
                       {remoteGroups.map((g, index) => {
                         const normalized = normalizeGroupIdForMatch(g.id);
-                        const already = registeredGroupIds.has(normalized);
+                        const registered = registeredByNormalizedId.get(
+                          normalized,
+                        );
+                        const already = Boolean(registered);
                         const checked = already
                           ? true
                           : importSelectedNormalized.has(normalized);
@@ -667,7 +850,7 @@ export function WhatsappGroupsSettingsSection() {
                                   {g.subject}
                                   {already ? (
                                     <span className="ml-2 text-xs font-normal text-slate-400">
-                                      (ya registrado)
+                                      {`(ya registrado como «${registered!.name}»)`}
                                     </span>
                                   ) : null}
                                 </span>

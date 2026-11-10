@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  countPendingDodasForGroupId,
+  duplicateGroupMessage,
+  findWhatsappGroupByNormalizedId,
   getWhatsappGroupById,
   isValidWhatsappGroupIdFormat,
+  listPendingDodasForGroupId,
   normalizeWhatsappGroupIdForStorage,
+  reassignPendingDodasAndDeleteGroup,
 } from "@/lib/whatsapp-groups";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getUserRole } from "@/lib/supabase/profile-role";
@@ -11,8 +14,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-function jsonError(message: string, status: number) {
-  return NextResponse.json({ ok: false, error: message }, { status });
+function jsonError(
+  message: string,
+  status: number,
+  extra?: Record<string, unknown>,
+) {
+  return NextResponse.json({ ok: false, error: message, ...extra }, { status });
 }
 
 type RouteContext = {
@@ -23,6 +30,22 @@ type PatchBody = {
   name?: string;
   group_id?: string;
 };
+
+type DeleteBody = {
+  reassign_to_group_row_id?: string;
+};
+
+function formatPendingDeleteMessage(
+  pending: Array<{ id: string; numero_integracion: string | null }>,
+): string {
+  const labels = pending.map(
+    (doda) => doda.numero_integracion?.trim() || doda.id.slice(0, 8),
+  );
+  const listed = labels.slice(0, 8).join(", ");
+  const more =
+    labels.length > 8 ? ` y ${labels.length - 8} más` : "";
+  return `No se puede eliminar: hay ${pending.length} DODA(s) pendientes notificando a este grupo (${listed}${more}). Reasigna a otro grupo o resuélvelos antes.`;
+}
 
 export async function PATCH(req: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -80,7 +103,12 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (!rawGroupId) {
       return jsonError("Ingresa el ID del grupo", 400);
     }
-    updates.group_id = normalizeWhatsappGroupIdForStorage(rawGroupId);
+    const groupId = normalizeWhatsappGroupIdForStorage(rawGroupId);
+    const conflict = await findWhatsappGroupByNormalizedId(admin, groupId, id);
+    if (conflict) {
+      return jsonError(duplicateGroupMessage(conflict.name), 409);
+    }
+    updates.group_id = groupId;
   }
 
   const { data, error } = await admin
@@ -92,7 +120,16 @@ export async function PATCH(req: Request, context: RouteContext) {
 
   if (error) {
     if (error.code === "23505") {
-      return jsonError("Ya existe un grupo con ese ID de WhatsApp", 409);
+      const conflictId = updates.group_id ?? existing.group_id;
+      const again = await findWhatsappGroupByNormalizedId(
+        admin,
+        conflictId,
+        id,
+      );
+      return jsonError(
+        duplicateGroupMessage(again?.name ?? existing.name),
+        409,
+      );
     }
     return jsonError(error.message, 500);
   }
@@ -100,7 +137,7 @@ export async function PATCH(req: Request, context: RouteContext) {
   return NextResponse.json({ ok: true, group: data });
 }
 
-export async function DELETE(_req: Request, context: RouteContext) {
+export async function DELETE(req: Request, context: RouteContext) {
   const { id } = await context.params;
   const supabase = await createSupabaseServerClient();
   const {
@@ -116,18 +153,58 @@ export async function DELETE(_req: Request, context: RouteContext) {
     return jsonError("Solo administradores pueden eliminar grupos", 403);
   }
 
+  let body: DeleteBody = {};
+  try {
+    const text = await req.text();
+    if (text.trim()) {
+      body = JSON.parse(text) as DeleteBody;
+    }
+  } catch {
+    return jsonError("JSON inválido", 400);
+  }
+
   const admin = createSupabaseAdminClient();
   const existing = await getWhatsappGroupById(admin, id);
   if (!existing) {
     return jsonError("Grupo no encontrado", 404);
   }
 
-  const pending = await countPendingDodasForGroupId(admin, existing.group_id);
-  if (pending > 0) {
-    return jsonError(
-      `No se puede eliminar: hay ${pending} DODA(s) pendientes notificando a este grupo. Cambia la notificación o resuélvelos antes.`,
-      409,
-    );
+  const pending = await listPendingDodasForGroupId(admin, existing.group_id);
+  const reassignTo = body.reassign_to_group_row_id?.trim() ?? "";
+
+  if (pending.length > 0 && !reassignTo) {
+    return jsonError(formatPendingDeleteMessage(pending), 409, {
+      code: "PENDING_DODAS",
+      pending_count: pending.length,
+      pending,
+    });
+  }
+
+  if (pending.length > 0 && reassignTo) {
+    if (reassignTo === id) {
+      return jsonError("Elige un grupo distinto para reasignar", 400);
+    }
+    const target = await getWhatsappGroupById(admin, reassignTo);
+    if (!target) {
+      return jsonError("El grupo de destino no existe", 404);
+    }
+    const targetCanon = normalizeWhatsappGroupIdForStorage(target.group_id);
+    try {
+      await reassignPendingDodasAndDeleteGroup({
+        deleteRowId: id,
+        fromGroupIdStored: existing.group_id,
+        toGroupIdStored: targetCanon,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo reasignar y eliminar";
+      return jsonError(message, 500);
+    }
+    return NextResponse.json({
+      ok: true,
+      reassigned: pending.length,
+      to_group_id: targetCanon,
+    });
   }
 
   const { error } = await admin.from("whatsapp_groups").delete().eq("id", id);

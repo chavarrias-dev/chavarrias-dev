@@ -72,11 +72,26 @@ export type SendEvolutionTextResult = {
  * Envía un mensaje de texto por Evolution API (self-hosted).
  * POST {EVOLUTION_API_URL}/message/sendText/{EVOLUTION_INSTANCE}
  */
+/**
+ * Destino Evolution: números individuales → 52 + 10 dígitos;
+ * grupos (solo dígitos que empiezan con 1203) → `digits@g.us`.
+ */
+export function resolveEvolutionDestination(raw: string): string {
+  const trimmed = raw.trim();
+  if (/@g\.us$/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\d+$/.test(trimmed) && trimmed.startsWith("1203")) {
+    return `${trimmed}@g.us`;
+  }
+  return normalizeEvolutionWhatsAppNumber(trimmed);
+}
+
 export async function sendEvolutionText(
   number: string,
   text: string,
 ): Promise<SendEvolutionTextResult> {
-  const normalized = normalizeEvolutionWhatsAppNumber(number);
+  const normalized = resolveEvolutionDestination(number);
   const { baseUrl, instance, apiKey } = getEvolutionConfig();
 
   const url = `${baseUrl}/message/sendText/${encodeURIComponent(instance)}`;

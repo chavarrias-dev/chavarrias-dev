@@ -5,6 +5,7 @@ import { processDodaSatRecheck } from "@/lib/doda-sat-recheck";
 import {
   isDodaResolvedSatStatus,
   MAX_DODAS_PER_CRON_RUN,
+  MONITORING_STOPPED_REASON,
 } from "@/lib/doda-monitoring-constants";
 import { DODA_RECORD_SELECT, type DodaLookupStatus } from "@/lib/doda-types";
 import {
@@ -145,6 +146,8 @@ export async function processMonitoredDodasBatch(
           ? {
               is_monitored: false,
               is_resolved: true,
+              monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+              monitoring_stopped_at: checkedAt,
             }
           : {}),
       };

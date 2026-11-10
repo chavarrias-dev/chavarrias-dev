@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity-log";
+import { MONITORING_STOPPED_REASON } from "@/lib/doda-monitoring-constants";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { getUserRole } from "@/lib/supabase/profile-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -26,7 +27,12 @@ export async function POST(_req: Request, context: RouteContext) {
 
   const { data: updated, error } = await supabase
     .from("dodas")
-    .update({ is_monitored: false, is_resolved: false })
+    .update({
+      is_monitored: false,
+      is_resolved: false,
+      monitoring_stopped_reason: MONITORING_STOPPED_REASON.canceladoManual,
+      monitoring_stopped_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .select(DODA_RECORD_SELECT)
     .single();

@@ -356,6 +356,14 @@ function ClientGroupMobileSection({
                         : undefined
                     }
                   />
+                  {doda.lookup_error?.trim() ? (
+                    <p
+                      className="mt-1.5 text-xs text-red-700"
+                      title={doda.lookup_error}
+                    >
+                      {cleanDodaErrorMessage(doda.lookup_error)}
+                    </p>
+                  ) : null}
                 </div>
                 <DodaMobileActions>
                   {onCheckNowRequest ? (
@@ -597,6 +605,14 @@ function ClientGroupSection({
                           : undefined
                       }
                     />
+                    {doda.lookup_error?.trim() ? (
+                      <p
+                        className="mt-1.5 max-w-[220px] text-xs text-red-700"
+                        title={doda.lookup_error}
+                      >
+                        {cleanDodaErrorMessage(doda.lookup_error)}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">

@@ -2,7 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
-import { isDodaResolvedSatStatus } from "@/lib/doda-monitoring-constants";
+import {
+  isDodaResolvedSatStatus,
+  MONITORING_STOPPED_REASON,
+} from "@/lib/doda-monitoring-constants";
 import { processDodaSatRecheck } from "@/lib/doda-sat-recheck";
 import {
   DODA_RECORD_SELECT,
@@ -85,13 +88,14 @@ export async function performDodaRecheck(
               lookup_error: null,
             }
           : {
-              lookup_status: "revision_manual",
               lookup_error: recheck.lookupError,
             }),
         ...(resolved
           ? {
               is_monitored: false,
               is_resolved: true,
+              monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+              monitoring_stopped_at: checkedAt,
             }
           : {}),
       })

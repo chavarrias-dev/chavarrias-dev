@@ -13,9 +13,13 @@ export type DodaDashboardBuckets = {
 
 export const UNASSIGNED_CLIENT_LABEL = "Sin asociar";
 
+/**
+ * Legacy "errores" bucket: only rows that are no longer actively monitored.
+ * Active monitors with lookup_error stay in "En monitoreo".
+ */
 export function isDodaMonitoringError(doda: DodaDashboardRow): boolean {
   return (
-    doda.is_monitored &&
+    !doda.is_monitored &&
     !doda.is_resolved &&
     doda.lookup_status === "revision_manual" &&
     Boolean(doda.lookup_error?.trim())
@@ -27,9 +31,6 @@ export function isDodaConfirmed(doda: DodaDashboardRow): boolean {
 }
 
 export function isDodaActiveMonitoring(doda: DodaDashboardRow): boolean {
-  if (isDodaMonitoringError(doda)) {
-    return false;
-  }
   if (isDodaConfirmed(doda)) {
     return false;
   }
@@ -44,12 +45,12 @@ export function categorizeDodasForDashboard(
   const errors: DodaDashboardRow[] = [];
 
   for (const doda of dodas) {
-    if (isDodaMonitoringError(doda)) {
-      errors.push(doda);
+    if (isDodaActiveMonitoring(doda)) {
+      monitoring.push(doda);
     } else if (isDodaConfirmed(doda)) {
       confirmed.push(doda);
-    } else if (isDodaActiveMonitoring(doda)) {
-      monitoring.push(doda);
+    } else if (isDodaMonitoringError(doda)) {
+      errors.push(doda);
     }
   }
 

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  duplicateGroupMessage,
+  findWhatsappGroupByNormalizedId,
   isValidWhatsappGroupIdFormat,
   listWhatsappGroups,
   normalizeWhatsappGroupIdForStorage,
@@ -83,8 +85,13 @@ export async function POST(req: Request) {
   }
 
   const groupId = normalizeWhatsappGroupIdForStorage(rawGroupId);
-
   const admin = createSupabaseAdminClient();
+
+  const existing = await findWhatsappGroupByNormalizedId(admin, groupId);
+  if (existing) {
+    return jsonError(duplicateGroupMessage(existing.name), 409);
+  }
+
   const { data, error } = await admin
     .from("whatsapp_groups")
     .insert({ name, group_id: groupId })
@@ -93,7 +100,11 @@ export async function POST(req: Request) {
 
   if (error) {
     if (error.code === "23505") {
-      return jsonError("Ya existe un grupo con ese ID de WhatsApp", 409);
+      const again = await findWhatsappGroupByNormalizedId(admin, groupId);
+      return jsonError(
+        duplicateGroupMessage(again?.name ?? name),
+        409,
+      );
     }
     return jsonError(error.message, 500);
   }
