@@ -7,11 +7,12 @@ import {
   normalizeDodaTimestamp,
 } from "@/components/dodas/doda-display-utils";
 import {
-  normalizeWhatsAppGroupRecipient,
   normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
+import { sendEvolutionText } from "@/lib/evolution-whatsapp";
 import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
-import { sendDodaLiberadoWhatsApp } from "@/lib/twilio";
+// Twilio WhatsApp desactivado en liberado automático — usar sendEvolutionText.
+// import { sendDodaLiberadoWhatsApp } from "@/lib/twilio";
 
 export type DodaResolvedNotificationInput = {
   dodaId: string;
@@ -208,17 +209,65 @@ async function sendResolvedEmail(
   }
 }
 
+function buildDodaLiberatedEvolutionMessage(doda: DodaRecord | null, input: DodaResolvedNotificationInput): string {
+  const integracion =
+    doda?.numero_integracion?.trim() || input.integrationNumber || "N/A";
+  const vehiculo = doda?.datos_vehiculo?.trim() || "N/A";
+  const pedimento = doda?.pedimento?.trim() || "N/A";
+  const satStatus = doda?.sat_status?.trim() || input.newStatus || "N/A";
+
+  return [
+    "✅ DODA liberado",
+    `Integración: ${integracion}`,
+    `Vehículo: ${vehiculo}`,
+    `Pedimento: ${pedimento}`,
+    `Estatus SAT: ${satStatus}`,
+  ].join("\n");
+}
+
+function resolveEvolutionWhatsAppDestination(
+  doda: DodaRecord,
+): { to: string; label: string } | null {
+  if (doda.notify_type === "group") {
+    const raw = doda.notify_whatsapp_group_id?.trim() ?? "";
+    if (!raw) {
+      return null;
+    }
+    return { to: raw, label: `Grupo ${raw}` };
+  }
+
+  if (doda.notify_type === "individual") {
+    const raw =
+      doda.notify_whatsapp_number?.trim() ||
+      doda.whatsapp_phone?.trim() ||
+      "";
+    if (!raw) {
+      return null;
+    }
+    const normalized = normalizeWhatsAppIndividualRecipient(raw);
+    if (!normalized) {
+      return null;
+    }
+    return { to: normalized, label: raw };
+  }
+
+  return null;
+}
+
 /**
- * Sends email + WhatsApp when a monitored DODA is resolved.
+ * Sends email + WhatsApp (Evolution) when a monitored DODA is resolved.
  * WhatsApp only when `notify_type` + destination are set on the DODA row.
+ * Channels are independent: email failure does not block WhatsApp and vice versa.
  */
 export async function sendDodaResolvedExternalNotifications(
   supabase: SupabaseClient,
   input: DodaResolvedNotificationInput,
 ): Promise<DodaResolvedNotificationResult> {
   const errors: string[] = [];
-  let successCount = 0;
-  let attemptCount = 0;
+  let emailAttempted = false;
+  let emailOk = false;
+  let whatsAppAttempted = false;
+  let whatsAppOk = false;
 
   const doda = await loadDodaForNotification(supabase, input.dodaId);
   const { emails } = await loadNotificationRecipients(supabase, input);
@@ -228,10 +277,10 @@ export async function sendDodaResolvedExternalNotifications(
   );
 
   for (const recipient of uniqueEmails) {
-    attemptCount += 1;
+    emailAttempted = true;
     try {
       await sendResolvedEmail(recipient, input);
-      successCount += 1;
+      emailOk = true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Error al enviar correo";
@@ -240,38 +289,34 @@ export async function sendDodaResolvedExternalNotifications(
     }
   }
 
-  let whatsAppTo: string | null = null;
-  let whatsAppLabel = "";
+  // Evita doble envío de WhatsApp si ya se marcó como enviado.
+  const alreadySentWhatsApp = Boolean(doda?.notification_sent_at);
+  const waDestination =
+    doda && !alreadySentWhatsApp
+      ? resolveEvolutionWhatsAppDestination(doda)
+      : null;
 
-  if (doda?.notify_type === "individual") {
-    const raw = doda.notify_whatsapp_number?.trim() ?? "";
-    whatsAppTo = raw ? normalizeWhatsAppIndividualRecipient(raw) : null;
-    whatsAppLabel = raw;
-  } else if (doda?.notify_type === "group") {
-    const raw = doda.notify_whatsapp_group_id?.trim() ?? "";
-    whatsAppTo = raw ? normalizeWhatsAppGroupRecipient(raw) : null;
-    whatsAppLabel = raw ? `Grupo ${raw}` : "";
-  }
-
-  if (whatsAppTo) {
-    attemptCount += 1;
+  if (waDestination) {
+    whatsAppAttempted = true;
     try {
-      await sendDodaLiberadoWhatsApp({
-        to: whatsAppTo,
-        integracion: input.integrationNumber,
-        pedimento: doda?.pedimento?.trim() || "N/A",
-        fecha: formatChangedAt(input.changedAt),
-      });
-      successCount += 1;
+      await sendEvolutionText(
+        waDestination.to,
+        buildDodaLiberatedEvolutionMessage(doda, input),
+      );
+      whatsAppOk = true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Error al enviar WhatsApp";
-      errors.push(`WhatsApp (${whatsAppLabel}): ${message}`);
-      console.error("[doda-notify] whatsapp failed", whatsAppLabel, error);
+      errors.push(`WhatsApp (${waDestination.label}): ${message}`);
+      console.error(
+        "[doda-notify] evolution whatsapp failed",
+        waDestination.label,
+        error,
+      );
     }
   }
 
-  if (attemptCount === 0) {
+  if (!emailAttempted && !whatsAppAttempted && !alreadySentWhatsApp) {
     return {
       notification_sent_at: null,
       notification_error:
@@ -279,10 +324,17 @@ export async function sendDodaResolvedExternalNotifications(
     };
   }
 
-  const allSucceeded = successCount === attemptCount;
+  // notification_sent_at marca el WhatsApp (Evolution) exitoso para no reenviar.
+  // Si solo hubo correo y salió bien, también se marca para no reintentar en bucle.
+  let notificationSentAt: string | null = doda?.notification_sent_at ?? null;
+  if (whatsAppOk) {
+    notificationSentAt = new Date().toISOString();
+  } else if (!whatsAppAttempted && emailAttempted && emailOk && !notificationSentAt) {
+    notificationSentAt = new Date().toISOString();
+  }
 
   return {
-    notification_sent_at: allSucceeded ? new Date().toISOString() : null,
+    notification_sent_at: notificationSentAt,
     notification_error: errors.length > 0 ? errors.join(" | ") : null,
   };
 }
