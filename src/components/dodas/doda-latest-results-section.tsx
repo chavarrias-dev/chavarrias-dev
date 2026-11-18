@@ -21,6 +21,7 @@ import {
   UNASSIGNED_CLIENT_LABEL,
   type DodaDashboardRow,
 } from "@/lib/doda-dashboard-categories";
+import { isDodaResolvedSatStatus } from "@/lib/doda-monitoring-constants";
 
 const LATEST_RESULTS_LIMIT = 5;
 
@@ -38,7 +39,10 @@ export function DodaLatestResultsSection({
 
   const latestResolved = useMemo(() => {
     return dodas
-      .filter((doda) => doda.is_resolved)
+      .filter(
+        (doda) =>
+          doda.is_resolved && isDodaResolvedSatStatus(doda.sat_status),
+      )
       .sort((a, b) => {
         const dateA = getDodaConfirmationDate(a) ?? "";
         const dateB = getDodaConfirmationDate(b) ?? "";

@@ -7,7 +7,11 @@ import type { ProcessDodaLookupResult } from "@/lib/doda-lookup";
 import type { DodaLookupStatus, DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { parseSatDetails } from "@/lib/doda-sat-details";
-import { DODA_RESOLVED_SAT_STATUS } from "@/lib/doda-monitoring-constants";
+import {
+  isDodaResolvedSatStatus,
+  MONITORING_STOPPED_REASON,
+} from "@/lib/doda-monitoring-constants";
+import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
 export { findClientIdByPhone } from "@/lib/phone-match";
@@ -56,6 +60,106 @@ export type RunDodaLookupByNumberInput = {
   createdBy?: string | null;
   isMonitored?: boolean;
 };
+
+/** Flags + optional WhatsApp/email when the first SAT scrape already shows libre. */
+function liberationFieldsFromLookup(lookup: {
+  lookupStatus: DodaLookupStatus;
+  satStatus: string | null;
+  lookedUpAt: string;
+}): Record<string, unknown> {
+  const liberated =
+    lookup.lookupStatus === "verificado" &&
+    isDodaResolvedSatStatus(lookup.satStatus);
+  if (!liberated) {
+    return {};
+  }
+  return {
+    is_monitored: false,
+    is_resolved: true,
+    monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+    monitoring_stopped_at: lookup.lookedUpAt,
+  };
+}
+
+function monitoringFieldsAfterLookup(
+  isMonitored: boolean,
+  lookup: {
+    lookupStatus: DodaLookupStatus;
+    satStatus: string | null;
+    lookedUpAt: string;
+  },
+): Record<string, unknown> {
+  const liberated = liberationFieldsFromLookup(lookup);
+  if (Object.keys(liberated).length > 0) {
+    return liberated;
+  }
+  if (isMonitored) {
+    return { is_monitored: true, is_resolved: false };
+  }
+  return {};
+}
+
+async function notifyIfInstantlyLiberated(
+  supabase: SupabaseClient,
+  doda: DodaRecord,
+  previousStatus: string | null,
+): Promise<DodaRecord> {
+  if (
+    !doda.is_resolved ||
+    !isDodaResolvedSatStatus(doda.sat_status) ||
+    doda.notification_sent_at
+  ) {
+    return doda;
+  }
+
+  try {
+    const external = await sendDodaResolvedExternalNotifications(supabase, {
+      dodaId: doda.id,
+      clienteId: doda.cliente_id,
+      createdBy: doda.created_by,
+      integrationNumber:
+        doda.numero_integracion?.trim() || doda.id.slice(0, 8),
+      previousStatus,
+      newStatus: doda.sat_status!.trim(),
+      changedAt:
+        doda.monitoring_stopped_at ??
+        doda.looked_up_at ??
+        new Date().toISOString(),
+    });
+
+    const { data: tracked, error } = await supabase
+      .from("dodas")
+      .update({
+        notification_sent_at: external.notification_sent_at,
+        notification_error: external.notification_error,
+      })
+      .eq("id", doda.id)
+      .select(DODA_RECORD_SELECT)
+      .single();
+
+    if (error || !tracked) {
+      console.error(
+        "[doda-service] failed to persist instant liberation notification",
+        doda.id,
+        error,
+      );
+      return {
+        ...doda,
+        notification_sent_at: external.notification_sent_at,
+        notification_error: external.notification_error,
+      };
+    }
+
+    return tracked as DodaRecord;
+  } catch (error) {
+    console.error(
+      "[doda-service] instant liberation notification failed",
+      doda.id,
+      error,
+    );
+    return doda;
+  }
+}
 
 function inferExtension(file: File): string {
   const lowerName = file.name.toLowerCase();
@@ -207,7 +311,7 @@ export async function runDodaLookupAndSave(
       lookup_error: lookup.lookupError,
       looked_up_at: lookup.lookedUpAt,
       last_checked_at: lookup.lookedUpAt,
-      ...(isMonitored ? { is_monitored: true, is_resolved: false } : {}),
+      ...monitoringFieldsAfterLookup(isMonitored, lookup),
     })
     .eq("id", dodaId)
     .select(DODA_RECORD_SELECT)
@@ -217,9 +321,15 @@ export async function runDodaLookupAndSave(
     throw new Error(updateError?.message ?? "Error al guardar el resultado");
   }
 
+  const doda = await notifyIfInstantlyLiberated(
+    supabase,
+    updatedRow as DodaRecord,
+    null,
+  );
+
   return {
     lookup,
-    doda: updatedRow as DodaRecord,
+    doda,
   };
 }
 
@@ -238,7 +348,7 @@ async function findResolvedDodaByIntegrationNumber(
     .from("dodas")
     .select(DODA_RECORD_SELECT)
     .eq("numero_integracion", integrationNumber)
-    .eq("sat_status", DODA_RESOLVED_SAT_STATUS)
+    .ilike("sat_status", "DESADUANAMIENTO LIBRE")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -355,7 +465,7 @@ export async function runDodaLookupByNumberAndSave(
       lookup_error: lookup.lookupError,
       looked_up_at: lookup.lookedUpAt,
       last_checked_at: lookup.lookedUpAt,
-      ...(isMonitored ? { is_monitored: true, is_resolved: false } : {}),
+      ...monitoringFieldsAfterLookup(isMonitored, lookup),
     })
     .eq("id", dodaId)
     .select(DODA_RECORD_SELECT)
@@ -365,8 +475,14 @@ export async function runDodaLookupByNumberAndSave(
     throw new Error(updateError?.message ?? "Error al guardar el resultado");
   }
 
+  const doda = await notifyIfInstantlyLiberated(
+    supabase,
+    updatedRow as DodaRecord,
+    null,
+  );
+
   return {
     lookup,
-    doda: updatedRow as DodaRecord,
+    doda,
   };
 }

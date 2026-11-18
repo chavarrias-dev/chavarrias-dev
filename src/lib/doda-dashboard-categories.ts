@@ -27,7 +27,8 @@ export function isDodaMonitoringError(doda: DodaDashboardRow): boolean {
 }
 
 export function isDodaConfirmed(doda: DodaDashboardRow): boolean {
-  return doda.is_resolved || isDodaResolvedSatStatus(doda.sat_status);
+  // Solo Desaduanamiento libre — evita meter otros estatus con is_resolved=true.
+  return isDodaResolvedSatStatus(doda.sat_status);
 }
 
 export function isDodaActiveMonitoring(doda: DodaDashboardRow): boolean {
