@@ -324,13 +324,18 @@ export async function sendDodaResolvedExternalNotifications(
     };
   }
 
-  // notification_sent_at marca el WhatsApp (Evolution) exitoso para no reenviar.
-  // Si solo hubo correo y salió bien, también se marca para no reintentar en bucle.
+  // notification_sent_at solo marca WhatsApp Evolution exitoso (evita doble envío).
+  // No lo pongas por correo solo: bloquearía un reintento de WhatsApp.
   let notificationSentAt: string | null = doda?.notification_sent_at ?? null;
   if (whatsAppOk) {
     notificationSentAt = new Date().toISOString();
-  } else if (!whatsAppAttempted && emailAttempted && emailOk && !notificationSentAt) {
-    notificationSentAt = new Date().toISOString();
+  }
+
+  if (!emailAttempted && !whatsAppAttempted && alreadySentWhatsApp) {
+    return {
+      notification_sent_at: notificationSentAt,
+      notification_error: null,
+    };
   }
 
   return {

@@ -415,6 +415,56 @@ export async function runDodaLookupByNumberAndSave(
     trimmed,
   );
   if (existingResolved) {
+    // Re-programar un DODA ya liberado: aplicar destino WhatsApp de esta
+    // solicitud y avisar al grupo/número. Antes se devolvía el row viejo
+    // sin notificar ni guardar el nuevo notify_*.
+    if (isMonitored || notifyType) {
+      const { data: refreshed, error: refreshError } = await supabase
+        .from("dodas")
+        .update({
+          cliente_id: clienteId ?? existingResolved.cliente_id,
+          pedimento_id: pedimentoId ?? existingResolved.pedimento_id,
+          notas: notas ?? existingResolved.notas,
+          whatsapp_phone: whatsappPhone ?? existingResolved.whatsapp_phone,
+          notify_type: notifyType,
+          notify_whatsapp_number: notifyWhatsappNumber,
+          notify_whatsapp_group_id: notifyWhatsappGroupId,
+          is_monitored: false,
+          is_resolved: true,
+          monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+          monitoring_stopped_at:
+            existingResolved.monitoring_stopped_at ??
+            existingResolved.looked_up_at ??
+            new Date().toISOString(),
+          // Permite un nuevo envío Evolution para esta programación.
+          notification_sent_at: null,
+          notification_error: null,
+          source: source ?? existingResolved.source,
+          created_by: createdBy ?? existingResolved.created_by,
+        })
+        .eq("id", existingResolved.id)
+        .select(DODA_RECORD_SELECT)
+        .single();
+
+      if (refreshError || !refreshed) {
+        throw new Error(
+          refreshError?.message ??
+            "No se pudo actualizar el DODA ya liberado",
+        );
+      }
+
+      const doda = await notifyIfInstantlyLiberated(
+        supabase,
+        refreshed as DodaRecord,
+        existingResolved.sat_status,
+      );
+
+      return {
+        lookup: lookupResultFromResolvedDoda(doda),
+        doda,
+      };
+    }
+
     return {
       lookup: lookupResultFromResolvedDoda(existingResolved),
       doda: existingResolved,
