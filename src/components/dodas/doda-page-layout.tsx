@@ -46,7 +46,6 @@ function DodaPageLayoutContent({
             isAdmin={isAdmin}
             whatsappGroups={whatsappGroups}
           />
-          <DodaLatestResultsSection dodas={dodas} />
         </div>
 
         <div className="space-y-4 sm:space-y-6">
@@ -55,6 +54,7 @@ function DodaPageLayoutContent({
             whatsappGroups={whatsappGroups}
             isAdmin={isAdmin}
           />
+          <DodaLatestResultsSection dodas={dodas} />
         </div>
       </div>
 

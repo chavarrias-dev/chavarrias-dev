@@ -18,12 +18,15 @@ import { DodaResolvedMobileCard } from "@/components/dodas/doda-resolved-mobile-
 import { DodaDesktopTable, DodaMobileStack } from "@/components/dodas/doda-mobile-ui";
 import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 import {
+  categorizeDodasForDashboard,
   UNASSIGNED_CLIENT_LABEL,
   type DodaDashboardRow,
 } from "@/lib/doda-dashboard-categories";
 import { isDodaResolvedSatStatus } from "@/lib/doda-monitoring-constants";
 
-const LATEST_RESULTS_LIMIT = 5;
+const LATEST_RESULTS_LIMIT = 3;
+/** Hide this preview when active monitoring is crowded. */
+const HIDE_WHEN_MONITORING_ABOVE = 5;
 
 type DodaLatestResultsSectionProps = {
   dodas: DodaDashboardRow[];
@@ -36,6 +39,11 @@ export function DodaLatestResultsSection({
     null,
   );
   const [modalOpen, setModalOpen] = useState(false);
+
+  const monitoringCount = useMemo(
+    () => categorizeDodasForDashboard(dodas).monitoring.length,
+    [dodas],
+  );
 
   const latestResolved = useMemo(() => {
     return dodas
@@ -54,6 +62,10 @@ export function DodaLatestResultsSection({
   function openDetail(doda: DodaDashboardRow) {
     setSelectedDoda(doda);
     setModalOpen(true);
+  }
+
+  if (monitoringCount > HIDE_WHEN_MONITORING_ABOVE) {
+    return null;
   }
 
   return (
