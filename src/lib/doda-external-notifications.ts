@@ -10,6 +10,7 @@ import {
   normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
 import { sendEvolutionText } from "@/lib/evolution-whatsapp";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
 // Twilio WhatsApp desactivado en liberado automático — usar sendEvolutionText.
 // import { sendDodaLiberadoWhatsApp } from "@/lib/twilio";
@@ -265,11 +266,20 @@ export async function sendDodaResolvedExternalNotifications(
 ): Promise<DodaResolvedNotificationResult> {
   const errors: string[] = [];
   let emailAttempted = false;
-  let emailOk = false;
   let whatsAppAttempted = false;
   let whatsAppOk = false;
 
-  const doda = await loadDodaForNotification(supabase, input.dodaId);
+  // Service role para leer/marcar sin RLS; si falta la key, usa el client del caller.
+  let db: SupabaseClient = supabase;
+  try {
+    db = createSupabaseAdminClient();
+  } catch (adminError) {
+    console.error(
+      "[doda-notify] admin client unavailable, using caller supabase",
+      adminError,
+    );
+  }
+  const doda = await loadDodaForNotification(db, input.dodaId);
   const { emails } = await loadNotificationRecipients(supabase, input);
 
   const uniqueEmails = Array.from(
@@ -280,7 +290,6 @@ export async function sendDodaResolvedExternalNotifications(
     emailAttempted = true;
     try {
       await sendResolvedEmail(recipient, input);
-      emailOk = true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Error al enviar correo";
@@ -289,52 +298,75 @@ export async function sendDodaResolvedExternalNotifications(
     }
   }
 
-  // Evita doble envío de WhatsApp si ya se marcó como enviado.
+  // Un solo WhatsApp: claim atómico con service role (sin RLS) antes de Evolution.
   const alreadySentWhatsApp = Boolean(doda?.notification_sent_at);
+  let notificationSentAt: string | null = doda?.notification_sent_at ?? null;
   const waDestination =
     doda && !alreadySentWhatsApp
       ? resolveEvolutionWhatsAppDestination(doda)
       : null;
 
-  if (waDestination) {
-    whatsAppAttempted = true;
-    try {
-      await sendEvolutionText(
-        waDestination.to,
-        buildDodaLiberatedEvolutionMessage(doda, input),
-      );
-      whatsAppOk = true;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Error al enviar WhatsApp";
-      errors.push(`WhatsApp (${waDestination.label}): ${message}`);
-      console.error(
-        "[doda-notify] evolution whatsapp failed",
-        waDestination.label,
-        error,
-      );
+  if (doda && waDestination) {
+    const claimAt = new Date().toISOString();
+    const { data: claimed, error: claimError } = await db
+      .from("dodas")
+      .update({ notification_sent_at: claimAt })
+      .eq("id", doda.id)
+      .is("notification_sent_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (claimError) {
+      console.error("[doda-notify] whatsapp claim failed", doda.id, claimError);
+      errors.push(`WhatsApp: ${claimError.message}`);
+    } else if (claimed) {
+      whatsAppAttempted = true;
+      try {
+        await sendEvolutionText(
+          waDestination.to,
+          buildDodaLiberatedEvolutionMessage(doda, input),
+        );
+        whatsAppOk = true;
+        notificationSentAt = claimAt;
+        await db
+          .from("dodas")
+          .update({ notification_error: null })
+          .eq("id", doda.id);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Error al enviar WhatsApp";
+        errors.push(`WhatsApp (${waDestination.label}): ${message}`);
+        console.error(
+          "[doda-notify] evolution whatsapp failed",
+          waDestination.label,
+          error,
+        );
+        await db
+          .from("dodas")
+          .update({
+            notification_sent_at: null,
+            notification_error: message,
+          })
+          .eq("id", doda.id);
+        notificationSentAt = null;
+      }
+    } else {
+      const { data: latest } = await db
+        .from("dodas")
+        .select("notification_sent_at")
+        .eq("id", doda.id)
+        .maybeSingle();
+      notificationSentAt =
+        (latest as { notification_sent_at?: string | null } | null)
+          ?.notification_sent_at ?? notificationSentAt;
     }
   }
 
-  if (!emailAttempted && !whatsAppAttempted && !alreadySentWhatsApp) {
+  if (!emailAttempted && !whatsAppAttempted && !alreadySentWhatsApp && !waDestination) {
     return {
       notification_sent_at: null,
       notification_error:
         "No hay destinatarios con correo ni número WhatsApp en este DODA.",
-    };
-  }
-
-  // notification_sent_at solo marca WhatsApp Evolution exitoso (evita doble envío).
-  // No lo pongas por correo solo: bloquearía un reintento de WhatsApp.
-  let notificationSentAt: string | null = doda?.notification_sent_at ?? null;
-  if (whatsAppOk) {
-    notificationSentAt = new Date().toISOString();
-  }
-
-  if (!emailAttempted && !whatsAppAttempted && alreadySentWhatsApp) {
-    return {
-      notification_sent_at: notificationSentAt,
-      notification_error: null,
     };
   }
 

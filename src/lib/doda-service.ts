@@ -419,6 +419,7 @@ export async function runDodaLookupByNumberAndSave(
     // solicitud y avisar al grupo/número. Antes se devolvía el row viejo
     // sin notificar ni guardar el nuevo notify_*.
     if (isMonitored || notifyType) {
+      const alreadyNotified = Boolean(existingResolved.notification_sent_at);
       const { data: refreshed, error: refreshError } = await supabase
         .from("dodas")
         .update({
@@ -436,9 +437,6 @@ export async function runDodaLookupByNumberAndSave(
             existingResolved.monitoring_stopped_at ??
             existingResolved.looked_up_at ??
             new Date().toISOString(),
-          // Permite un nuevo envío Evolution para esta programación.
-          notification_sent_at: null,
-          notification_error: null,
           source: source ?? existingResolved.source,
           created_by: createdBy ?? existingResolved.created_by,
         })
@@ -453,11 +451,14 @@ export async function runDodaLookupByNumberAndSave(
         );
       }
 
-      const doda = await notifyIfInstantlyLiberated(
-        supabase,
-        refreshed as DodaRecord,
-        existingResolved.sat_status,
-      );
+      // Si ya se avisó, no reenviar (evita mensaje duplicado).
+      const doda = alreadyNotified
+        ? (refreshed as DodaRecord)
+        : await notifyIfInstantlyLiberated(
+            supabase,
+            refreshed as DodaRecord,
+            existingResolved.sat_status,
+          );
 
       return {
         lookup: lookupResultFromResolvedDoda(doda),
