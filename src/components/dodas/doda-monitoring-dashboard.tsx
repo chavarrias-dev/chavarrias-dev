@@ -27,7 +27,10 @@ import {
   type ClientDodaGroup,
   type DodaDashboardRow,
 } from "@/lib/doda-dashboard-categories";
-import { DODA_CRON_INTERVAL_MS } from "@/lib/doda-monitoring-constants";
+import {
+  DODA_CRON_INTERVAL_MS,
+  isDodaReconocimientoSatStatus,
+} from "@/lib/doda-monitoring-constants";
 import { DASHBOARD_TABLE_SCROLL_CLASS } from "@/lib/dashboard-layout";
 
 type DodaMonitoringDashboardProps = {
@@ -68,7 +71,17 @@ function dodaNotifyCellDisplay(
 /** Realtime (see DodaDashboardProvider) handles instant updates; this is just a safety net. */
 const MONITORING_REFRESH_FALLBACK_MS = 2 * 60 * 1000;
 
-function MonitoringBadge() {
+function MonitoringBadge({ satStatus }: { satStatus?: string | null }) {
+  if (isDodaReconocimientoSatStatus(satStatus)) {
+    return (
+      <span
+        className={`${BADGE_BASE} border border-amber-300 bg-amber-50 text-amber-900`}
+      >
+        Reconocimiento aduanero
+      </span>
+    );
+  }
+
   return (
     <span
       className={`${BADGE_BASE} border border-orange-200 bg-orange-50 text-orange-800`}
@@ -346,7 +359,7 @@ function ClientGroupMobileSection({
                   </DodaMobileKv>
                 </div>
                 <div className="mt-2">
-                  <MonitoringBadge />
+                  <MonitoringBadge satStatus={doda.sat_status} />
                   <MonitoringNextReviewLine
                     lastCheckedAt={doda.last_checked_at ?? null}
                     isChecking={checkingId === doda.id}
@@ -595,7 +608,7 @@ function ClientGroupSection({
                     })()}
                   </td>
                   <td className="px-4 py-3">
-                    <MonitoringBadge />
+                    <MonitoringBadge satStatus={doda.sat_status} />
                     <MonitoringNextReviewLine
                       lastCheckedAt={doda.last_checked_at ?? null}
                       isChecking={checkingId === doda.id}

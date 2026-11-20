@@ -3,27 +3,29 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { processDodaSatRecheck } from "@/lib/doda-sat-recheck";
 import {
+  isDodaReconocimientoSatStatus,
   isDodaResolvedSatStatus,
   MAX_DODAS_PER_CRON_RUN,
   MONITORING_STOPPED_REASON,
+  satStatusesEqual,
 } from "@/lib/doda-monitoring-constants";
 import { DODA_RECORD_SELECT, type DodaLookupStatus } from "@/lib/doda-types";
 import {
   notifyStaffDodaMonitoringComplete,
+  notifyStaffDodaReconocimiento,
   notifyStaffDodaStatusChange,
   type MonitoredDodaRow,
 } from "@/lib/notifications";
-import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
+import {
+  sendDodaReconocimientoWhatsAppNotification,
+  sendDodaResolvedExternalNotifications,
+} from "@/lib/doda-external-notifications";
 import { sendPushNotification } from "@/lib/web-push";
 
 const DELAY_BETWEEN_CHECKS_MS = 750;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function statusesEqual(a: string | null, b: string | null): boolean {
-  return (a ?? "").trim() === (b ?? "").trim();
 }
 
 export type DodaCronItemResult = {
@@ -59,12 +61,12 @@ async function fetchMonitoredDodaBatch(
   const { data: rows, error } = await supabase
     .from("dodas")
     .select(
-      "id, cliente_id, created_by, numero_integracion, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, last_checked_at, check_count",
+      "id, cliente_id, created_by, numero_integracion, qr_validator_url, sat_status, sat_details, lookup_status, lookup_error, last_checked_at, check_count, last_notified_sat_status",
     )
     .eq("is_monitored", true)
     .eq("is_resolved", false)
     .not("qr_validator_url", "is", null)
-    .or("sat_status.is.null,sat_status.neq.DESADUANAMIENTO LIBRE")
+    .or('sat_status.is.null,sat_status.neq."DESADUANAMIENTO LIBRE"')
     .order("last_checked_at", { ascending: true, nullsFirst: true })
     .limit(MAX_DODAS_PER_CRON_RUN);
 
@@ -172,6 +174,11 @@ export async function processMonitoredDodasBatch(
         continue;
       }
 
+      const integrationNumber =
+        recheck.numeroIntegracion ??
+        doda.numero_integracion ??
+        doda.id.slice(0, 8);
+
       if (resolved) {
         await notifyStaffDodaMonitoringComplete(supabase, {
           dodaId: doda.id,
@@ -179,9 +186,6 @@ export async function processMonitoredDodasBatch(
             recheck.numeroIntegracion ?? doda.numero_integracion,
           satStatus: newStatus!,
         });
-
-        const integrationNumber =
-          recheck.numeroIntegracion ?? doda.numero_integracion ?? doda.id.slice(0, 8);
 
         if (doda.created_by) {
           try {
@@ -245,7 +249,55 @@ export async function processMonitoredDodasBatch(
       } else if (
         recheck.lookupStatus === "verificado" &&
         newStatus &&
-        !statusesEqual(previousStatus, newStatus)
+        isDodaReconocimientoSatStatus(newStatus) &&
+        !satStatusesEqual(doda.last_notified_sat_status, newStatus)
+      ) {
+        await notifyStaffDodaReconocimiento(supabase, {
+          dodaId: doda.id,
+          numeroIntegracion:
+            recheck.numeroIntegracion ?? doda.numero_integracion,
+        });
+
+        if (doda.created_by) {
+          try {
+            await sendPushNotification(
+              doda.created_by,
+              "⚠️ DODA en Reconocimiento",
+              `El número ${integrationNumber} cayó en reconocimiento aduanero`,
+              "/dashboard/dodas",
+              "notif_doda_alert",
+            );
+          } catch (pushError) {
+            console.error(
+              "[doda-cron] reconocimiento push failed",
+              doda.id,
+              pushError,
+            );
+          }
+        }
+
+        try {
+          const wa = await sendDodaReconocimientoWhatsAppNotification(
+            supabase,
+            doda.id,
+          );
+          if (wa.notification_error) {
+            await supabase
+              .from("dodas")
+              .update({ notification_error: wa.notification_error })
+              .eq("id", doda.id);
+          }
+        } catch (waError) {
+          console.error(
+            "[doda-cron] reconocimiento whatsapp failed",
+            doda.id,
+            waError,
+          );
+        }
+      } else if (
+        recheck.lookupStatus === "verificado" &&
+        newStatus &&
+        !satStatusesEqual(previousStatus, newStatus)
       ) {
         await notifyStaffDodaStatusChange(supabase, {
           dodaId: doda.id,
@@ -311,7 +363,7 @@ export async function checkMonitoredDodas(
       (item) =>
         item.completed ||
         (!!item.new_status &&
-          !statusesEqual(item.previous_status, item.new_status)),
+          !satStatusesEqual(item.previous_status, item.new_status)),
     ).length,
     skipped: batch.results.filter((item) => item.error === "Sin URL del validador SAT")
       .length,

@@ -58,6 +58,7 @@ export type DodaRecord = {
   is_resolved: boolean;
   monitoring_stopped_reason: string | null;
   monitoring_stopped_at: string | null;
+  last_notified_sat_status: string | null;
   notification_sent_at: string | null;
   notification_error: string | null;
   notify_type: string | null;
@@ -71,7 +72,7 @@ export type DodaRecord = {
 };
 
 export const DODA_RECORD_SELECT =
-  "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, tipo_pedimento, pedimento, remesas_presentadas, clave_pedimento, datos_vehiculo, cantidad_mercancia, lookup_status, lookup_error, looked_up_at, last_checked_at, check_count, is_monitored, is_resolved, monitoring_stopped_reason, monitoring_stopped_at, notification_sent_at, notification_error, notify_type, notify_whatsapp_number, notify_whatsapp_group_id, whatsapp_phone, source, notas, created_by, created_at";
+  "id, cliente_id, pedimento_id, numero_integracion, archivo_url, qr_validator_url, sat_status, sat_details, tipo_pedimento, pedimento, remesas_presentadas, clave_pedimento, datos_vehiculo, cantidad_mercancia, lookup_status, lookup_error, looked_up_at, last_checked_at, check_count, is_monitored, is_resolved, monitoring_stopped_reason, monitoring_stopped_at, last_notified_sat_status, notification_sent_at, notification_error, notify_type, notify_whatsapp_number, notify_whatsapp_group_id, whatsapp_phone, source, notas, created_by, created_at";
 
 export type NotificationRecord = {
   id: string;

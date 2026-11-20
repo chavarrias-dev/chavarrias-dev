@@ -6,6 +6,11 @@ import type {
   SatDodaDetails,
   SatDodaLookupOutcome,
 } from "@/lib/doda-types";
+import {
+  canonicalizeDodaSatStatus,
+  DODA_RECONOCIMIENTO_SAT_STATUS,
+  DODA_RESOLVED_SAT_STATUS,
+} from "@/lib/doda-monitoring-constants";
 import { extractIntegrationNumberFromUrl } from "@/lib/doda-sat-details";
 import { launchPuppeteerBrowser } from "@/lib/launch-puppeteer";
 import {
@@ -61,10 +66,36 @@ async function logPageDiagnostics(
 }
 
 
+function foldForSatMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Prefer known statuses inside Datos Generales (accent/case insensitive). */
+function detectKnownStatusInText(text: string): string | null {
+  const folded = foldForSatMatch(text);
+  if (folded.includes(foldForSatMatch(DODA_RESOLVED_SAT_STATUS))) {
+    return DODA_RESOLVED_SAT_STATUS;
+  }
+  if (folded.includes(foldForSatMatch(DODA_RECONOCIMIENTO_SAT_STATUS))) {
+    return DODA_RECONOCIMIENTO_SAT_STATUS;
+  }
+  return null;
+}
+
 function extractSatStatusFromDatosGenerales(text: string): string | null {
+  const known = detectKnownStatusInText(text);
+  if (known) {
+    return known;
+  }
+
   const starred = text.match(/\*\*\*(.+?)\*\*\*/);
   if (starred?.[1]) {
-    return starred[1].trim();
+    return detectKnownStatusInText(starred[1]) ?? starred[1].trim();
   }
 
   const lines = text
@@ -92,7 +123,7 @@ function extractSatStatusFromDatosGenerales(text: string): string | null {
       /^[A-ZÁÉÍÓÚÑ0-9\s\-_/().,]+$/.test(line),
   );
   if (statusLike) {
-    return statusLike;
+    return detectKnownStatusInText(statusLike) ?? statusLike;
   }
 
   return candidates.length > 0 ? (candidates[candidates.length - 1] ?? null) : null;
@@ -114,6 +145,7 @@ async function extractSatValidatorData(
   pageTitle: string | null;
   bodyText: string;
   foundDesaduanamientoLibreInBody: boolean;
+  foundReconocimientoInBody: boolean;
   foundDodaKeywordInBody: boolean;
 }> {
   return page.evaluate(
@@ -245,14 +277,39 @@ async function extractSatValidatorData(
         return parsed;
       }
 
+      function foldStatus(value: string): string {
+        return value
+          .normalize("NFD")
+          .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function detectKnownStatus(text: string): string | null {
+        const folded = foldStatus(text);
+        if (folded.includes("desaduanamiento libre")) {
+          return "DESADUANAMIENTO LIBRE";
+        }
+        if (folded.includes("reconocimiento aduanero")) {
+          return "RECONOCIMIENTO ADUANERO";
+        }
+        return null;
+      }
+
       function extractStatusFromText(text: string | null): string | null {
         if (!text) {
           return null;
         }
 
+        const known = detectKnownStatus(text);
+        if (known) {
+          return known;
+        }
+
         const starred = text.match(/\*\*\*(.+?)\*\*\*/);
         if (starred?.[1]) {
-          return starred[1].trim();
+          return detectKnownStatus(starred[1]) ?? starred[1].trim();
         }
 
         const lines = text
@@ -279,7 +336,7 @@ async function extractSatValidatorData(
             /^[A-ZÁÉÍÓÚÑ0-9\s\-_/().,]+$/.test(line),
         );
         if (statusLike) {
-          return statusLike;
+          return detectKnownStatus(statusLike) ?? statusLike;
         }
 
         return candidates.length > 0
@@ -370,8 +427,9 @@ async function extractSatValidatorData(
         );
         for (const el of messageEls) {
           const text = normalizeText(el.textContent);
-          if (/desaduanamiento\s+libre/i.test(text)) {
-            satStatus = "DESADUANAMIENTO LIBRE";
+          const knownMsg = detectKnownStatus(text);
+          if (knownMsg) {
+            satStatus = knownMsg;
             satStatusSource = "primefaces_message_box";
             break;
           }
@@ -381,13 +439,17 @@ async function extractSatValidatorData(
       const bodyText = document.body?.innerText ?? "";
       const foundDesaduanamientoLibreInBody =
         /desaduanamiento\s+libre/i.test(bodyText);
+      const foundReconocimientoInBody =
+        /reconocimiento\s+aduanero/i.test(bodyText);
       const foundDodaKeywordInBody = /\bdoda\b/i.test(bodyText);
 
-      // Last resort: if "DESADUANAMIENTO LIBRE" appears anywhere in the
-      // rendered page text, treat the DODA as resolved even though none of
-      // the structured selectors above matched.
+      // Last resort: known statuses anywhere in the rendered page text.
       if (!satStatus && foundDesaduanamientoLibreInBody) {
         satStatus = "DESADUANAMIENTO LIBRE";
+        satStatusSource = "body_text_scan";
+      }
+      if (!satStatus && foundReconocimientoInBody) {
+        satStatus = "RECONOCIMIENTO ADUANERO";
         satStatusSource = "body_text_scan";
       }
 
@@ -435,6 +497,7 @@ async function extractSatValidatorData(
         pageTitle: document.title || null,
         bodyText,
         foundDesaduanamientoLibreInBody,
+        foundReconocimientoInBody,
         foundDodaKeywordInBody,
       };
     },
@@ -549,11 +612,26 @@ export async function scrapeSatDodaStatus(
       );
     }
 
-    const satStatus =
+    const rawSatStatus =
       extracted.satStatus ??
       (extracted.datosGeneralesConsultados
         ? extractSatStatusFromDatosGenerales(extracted.datosGeneralesConsultados)
         : null);
+    const detectedStatus =
+      (rawSatStatus ? detectKnownStatusInText(rawSatStatus) : null) ??
+      rawSatStatus ??
+      (extracted.datosGeneralesConsultados
+        ? detectKnownStatusInText(extracted.datosGeneralesConsultados)
+        : null) ??
+      (extracted.foundDesaduanamientoLibreInBody
+        ? "DESADUANAMIENTO LIBRE"
+        : null) ??
+      (extracted.foundReconocimientoInBody
+        ? "RECONOCIMIENTO ADUANERO"
+        : null);
+    const satStatus = detectedStatus
+      ? (canonicalizeDodaSatStatus(detectedStatus) ?? detectedStatus)
+      : null;
 
     if (!satStatus) {
       console.error(

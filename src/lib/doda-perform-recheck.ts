@@ -1,10 +1,15 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
 import {
+  sendDodaReconocimientoWhatsAppNotification,
+  sendDodaResolvedExternalNotifications,
+} from "@/lib/doda-external-notifications";
+import {
+  isDodaReconocimientoSatStatus,
   isDodaResolvedSatStatus,
   MONITORING_STOPPED_REASON,
+  satStatusesEqual,
 } from "@/lib/doda-monitoring-constants";
 import { processDodaSatRecheck } from "@/lib/doda-sat-recheck";
 import {
@@ -12,7 +17,10 @@ import {
   type DodaLookupStatus,
   type DodaRecord,
 } from "@/lib/doda-types";
-import { notifyStaffDodaMonitoringComplete } from "@/lib/notifications";
+import {
+  notifyStaffDodaMonitoringComplete,
+  notifyStaffDodaReconocimiento,
+} from "@/lib/notifications";
 import { sendPushNotification } from "@/lib/web-push";
 
 export type PerformDodaRecheckOutcome =
@@ -111,6 +119,11 @@ export async function performDodaRecheck(
       };
     }
 
+    const integrationNumber =
+      recheck.numeroIntegracion ??
+      doda.numero_integracion ??
+      dodaId.slice(0, 8);
+
     if (resolved && recheck.satStatus) {
       await notifyStaffDodaMonitoringComplete(supabase, {
         dodaId,
@@ -119,8 +132,6 @@ export async function performDodaRecheck(
       });
 
       if (doda.created_by) {
-        const integrationNumber =
-          recheck.numeroIntegracion ?? doda.numero_integracion ?? dodaId.slice(0, 8);
         try {
           await sendPushNotification(
             doda.created_by,
@@ -134,8 +145,6 @@ export async function performDodaRecheck(
         }
       }
 
-      const integrationNumber =
-        recheck.numeroIntegracion ?? doda.numero_integracion ?? dodaId.slice(0, 8);
       try {
         const external = await sendDodaResolvedExternalNotifications(supabase, {
           dodaId,
@@ -157,11 +166,64 @@ export async function performDodaRecheck(
       } catch (externalError) {
         console.error("[doda-recheck] external notifications failed", dodaId, externalError);
       }
+    } else if (
+      recheck.lookupStatus === "verificado" &&
+      recheck.satStatus &&
+      isDodaReconocimientoSatStatus(recheck.satStatus) &&
+      !satStatusesEqual(doda.last_notified_sat_status, recheck.satStatus)
+    ) {
+      await notifyStaffDodaReconocimiento(supabase, {
+        dodaId,
+        numeroIntegracion: recheck.numeroIntegracion ?? doda.numero_integracion,
+      });
+
+      if (doda.created_by) {
+        try {
+          await sendPushNotification(
+            doda.created_by,
+            "⚠️ DODA en Reconocimiento",
+            `El número ${integrationNumber} cayó en reconocimiento aduanero`,
+            "/dashboard/dodas",
+            "notif_doda_alert",
+          );
+        } catch (pushError) {
+          console.error(
+            "[doda-recheck] reconocimiento push failed",
+            dodaId,
+            pushError,
+          );
+        }
+      }
+
+      try {
+        const wa = await sendDodaReconocimientoWhatsAppNotification(
+          supabase,
+          dodaId,
+        );
+        if (wa.notification_error) {
+          await supabase
+            .from("dodas")
+            .update({ notification_error: wa.notification_error })
+            .eq("id", dodaId);
+        }
+      } catch (waError) {
+        console.error(
+          "[doda-recheck] reconocimiento whatsapp failed",
+          dodaId,
+          waError,
+        );
+      }
     }
+
+    const { data: refreshed } = await supabase
+      .from("dodas")
+      .select(DODA_RECORD_SELECT)
+      .eq("id", dodaId)
+      .maybeSingle();
 
     return {
       ok: true,
-      doda: updated as DodaRecord,
+      doda: (refreshed ?? updated) as DodaRecord,
       previousStatus,
       resolved,
       lookupStatus: recheck.lookupStatus,

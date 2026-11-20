@@ -139,6 +139,7 @@ export const dodas = pgTable("dodas", {
   isResolved: boolean("is_resolved").notNull().default(false),
   monitoringStoppedReason: text("monitoring_stopped_reason"),
   monitoringStoppedAt: timestamp("monitoring_stopped_at"),
+  lastNotifiedSatStatus: text("last_notified_sat_status"),
   notificationSentAt: timestamp("notification_sent_at"),
   notificationError: text("notification_error"),
   notifyType: text("notify_type"),

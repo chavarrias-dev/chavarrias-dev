@@ -1,4 +1,7 @@
-import { isDodaResolvedSatStatus } from "@/lib/doda-monitoring-constants";
+import {
+  isDodaReconocimientoSatStatus,
+  isDodaResolvedSatStatus,
+} from "@/lib/doda-monitoring-constants";
 
 type DodaSatStatusBadgeProps = {
   status: string | null;
@@ -14,6 +17,16 @@ export function DodaSatStatusBadge({ status }: DodaSatStatusBadgeProps) {
         className={`${BADGE_CLASS} border border-green-200 bg-green-50 text-green-800`}
       >
         Desaduanamiento libre 🟢
+      </span>
+    );
+  }
+
+  if (isDodaReconocimientoSatStatus(status)) {
+    return (
+      <span
+        className={`${BADGE_CLASS} border border-amber-300 bg-amber-50 text-amber-900`}
+      >
+        Reconocimiento aduanero
       </span>
     );
   }

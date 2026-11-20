@@ -8,8 +8,10 @@ import type { DodaLookupStatus, DodaRecord } from "@/lib/doda-types";
 import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { parseSatDetails } from "@/lib/doda-sat-details";
 import {
+  DODA_RESOLVED_SAT_STATUS,
   isDodaResolvedSatStatus,
   MONITORING_STOPPED_REASON,
+  satStatusesEqual,
 } from "@/lib/doda-monitoring-constants";
 import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
@@ -107,7 +109,7 @@ async function notifyIfInstantlyLiberated(
   if (
     !doda.is_resolved ||
     !isDodaResolvedSatStatus(doda.sat_status) ||
-    doda.notification_sent_at
+    satStatusesEqual(doda.last_notified_sat_status, DODA_RESOLVED_SAT_STATUS)
   ) {
     return doda;
   }

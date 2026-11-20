@@ -9,6 +9,12 @@ import {
 import {
   normalizeWhatsAppIndividualRecipient,
 } from "@/lib/doda-notification-config";
+import {
+  canonicalizeDodaSatStatus,
+  DODA_RECONOCIMIENTO_SAT_STATUS,
+  DODA_RESOLVED_SAT_STATUS,
+  satStatusesEqual,
+} from "@/lib/doda-monitoring-constants";
 import { sendEvolutionText } from "@/lib/evolution-whatsapp";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { dodaNotificationHref, DODA_RECORD_SELECT, type DodaRecord } from "@/lib/doda-types";
@@ -27,6 +33,13 @@ export type DodaResolvedNotificationInput = {
 
 export type DodaResolvedNotificationResult = {
   notification_sent_at: string | null;
+  notification_error: string | null;
+  last_notified_sat_status?: string | null;
+};
+
+export type DodaStatusWhatsAppResult = {
+  sent: boolean;
+  last_notified_sat_status: string | null;
   notification_error: string | null;
 };
 
@@ -210,7 +223,37 @@ async function sendResolvedEmail(
   }
 }
 
-function buildDodaLiberatedEvolutionMessage(doda: DodaRecord | null, input: DodaResolvedNotificationInput): string {
+const DATOS_GENERALES_KEY = "Datos Generales Consultados";
+
+/** Fecha/hora y OPER desde sat_details (bloque Datos Generales). */
+export function formatSatDatosGeneralesDetail(
+  satDetailsJson: string | null | undefined,
+): string {
+  if (!satDetailsJson?.trim()) {
+    return "N/A";
+  }
+  try {
+    const parsed = JSON.parse(satDetailsJson) as Record<string, unknown>;
+    const raw = parsed[DATOS_GENERALES_KEY];
+    if (typeof raw === "string" && raw.trim()) {
+      const cleaned = raw
+        .replace(/\*\*\*[^*]+\*\*\*/g, "")
+        .replace(/\s+,/g, ",")
+        .replace(/,\s*$/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      return cleaned || raw.trim();
+    }
+  } catch {
+    // ignore malformed JSON
+  }
+  return "N/A";
+}
+
+function buildDodaLiberatedEvolutionMessage(
+  doda: DodaRecord | null,
+  input: DodaResolvedNotificationInput,
+): string {
   const integracion =
     doda?.numero_integracion?.trim() || input.integrationNumber || "N/A";
   const vehiculo = doda?.datos_vehiculo?.trim() || "N/A";
@@ -223,6 +266,16 @@ function buildDodaLiberatedEvolutionMessage(doda: DodaRecord | null, input: Doda
     `Vehículo: ${vehiculo}`,
     `Pedimento: ${pedimento}`,
     `Estatus SAT: ${satStatus}`,
+  ].join("\n");
+}
+
+function buildDodaReconocimientoEvolutionMessage(doda: DodaRecord): string {
+  return [
+    "⚠️ DODA en RECONOCIMIENTO ADUANERO",
+    `Integración: ${doda.numero_integracion?.trim() || "N/A"}`,
+    `Vehículo: ${doda.datos_vehiculo?.trim() || "N/A"}`,
+    `Pedimento: ${doda.pedimento?.trim() || "N/A"}`,
+    `Detalle SAT: ${formatSatDatosGeneralesDetail(doda.sat_details)}`,
   ].join("\n");
 }
 
@@ -255,6 +308,123 @@ function resolveEvolutionWhatsAppDestination(
   return null;
 }
 
+function notificationDb(supabase: SupabaseClient): SupabaseClient {
+  try {
+    return createSupabaseAdminClient();
+  } catch (adminError) {
+    console.error(
+      "[doda-notify] admin client unavailable, using caller supabase",
+      adminError,
+    );
+    return supabase;
+  }
+}
+
+/**
+ * Sends one Evolution WhatsApp for a canonical SAT status if not yet notified
+ * for that status (`last_notified_sat_status`).
+ */
+async function sendEvolutionForSatStatus(
+  db: SupabaseClient,
+  doda: DodaRecord,
+  status: string,
+  message: string,
+): Promise<DodaStatusWhatsAppResult> {
+  const canonical =
+    canonicalizeDodaSatStatus(status) ?? status.trim();
+  if (!canonical) {
+    return {
+      sent: false,
+      last_notified_sat_status: doda.last_notified_sat_status,
+      notification_error: "Estatus SAT vacío",
+    };
+  }
+
+  if (satStatusesEqual(doda.last_notified_sat_status, canonical)) {
+    return {
+      sent: false,
+      last_notified_sat_status: doda.last_notified_sat_status,
+      notification_error: null,
+    };
+  }
+
+  const destination = resolveEvolutionWhatsAppDestination(doda);
+  if (!destination) {
+    return {
+      sent: false,
+      last_notified_sat_status: doda.last_notified_sat_status,
+      notification_error:
+        "No hay destino WhatsApp (grupo o número) en este DODA.",
+    };
+  }
+
+  // PostgREST: valores con espacios van entre comillas dobles.
+  const quoted = `"${canonical.replace(/"/g, '\\"')}"`;
+  const { data: claimed, error: claimError } = await db
+    .from("dodas")
+    .update({ last_notified_sat_status: canonical })
+    .eq("id", doda.id)
+    .or(
+      `last_notified_sat_status.is.null,last_notified_sat_status.neq.${quoted}`,
+    )
+    .select("id")
+    .maybeSingle();
+
+  if (claimError) {
+    console.error("[doda-notify] status claim failed", doda.id, claimError);
+    return {
+      sent: false,
+      last_notified_sat_status: doda.last_notified_sat_status,
+      notification_error: claimError.message,
+    };
+  }
+
+  if (!claimed) {
+    return {
+      sent: false,
+      last_notified_sat_status: canonical,
+      notification_error: null,
+    };
+  }
+
+  try {
+    await sendEvolutionText(destination.to, message);
+    const patch: Record<string, unknown> = {
+      last_notified_sat_status: canonical,
+      notification_error: null,
+    };
+    if (canonical === DODA_RESOLVED_SAT_STATUS) {
+      patch.notification_sent_at = new Date().toISOString();
+    }
+    await db.from("dodas").update(patch).eq("id", doda.id);
+    return {
+      sent: true,
+      last_notified_sat_status: canonical,
+      notification_error: null,
+    };
+  } catch (error) {
+    const messageText =
+      error instanceof Error ? error.message : "Error al enviar WhatsApp";
+    console.error(
+      "[doda-notify] evolution whatsapp failed",
+      destination.label,
+      error,
+    );
+    await db
+      .from("dodas")
+      .update({
+        last_notified_sat_status: doda.last_notified_sat_status,
+        notification_error: messageText,
+      })
+      .eq("id", doda.id);
+    return {
+      sent: false,
+      last_notified_sat_status: doda.last_notified_sat_status,
+      notification_error: `WhatsApp (${destination.label}): ${messageText}`,
+    };
+  }
+}
+
 /**
  * Sends email + WhatsApp (Evolution) when a monitored DODA is resolved.
  * WhatsApp only when `notify_type` + destination are set on the DODA row.
@@ -267,7 +437,6 @@ export async function sendDodaResolvedExternalNotifications(
   const errors: string[] = [];
   let emailAttempted = false;
   let whatsAppAttempted = false;
-  let whatsAppOk = false;
 
   // Service role para leer/marcar sin RLS; si falta la key, usa el client del caller.
   let db: SupabaseClient = supabase;
@@ -298,80 +467,69 @@ export async function sendDodaResolvedExternalNotifications(
     }
   }
 
-  // Un solo WhatsApp: claim atómico con service role (sin RLS) antes de Evolution.
-  const alreadySentWhatsApp = Boolean(doda?.notification_sent_at);
+  // WhatsApp por estatus: avisa DESADUANAMIENTO LIBRE aunque ya se avisó reconocimiento.
   let notificationSentAt: string | null = doda?.notification_sent_at ?? null;
-  const waDestination =
-    doda && !alreadySentWhatsApp
-      ? resolveEvolutionWhatsAppDestination(doda)
-      : null;
+  let lastNotified: string | null = doda?.last_notified_sat_status ?? null;
+  const hasWaDestination = doda
+    ? Boolean(resolveEvolutionWhatsAppDestination(doda))
+    : false;
 
-  if (doda && waDestination) {
-    const claimAt = new Date().toISOString();
-    const { data: claimed, error: claimError } = await db
-      .from("dodas")
-      .update({ notification_sent_at: claimAt })
-      .eq("id", doda.id)
-      .is("notification_sent_at", null)
-      .select("id")
-      .maybeSingle();
-
-    if (claimError) {
-      console.error("[doda-notify] whatsapp claim failed", doda.id, claimError);
-      errors.push(`WhatsApp: ${claimError.message}`);
-    } else if (claimed) {
-      whatsAppAttempted = true;
-      try {
-        await sendEvolutionText(
-          waDestination.to,
-          buildDodaLiberatedEvolutionMessage(doda, input),
-        );
-        whatsAppOk = true;
-        notificationSentAt = claimAt;
-        await db
-          .from("dodas")
-          .update({ notification_error: null })
-          .eq("id", doda.id);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Error al enviar WhatsApp";
-        errors.push(`WhatsApp (${waDestination.label}): ${message}`);
-        console.error(
-          "[doda-notify] evolution whatsapp failed",
-          waDestination.label,
-          error,
-        );
-        await db
-          .from("dodas")
-          .update({
-            notification_sent_at: null,
-            notification_error: message,
-          })
-          .eq("id", doda.id);
-        notificationSentAt = null;
-      }
-    } else {
-      const { data: latest } = await db
-        .from("dodas")
-        .select("notification_sent_at")
-        .eq("id", doda.id)
-        .maybeSingle();
-      notificationSentAt =
-        (latest as { notification_sent_at?: string | null } | null)
-          ?.notification_sent_at ?? notificationSentAt;
+  if (doda && hasWaDestination) {
+    whatsAppAttempted = true;
+    const wa = await sendEvolutionForSatStatus(
+      db,
+      doda,
+      DODA_RESOLVED_SAT_STATUS,
+      buildDodaLiberatedEvolutionMessage(doda, input),
+    );
+    lastNotified = wa.last_notified_sat_status;
+    if (wa.sent) {
+      notificationSentAt = new Date().toISOString();
+    } else if (wa.notification_error) {
+      errors.push(wa.notification_error);
+    } else if (satStatusesEqual(wa.last_notified_sat_status, DODA_RESOLVED_SAT_STATUS)) {
+      notificationSentAt = notificationSentAt ?? new Date().toISOString();
     }
   }
 
-  if (!emailAttempted && !whatsAppAttempted && !alreadySentWhatsApp && !waDestination) {
+  if (!emailAttempted && !whatsAppAttempted && !hasWaDestination) {
     return {
       notification_sent_at: null,
       notification_error:
         "No hay destinatarios con correo ni número WhatsApp en este DODA.",
+      last_notified_sat_status: lastNotified,
     };
   }
 
   return {
     notification_sent_at: notificationSentAt,
     notification_error: errors.length > 0 ? errors.join(" | ") : null,
+    last_notified_sat_status: lastNotified,
   };
+}
+
+/**
+ * Aviso Evolution cuando el DODA entra en RECONOCIMIENTO ADUANERO.
+ * No marca is_resolved ni apaga is_monitored.
+ */
+export async function sendDodaReconocimientoWhatsAppNotification(
+  supabase: SupabaseClient,
+  dodaId: string,
+): Promise<DodaStatusWhatsAppResult> {
+  const db = notificationDb(supabase);
+  const doda = await loadDodaForNotification(db, dodaId);
+  if (!doda) {
+    return {
+      sent: false,
+      last_notified_sat_status: null,
+      notification_error: "DODA no encontrado",
+    };
+  }
+
+  return sendEvolutionForSatStatus(
+    db,
+    doda,
+    DODA_RECONOCIMIENTO_SAT_STATUS,
+    buildDodaReconocimientoEvolutionMessage(doda),
+  );
 }

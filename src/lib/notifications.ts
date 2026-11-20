@@ -58,6 +58,7 @@ export type MonitoredDodaRow = Pick<
   | "lookup_error"
   | "last_checked_at"
   | "check_count"
+  | "last_notified_sat_status"
 >;
 
 type DodaMonitoringCompleteInput = {
@@ -94,6 +95,45 @@ export async function notifyStaffDodaMonitoringComplete(
   if (error) {
     console.error(
       "[notifications] failed to insert DODA monitoring complete notifications",
+      error,
+    );
+  }
+}
+
+type DodaReconocimientoInput = {
+  dodaId: string;
+  numeroIntegracion: string | null;
+  satDetails?: string | null;
+};
+
+export async function notifyStaffDodaReconocimiento(
+  supabase: SupabaseClient,
+  input: DodaReconocimientoInput,
+): Promise<void> {
+  const { data: staffRows, error: staffError } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("role", ["admin", "empleado"]);
+
+  if (staffError || !staffRows?.length) {
+    console.error("[notifications] failed to load staff profiles", staffError);
+    return;
+  }
+
+  const label = input.numeroIntegracion ?? input.dodaId.slice(0, 8);
+  const message = `⚠️ El DODA ${label} entró en RECONOCIMIENTO ADUANERO. El monitoreo continúa.`;
+  const rows = (staffRows as Array<{ id: string }>).map((profile) => ({
+    user_id: profile.id,
+    type: "doda_reconocimiento_aduanero",
+    related_id: input.dodaId,
+    message,
+    is_read: false,
+  }));
+
+  const { error } = await supabase.from("notifications").insert(rows);
+  if (error) {
+    console.error(
+      "[notifications] failed to insert DODA reconocimiento notifications",
       error,
     );
   }
