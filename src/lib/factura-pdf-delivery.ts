@@ -47,6 +47,10 @@ export function facturaPdfFileName(numeroFactura: string): string {
 const VERIFIED_FACTURA_FROM =
   "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
 
+const FACTURA_EMAIL_REPLY_TO =
+  process.env.FACTURA_EMAIL_REPLY_TO?.trim() ||
+  "facturacionchavarrias@gmail.com";
+
 function facturaFromAddress(): string {
   const configured = process.env.RESEND_FROM_EMAIL?.trim();
   if (!configured) return VERIFIED_FACTURA_FROM;
@@ -122,6 +126,7 @@ export async function sendFacturaEmail(input: {
   const { data, error } = await resend.emails.send({
     from,
     to: input.to,
+    replyTo: FACTURA_EMAIL_REPLY_TO,
     subject: `Factura ${numero} - Chavarrias Servicios Aduanales`,
     html,
     ...(input.pdfBytes && input.pdfFileName

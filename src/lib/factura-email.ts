@@ -15,6 +15,11 @@ const COMPANY_NAME = "Chavarrias Servicios Aduanales";
 const VERIFIED_FACTURA_FROM =
   "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
 
+/** Destino de las respuestas de los clientes a correos de factura. */
+const FACTURA_EMAIL_REPLY_TO =
+  process.env.FACTURA_EMAIL_REPLY_TO?.trim() ||
+  "facturacionchavarrias@gmail.com";
+
 export type SendFacturaInvoiceEmailInput = {
   /** Destinatarios (siempre incluye el correo del cliente). */
   toEmails: string[];
@@ -218,6 +223,7 @@ export async function sendFacturaInvoiceEmail(
   const { error } = await resend.emails.send({
     from: getFacturaEmailFrom(),
     to,
+    replyTo: FACTURA_EMAIL_REPLY_TO,
     subject: buildFacturaEmailSubject(input.numeroFactura),
     text: buildFacturaEmailPlainText(bodyText),
     html: buildFacturaEmailHtml(bodyText, settings.signatureUrl),
