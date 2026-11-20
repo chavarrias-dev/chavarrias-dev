@@ -87,7 +87,7 @@ export function buildDodaLiberatedWhatsAppMessage(input: {
   const fecha = formatChangedAt(input.changedAt);
 
   return [
-    "🟢 *DODA Liberado*",
+    "🟢 *DODA LIBERADO*",
     "",
     `Número: *${input.integrationNumber}*`,
     `📋 Pedimento: ${input.pedimento?.trim() || "N/A"}`,
@@ -261,7 +261,7 @@ function buildDodaLiberatedEvolutionMessage(
   const satStatus = doda?.sat_status?.trim() || input.newStatus || "N/A";
 
   return [
-    "✅ DODA liberado",
+    "🟢 DODA LIBERADO",
     `Integración: ${integracion}`,
     `Vehículo: ${vehiculo}`,
     `Pedimento: ${pedimento}`,
@@ -271,7 +271,7 @@ function buildDodaLiberatedEvolutionMessage(
 
 function buildDodaReconocimientoEvolutionMessage(doda: DodaRecord): string {
   return [
-    "⚠️ DODA en RECONOCIMIENTO ADUANERO",
+    "🔴 DODA en RECONOCIMIENTO ADUANERO",
     `Integración: ${doda.numero_integracion?.trim() || "N/A"}`,
     `Vehículo: ${doda.datos_vehiculo?.trim() || "N/A"}`,
     `Pedimento: ${doda.pedimento?.trim() || "N/A"}`,

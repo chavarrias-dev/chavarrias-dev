@@ -191,7 +191,7 @@ export async function processMonitoredDodasBatch(
           try {
             await sendPushNotification(
               doda.created_by,
-              "🟢 DODA Liberado",
+              "🟢 DODA LIBERADO",
               `El número ${integrationNumber} ha sido desaduanado`,
               "/dashboard/dodas",
               "notif_doda_alert",
@@ -262,7 +262,7 @@ export async function processMonitoredDodasBatch(
           try {
             await sendPushNotification(
               doda.created_by,
-              "⚠️ DODA en Reconocimiento",
+              "🔴 DODA en RECONOCIMIENTO ADUANERO",
               `El número ${integrationNumber} cayó en reconocimiento aduanero`,
               "/dashboard/dodas",
               "notif_doda_alert",
