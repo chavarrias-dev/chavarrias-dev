@@ -9,7 +9,6 @@ import {
   isDodaReconocimientoSatStatus,
   isDodaResolvedSatStatus,
   MONITORING_STOPPED_REASON,
-  satStatusesEqual,
 } from "@/lib/doda-monitoring-constants";
 import { processDodaSatRecheck } from "@/lib/doda-sat-recheck";
 import {
@@ -66,9 +65,12 @@ export async function performDodaRecheck(
     const recheck = await processDodaSatRecheck(doda.qr_validator_url);
     const checkedAt = recheck.lookedUpAt;
     const nextCheckCount = (doda.check_count ?? 0) + 1;
+    const verified = recheck.lookupStatus === "verificado";
     const resolved =
-      recheck.lookupStatus === "verificado" &&
-      isDodaResolvedSatStatus(recheck.satStatus);
+      verified && isDodaResolvedSatStatus(recheck.satStatus);
+    const reconocimiento =
+      verified && isDodaReconocimientoSatStatus(recheck.satStatus);
+    const monitoringDone = resolved || reconocimiento;
 
     const { data: updated, error: updateError } = await supabase
       .from("dodas")
@@ -76,7 +78,7 @@ export async function performDodaRecheck(
         last_checked_at: checkedAt,
         looked_up_at: checkedAt,
         check_count: nextCheckCount,
-        ...(recheck.lookupStatus === "verificado" && recheck.satStatus
+        ...(verified && recheck.satStatus
           ? {
               sat_status: recheck.satStatus,
               sat_details: recheck.satDetails
@@ -98,11 +100,13 @@ export async function performDodaRecheck(
           : {
               lookup_error: recheck.lookupError,
             }),
-        ...(resolved
+        ...(monitoringDone
           ? {
               is_monitored: false,
               is_resolved: true,
-              monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+              monitoring_stopped_reason: resolved
+                ? MONITORING_STOPPED_REASON.liberadoSat
+                : MONITORING_STOPPED_REASON.reconocimientoSat,
               monitoring_stopped_at: checkedAt,
             }
           : {}),
@@ -166,12 +170,7 @@ export async function performDodaRecheck(
       } catch (externalError) {
         console.error("[doda-recheck] external notifications failed", dodaId, externalError);
       }
-    } else if (
-      recheck.lookupStatus === "verificado" &&
-      recheck.satStatus &&
-      isDodaReconocimientoSatStatus(recheck.satStatus) &&
-      !satStatusesEqual(doda.last_notified_sat_status, recheck.satStatus)
-    ) {
+    } else if (reconocimiento && recheck.satStatus) {
       await notifyStaffDodaReconocimiento(supabase, {
         dodaId,
         numeroIntegracion: recheck.numeroIntegracion ?? doda.numero_integracion,
@@ -225,7 +224,7 @@ export async function performDodaRecheck(
       ok: true,
       doda: (refreshed ?? updated) as DodaRecord,
       previousStatus,
-      resolved,
+      resolved: monitoringDone,
       lookupStatus: recheck.lookupStatus,
       lookupError: recheck.lookupError,
     };

@@ -510,7 +510,7 @@ export async function sendDodaResolvedExternalNotifications(
 
 /**
  * Aviso Evolution cuando el DODA entra en RECONOCIMIENTO ADUANERO.
- * No marca is_resolved ni apaga is_monitored.
+ * El caller apaga el monitoreo tras este aviso.
  */
 export async function sendDodaReconocimientoWhatsAppNotification(
   supabase: SupabaseClient,

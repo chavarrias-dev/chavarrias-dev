@@ -9,11 +9,17 @@ import { DODA_RECORD_SELECT } from "@/lib/doda-types";
 import { parseSatDetails } from "@/lib/doda-sat-details";
 import {
   DODA_RESOLVED_SAT_STATUS,
+  isDodaReconocimientoSatStatus,
   isDodaResolvedSatStatus,
   MONITORING_STOPPED_REASON,
   satStatusesEqual,
 } from "@/lib/doda-monitoring-constants";
-import { sendDodaResolvedExternalNotifications } from "@/lib/doda-external-notifications";
+import {
+  sendDodaReconocimientoWhatsAppNotification,
+  sendDodaResolvedExternalNotifications,
+} from "@/lib/doda-external-notifications";
+import { notifyStaffDodaReconocimiento } from "@/lib/notifications";
+import { sendPushNotification } from "@/lib/web-push";
 import { CRM_DOCUMENTS_BUCKET } from "@/lib/supabase-storage";
 
 export { findClientIdByPhone } from "@/lib/phone-match";
@@ -63,24 +69,32 @@ export type RunDodaLookupByNumberInput = {
   isMonitored?: boolean;
 };
 
-/** Flags + optional WhatsApp/email when the first SAT scrape already shows libre. */
-function liberationFieldsFromLookup(lookup: {
+/** Flags when the first SAT scrape already shows a terminal status. */
+function terminalFieldsFromLookup(lookup: {
   lookupStatus: DodaLookupStatus;
   satStatus: string | null;
   lookedUpAt: string;
 }): Record<string, unknown> {
-  const liberated =
-    lookup.lookupStatus === "verificado" &&
-    isDodaResolvedSatStatus(lookup.satStatus);
-  if (!liberated) {
+  if (lookup.lookupStatus !== "verificado") {
     return {};
   }
-  return {
-    is_monitored: false,
-    is_resolved: true,
-    monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
-    monitoring_stopped_at: lookup.lookedUpAt,
-  };
+  if (isDodaResolvedSatStatus(lookup.satStatus)) {
+    return {
+      is_monitored: false,
+      is_resolved: true,
+      monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+      monitoring_stopped_at: lookup.lookedUpAt,
+    };
+  }
+  if (isDodaReconocimientoSatStatus(lookup.satStatus)) {
+    return {
+      is_monitored: false,
+      is_resolved: true,
+      monitoring_stopped_reason: MONITORING_STOPPED_REASON.reconocimientoSat,
+      monitoring_stopped_at: lookup.lookedUpAt,
+    };
+  }
+  return {};
 }
 
 function monitoringFieldsAfterLookup(
@@ -91,9 +105,9 @@ function monitoringFieldsAfterLookup(
     lookedUpAt: string;
   },
 ): Record<string, unknown> {
-  const liberated = liberationFieldsFromLookup(lookup);
-  if (Object.keys(liberated).length > 0) {
-    return liberated;
+  const terminal = terminalFieldsFromLookup(lookup);
+  if (Object.keys(terminal).length > 0) {
+    return terminal;
   }
   if (isMonitored) {
     return { is_monitored: true, is_resolved: false };
@@ -161,6 +175,88 @@ async function notifyIfInstantlyLiberated(
     );
     return doda;
   }
+}
+
+async function notifyIfInstantlyReconocimiento(
+  supabase: SupabaseClient,
+  doda: DodaRecord,
+): Promise<DodaRecord> {
+  if (
+    !doda.is_resolved ||
+    !isDodaReconocimientoSatStatus(doda.sat_status) ||
+    satStatusesEqual(doda.last_notified_sat_status, doda.sat_status)
+  ) {
+    return doda;
+  }
+
+  try {
+    await notifyStaffDodaReconocimiento(supabase, {
+      dodaId: doda.id,
+      numeroIntegracion: doda.numero_integracion,
+    });
+
+    if (doda.created_by) {
+      const integrationNumber =
+        doda.numero_integracion?.trim() || doda.id.slice(0, 8);
+      try {
+        await sendPushNotification(
+          doda.created_by,
+          "🔴 DODA en RECONOCIMIENTO ADUANERO",
+          `El número ${integrationNumber} cayó en reconocimiento aduanero`,
+          "/dashboard/dodas",
+          "notif_doda_alert",
+        );
+      } catch (pushError) {
+        console.error(
+          "[doda-service] instant reconocimiento push failed",
+          doda.id,
+          pushError,
+        );
+      }
+    }
+
+    const wa = await sendDodaReconocimientoWhatsAppNotification(
+      supabase,
+      doda.id,
+    );
+
+    const { data: tracked, error } = await supabase
+      .from("dodas")
+      .select(DODA_RECORD_SELECT)
+      .eq("id", doda.id)
+      .single();
+
+    if (error || !tracked) {
+      return {
+        ...doda,
+        last_notified_sat_status:
+          wa.last_notified_sat_status ?? doda.last_notified_sat_status,
+        notification_error: wa.notification_error,
+      };
+    }
+
+    return tracked as DodaRecord;
+  } catch (error) {
+    console.error(
+      "[doda-service] instant reconocimiento notification failed",
+      doda.id,
+      error,
+    );
+    return doda;
+  }
+}
+
+async function notifyIfTerminalOnCreate(
+  supabase: SupabaseClient,
+  doda: DodaRecord,
+  previousStatus: string | null,
+): Promise<DodaRecord> {
+  const afterLibre = await notifyIfInstantlyLiberated(
+    supabase,
+    doda,
+    previousStatus,
+  );
+  return notifyIfInstantlyReconocimiento(supabase, afterLibre);
 }
 
 function inferExtension(file: File): string {
@@ -323,7 +419,7 @@ export async function runDodaLookupAndSave(
     throw new Error(updateError?.message ?? "Error al guardar el resultado");
   }
 
-  const doda = await notifyIfInstantlyLiberated(
+  const doda = await notifyIfTerminalOnCreate(
     supabase,
     updatedRow as DodaRecord,
     null,
@@ -528,7 +624,7 @@ export async function runDodaLookupByNumberAndSave(
     throw new Error(updateError?.message ?? "Error al guardar el resultado");
   }
 
-  const doda = await notifyIfInstantlyLiberated(
+  const doda = await notifyIfTerminalOnCreate(
     supabase,
     updatedRow as DodaRecord,
     null,

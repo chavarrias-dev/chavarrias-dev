@@ -9,7 +9,6 @@ import type { WhatsappGroupOption } from "@/components/dodas/doda-notify-destina
 import { normalizeDodaTimestamp } from "@/components/dodas/doda-display-utils";
 import { useDodaDashboard } from "@/components/dodas/doda-dashboard-context";
 import { DodaToast, type DodaToastTone } from "@/components/dodas/doda-toast";
-import { formatTimeAgo } from "@/lib/messages";
 import type { DodaRecord } from "@/lib/doda-types";
 import { formatWhatsAppPhoneForDisplay } from "@/lib/whatsapp-phone-input";
 import {
@@ -132,7 +131,7 @@ function formatTimeUntilNextReview(ms: number): string {
 }
 
 /**
- * Cuenta atrás hasta la próxima revisión (~3 min desde last_checked_at).
+ * Cuenta atrás hasta la próxima revisión (~20s desde last_checked_at).
  * Al llegar a 0 dispara onDue (check-now); al actualizar last_checked_at el contador
  * se reinicia, y así hasta que el DODA salga de monitoreo.
  */
@@ -323,11 +322,6 @@ function ClientGroupMobileSection({
             {variant === "monitoring" ? (
               <>
                 <div className="mt-2 space-y-0.5">
-                  <DodaMobileKv label="Última rev.">
-                    {doda.last_checked_at
-                      ? formatTimeAgo(normalizeDodaTimestamp(doda.last_checked_at))
-                      : "—"}
-                  </DodaMobileKv>
                   <DodaMobileKv label="Revisiones">
                     #{doda.check_count ?? 0}
                   </DodaMobileKv>
@@ -555,12 +549,6 @@ function ClientGroupSection({
               {variant === "monitoring" ? (
                 <>
                   <td className="px-4 py-3 text-slate-600">
-                    Última revisión:{" "}
-                    {doda.last_checked_at
-                      ? formatTimeAgo(normalizeDodaTimestamp(doda.last_checked_at))
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
                     Revisión #{doda.check_count ?? 0}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
@@ -766,7 +754,6 @@ function GroupedDodaTable({
     variant === "monitoring"
       ? [
           "Número de integración",
-          "Última consulta",
           "Veces revisado",
           "Vehículo",
           "Notif.",
@@ -1140,7 +1127,7 @@ export function DodaMonitoringTable({
       ) : null}
       <GroupedDodaTable
         title="En monitoreo"
-        description="DODAs en cola de revisión automática, pendientes de desaduanamiento libre."
+        description="DODAs en cola de revisión automática (cada ~20s), pendientes de liberado o reconocimiento."
         groups={monitoringGroups}
         emptyMessage="No hay DODAs en monitoreo activo."
         variant="monitoring"

@@ -220,14 +220,7 @@ export default async function FacturasListPage({ searchParams }: PageProps) {
   const colSpan = isStaff ? 7 : 6;
 
   return (
-    <main className={`${DASHBOARD_PAGE_MAIN_CLASS} !pt-0`}>
-      <div
-        className="factura-testing-banner font-poppins sticky top-0 z-20 -mx-4 mb-5 sm:-mx-6 lg:-mx-10"
-        role="status"
-      >
-        ⚠️ Módulo en modo de pruebas — El envío de emails puede no funcionar
-        correctamente
-      </div>
+    <main className={DASHBOARD_PAGE_MAIN_CLASS}>
       <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className={DASHBOARD_PAGE_TITLE_CLASS}>Facturas</h1>

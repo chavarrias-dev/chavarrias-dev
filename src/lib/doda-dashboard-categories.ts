@@ -1,4 +1,4 @@
-import { isDodaResolvedSatStatus } from "@/lib/doda-monitoring-constants";
+import { isDodaTerminalSatStatus } from "@/lib/doda-monitoring-constants";
 import type { DodaRecord } from "@/lib/doda-types";
 
 export type DodaDashboardRow = DodaRecord & {
@@ -27,8 +27,8 @@ export function isDodaMonitoringError(doda: DodaDashboardRow): boolean {
 }
 
 export function isDodaConfirmed(doda: DodaDashboardRow): boolean {
-  // Solo Desaduanamiento libre — evita meter otros estatus con is_resolved=true.
-  return isDodaResolvedSatStatus(doda.sat_status);
+  // Liberado o reconocimiento — ambos salen del monitoreo.
+  return isDodaTerminalSatStatus(doda.sat_status);
 }
 
 export function isDodaActiveMonitoring(doda: DodaDashboardRow): boolean {

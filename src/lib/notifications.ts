@@ -121,7 +121,7 @@ export async function notifyStaffDodaReconocimiento(
   }
 
   const label = input.numeroIntegracion ?? input.dodaId.slice(0, 8);
-  const message = `🔴 El DODA ${label} entró en RECONOCIMIENTO ADUANERO. El monitoreo continúa.`;
+  const message = `🔴 El DODA ${label} entró en RECONOCIMIENTO ADUANERO. Monitoreo finalizado.`;
   const rows = (staffRows as Array<{ id: string }>).map((profile) => ({
     user_id: profile.id,
     type: "doda_reconocimiento_aduanero",

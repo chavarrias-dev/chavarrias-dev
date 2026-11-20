@@ -1,7 +1,7 @@
 /**
  * Automated DODA monitoring cron (external scheduler, Vercel free tier ~10s limit).
  *
- * Set up a free cron job at https://cron-job.org to call this URL every 3 minutes:
+ * Set up a free cron job at https://cron-job.org to call this URL every 20 seconds:
  *   https://yourdomain.vercel.app/api/doda/cron
  *
  * Request:

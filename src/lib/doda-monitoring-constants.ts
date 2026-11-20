@@ -1,21 +1,22 @@
-/** SAT status that ends automated monitoring. */
+/** SAT status that ends automated monitoring (liberado). */
 export const DODA_RESOLVED_SAT_STATUS = "DESADUANAMIENTO LIBRE";
 
-/** SAT status that triggers a mid-monitoring alert (keeps monitoring active). */
+/** SAT status that ends monitoring after notifying (reconocimiento). */
 export const DODA_RECONOCIMIENTO_SAT_STATUS = "RECONOCIMIENTO ADUANERO";
 
 export const MAX_DODAS_PER_CRON_RUN = 5;
 
 export const MONITORING_STOPPED_REASON = {
   liberadoSat: "liberado_sat",
+  reconocimientoSat: "reconocimiento_sat",
   canceladoManual: "cancelado_manual",
 } as const;
 
 export type MonitoringStoppedReason =
   (typeof MONITORING_STOPPED_REASON)[keyof typeof MONITORING_STOPPED_REASON];
 
-/** Aligned with docs for external cron hitting /api/doda/cron or /api/cron/check-dodas (~every 3 min). */
-export const DODA_CRON_INTERVAL_MS = 3 * 60 * 1000;
+/** Client auto-check + cron alignment (~every 20s). */
+export const DODA_CRON_INTERVAL_MS = 20 * 1000;
 
 /** Lowercase + strip accents for SAT status matching. */
 export function foldSatStatusText(value: string): string {
@@ -44,6 +45,15 @@ export function isDodaReconocimientoSatStatus(
   }
   return foldSatStatusText(status).includes(
     foldSatStatusText(DODA_RECONOCIMIENTO_SAT_STATUS),
+  );
+}
+
+/** True when SAT status should leave the monitoring queue. */
+export function isDodaTerminalSatStatus(
+  status: string | null | undefined,
+): boolean {
+  return (
+    isDodaResolvedSatStatus(status) || isDodaReconocimientoSatStatus(status)
   );
 }
 

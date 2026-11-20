@@ -114,15 +114,18 @@ export async function processMonitoredDodasBatch(
       const recheck = await processDodaSatRecheck(validatorUrl);
       const checkedAt = recheck.lookedUpAt;
       const newStatus = recheck.satStatus;
+      const verified = recheck.lookupStatus === "verificado";
       const resolved =
-        recheck.lookupStatus === "verificado" &&
-        isDodaResolvedSatStatus(newStatus);
+        verified && isDodaResolvedSatStatus(newStatus);
+      const reconocimiento =
+        verified && isDodaReconocimientoSatStatus(newStatus);
+      const monitoringDone = resolved || reconocimiento;
 
       const baseUpdate = {
         last_checked_at: checkedAt,
         looked_up_at: checkedAt,
         check_count: nextCheckCount,
-        ...(recheck.lookupStatus === "verificado" && newStatus
+        ...(verified && newStatus
           ? {
               sat_status: newStatus,
               sat_details: recheck.satDetails
@@ -144,11 +147,13 @@ export async function processMonitoredDodasBatch(
           : {
               lookup_error: recheck.lookupError,
             }),
-        ...(resolved
+        ...(monitoringDone
           ? {
               is_monitored: false,
               is_resolved: true,
-              monitoring_stopped_reason: MONITORING_STOPPED_REASON.liberadoSat,
+              monitoring_stopped_reason: resolved
+                ? MONITORING_STOPPED_REASON.liberadoSat
+                : MONITORING_STOPPED_REASON.reconocimientoSat,
               monitoring_stopped_at: checkedAt,
             }
           : {}),
@@ -246,12 +251,7 @@ export async function processMonitoredDodasBatch(
             notificationTrackError,
           );
         }
-      } else if (
-        recheck.lookupStatus === "verificado" &&
-        newStatus &&
-        isDodaReconocimientoSatStatus(newStatus) &&
-        !satStatusesEqual(doda.last_notified_sat_status, newStatus)
-      ) {
+      } else if (reconocimiento) {
         await notifyStaffDodaReconocimiento(supabase, {
           dodaId: doda.id,
           numeroIntegracion:
@@ -295,7 +295,7 @@ export async function processMonitoredDodasBatch(
           );
         }
       } else if (
-        recheck.lookupStatus === "verificado" &&
+        verified &&
         newStatus &&
         !satStatusesEqual(previousStatus, newStatus)
       ) {
@@ -315,7 +315,7 @@ export async function processMonitoredDodasBatch(
         new_status: newStatus,
         lookup_status: recheck.lookupStatus,
         check_count: nextCheckCount,
-        completed: resolved,
+        completed: monitoringDone,
         ...(recheck.lookupError ? { error: recheck.lookupError } : {}),
       });
     } catch (cronError) {
