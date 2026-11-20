@@ -44,8 +44,9 @@ export function facturaPdfFileName(numeroFactura: string): string {
   return base.toLowerCase().endsWith(".pdf") ? base : `${base}.pdf`;
 }
 
+/** From debe ser @chavarrias.com.mx (dominio verificado en Resend). No puede ser Gmail. */
 const VERIFIED_FACTURA_FROM =
-  "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
+  "Chavarrias Servicios Aduanales <facturacion@chavarrias.com.mx>";
 
 const FACTURA_EMAIL_REPLY_TO =
   process.env.FACTURA_EMAIL_REPLY_TO?.trim() ||

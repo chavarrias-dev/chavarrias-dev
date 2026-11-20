@@ -12,10 +12,11 @@ import {
 
 const COMPANY_NAME = "Chavarrias Servicios Aduanales";
 
+/** From debe ser @chavarrias.com.mx (dominio verificado en Resend). No puede ser Gmail. */
 const VERIFIED_FACTURA_FROM =
-  "Chavarrias Servicios Aduanales <no-reply@chavarrias.com.mx>";
+  "Chavarrias Servicios Aduanales <facturacion@chavarrias.com.mx>";
 
-/** Destino de las respuestas de los clientes a correos de factura. */
+/** Destino real de las respuestas (Gmail). */
 const FACTURA_EMAIL_REPLY_TO =
   process.env.FACTURA_EMAIL_REPLY_TO?.trim() ||
   "facturacionchavarrias@gmail.com";
